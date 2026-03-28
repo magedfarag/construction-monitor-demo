@@ -28,6 +28,7 @@ from backend.app.providers.demo import (
     _polygon_area_km2,
 )
 from backend.app.providers.registry import ProviderRegistry
+from backend.app.resilience.circuit_breaker import CircuitBreaker
 from backend.app.services.job_manager import JobManager
 from backend.app.services.scene_selection import rank_scenes, select_scene_pair
 
@@ -72,11 +73,13 @@ class AnalysisService:
         cache: CacheClient,
         settings: AppSettings,
         job_manager: Optional[JobManager] = None,
+        breaker: Optional[CircuitBreaker] = None,
     ) -> None:
         self._registry    = registry
         self._cache       = cache
         self._settings    = settings
         self._job_manager = job_manager
+        self._breaker     = breaker
         self._demo        = DemoProvider()
 
     def run_sync(self, request: AnalyzeRequest) -> AnalyzeResponse:
@@ -213,15 +216,29 @@ class AnalysisService:
         from backend.app.services.change_detection import run_change_detection
 
         warnings: List[str] = []
+        pname = provider.provider_name
 
-        # Search scenes
-        scenes = provider.search_imagery(
-            geometry=request.geometry.model_dump(),
-            start_date=request.start_date.isoformat(),
-            end_date=request.end_date.isoformat(),
-            cloud_threshold=request.cloud_threshold,
-            max_results=10,
-        )
+        # Circuit breaker check
+        if self._breaker and self._breaker.is_open(pname):
+            raise ProviderUnavailableError(
+                f"Circuit breaker OPEN for {pname} — too many recent failures."
+            )
+
+        # Search scenes — record circuit breaker outcome
+        try:
+            scenes = provider.search_imagery(
+                geometry=request.geometry.model_dump(),
+                start_date=request.start_date.isoformat(),
+                end_date=request.end_date.isoformat(),
+                cloud_threshold=request.cloud_threshold,
+                max_results=10,
+            )
+            if self._breaker:
+                self._breaker.record_success(pname)
+        except Exception as exc:
+            if self._breaker:
+                self._breaker.record_failure(pname)
+            raise ProviderUnavailableError(f"Provider search failed: {exc}") from exc
 
         if not scenes:
             warnings.append(

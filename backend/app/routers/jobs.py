@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings
+from backend.app.dependencies import get_app_settings, verify_api_key
 from backend.app.models.responses import AnalyzeResponse, JobStatusResponse
 
 router = APIRouter(prefix="/api", tags=["jobs"])
@@ -66,6 +66,7 @@ def get_job_status(
 def cancel_job(
     job_id: str,
     settings: Annotated[AppSettings, Depends(get_app_settings)],
+    _: Annotated[str, Depends(verify_api_key)],  # Required API key authentication
 ) -> dict:
     if not settings.effective_celery_broker():
         raise HTTPException(status_code=503, detail="Celery not configured")

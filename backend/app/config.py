@@ -45,6 +45,20 @@ class AppSettings(BaseSettings):
         ),
     )
 
+    # ── CORS / Security ──────────────────────────────────────────────────────
+    allowed_origins: str = Field(
+        default="http://localhost:3000,http://localhost:8000,http://127.0.0.1:8000",
+        description="Comma-separated list of allowed CORS origins. Defaults to localhost for development.",
+    )
+    api_key: str = Field(
+        default="",
+        description=(
+            "API key for authentication (Bearer token, ?api_key query, or api_key cookie). "
+            "If empty, authentication is disabled (insecure dev mode). "
+            "For production, set to a strong random value (e.g., openssl rand -hex 32)."
+        ),
+    )
+
     # ── Logging ──────────────────────────────────────────────────────────────
     log_level: str = Field(default="INFO")
     log_format: Literal["json", "text"] = Field(default="json")
@@ -119,6 +133,10 @@ class AppSettings(BaseSettings):
         return v.upper()
 
     # ── Convenience helpers ───────────────────────────────────────────────────
+
+    def get_cors_origins(self) -> list[str]:
+        """Parse allowed_origins string into a list of URLs."""
+        return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
 
     def redis_available(self) -> bool:
         """Return True when a Redis URL has been configured."""

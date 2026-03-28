@@ -59,7 +59,17 @@ app = FastAPI(
     description="Detects construction activity in satellite imagery.",
     lifespan=lifespan,
 )
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# CORS Configuration: Restrict to configured origins; deny by default.
+# Settings are lazily constructed at lifespan; we read them here for middleware.
+settings = get_settings()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.get_cors_origins(),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "DELETE"],  # Only necessary methods
+    allow_headers=["Content-Type", "Authorization"],  # Explicit header whitelist
+)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", include_in_schema=False)

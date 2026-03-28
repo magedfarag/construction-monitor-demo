@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.app.dependencies import get_registry
+from backend.app.dependencies import get_registry, verify_api_key
 from backend.app.models.requests import SearchRequest
 from backend.app.models.responses import SceneSearchResult, SearchResponse
 from backend.app.providers.registry import ProviderRegistry
@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api", tags=["search"])
 def search_imagery(
     request: SearchRequest,
     registry: Annotated[ProviderRegistry, Depends(get_registry)],
+    _: Annotated[str, Depends(verify_api_key)],  # Required API key authentication
 ) -> SearchResponse:
     provider = registry.select_provider(request.provider)
     warnings = []

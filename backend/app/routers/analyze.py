@@ -8,12 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from backend.app.cache.client import CacheClient
 from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings, get_cache, get_registry
+from backend.app.dependencies import get_app_settings, get_cache, get_circuit_breaker, get_registry, verify_api_key
 from backend.app.models.requests import AnalyzeRequest
 from backend.app.models.responses import AnalyzeResponse, JobStatusResponse
 from backend.app.providers.base import ProviderUnavailableError
 from backend.app.providers.demo import MAX_AREA_KM2, MIN_AREA_KM2, _polygon_area_km2
 from backend.app.providers.registry import ProviderRegistry
+from backend.app.resilience.circuit_breaker import CircuitBreaker
 from backend.app.services.analysis import AnalysisService
 from backend.app.services.job_manager import JobManager
 
@@ -24,12 +25,13 @@ def _get_analysis_service(
     settings: AppSettings,
     registry: ProviderRegistry,
     cache: CacheClient,
+    breaker: CircuitBreaker,
 ) -> AnalysisService:
     """Construct AnalysisService with optional JobManager."""
     jm: Union[JobManager, None] = None
     if settings.redis_available():
         jm = JobManager(redis_url=settings.redis_url)
-    return AnalysisService(registry=registry, cache=cache, settings=settings, job_manager=jm)
+    return AnalysisService(registry=registry, cache=cache, settings=settings, job_manager=jm, breaker=breaker)
 
 
 def _validate_area(request: AnalyzeRequest) -> float:
@@ -69,12 +71,13 @@ def analyze(
     settings: Annotated[AppSettings,      Depends(get_app_settings)],
     registry: Annotated[ProviderRegistry, Depends(get_registry)],
     cache:    Annotated[CacheClient,      Depends(get_cache)],
+    breaker:  Annotated[CircuitBreaker,   Depends(get_circuit_breaker)],
+    _: Annotated[str, Depends(verify_api_key)],  # Required API key authentication
 ) -> Union[AnalyzeResponse, JobStatusResponse]:
     area = _validate_area(request)
-    # Auto-upgrade small AOIs to async when explicitly requested or over threshold
     use_async = request.async_execution or area > settings.async_area_threshold_km2
 
-    svc = _get_analysis_service(settings, registry, cache)
+    svc = _get_analysis_service(settings, registry, cache, breaker)
 
     try:
         if use_async and settings.effective_celery_broker():
