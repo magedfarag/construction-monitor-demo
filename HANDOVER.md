@@ -212,6 +212,115 @@ requested provider
 
 ---
 
+## 6.1 Batch 1A — Completed ✅
+
+**P1-5 (CORS Hardening)** and **P1-6 (API Key Authentication)** have been successfully implemented and committed.
+
+- Commit: `7e0af65` — Merged to main on 2026-03-28
+- Changes: 7 files modified; 74 insertions
+- Validation: ✅ Config loads; ✅ Auth imports; ✅ FastAPI starts
+
+### Implementation Details
+
+**P1-5**: CORS changed from `allow_origins=["*"]` to configurable `ALLOWED_ORIGINS` env var
+- Default: `http://localhost:3000,http://localhost:8000,http://127.0.0.1:8000`
+- Methods: `GET, POST, DELETE` only
+- Headers: `Content-Type, Authorization` only
+
+**P1-6**: API Key authentication on mutation endpoints (3 methods: Bearer header, query param, cookie)
+- Applied to: `POST /analyze`, `POST /search`, `DELETE /jobs/{id}/cancel`
+- Security: Optional for dev (`API_KEY=`), required for production
+- Env var: `API_KEY` (set strong value or leave empty for dev)
+
+---
+
+## 6.2 Batch 1B — Ready for Execution
+
+The following 4 tasks unblock production deployment. Each is independent or has clear dependencies:
+
+| Task | Time | Dependency | Status |
+|------|------|-----------|--------|
+| **P1-2** | Provision Redis | 20 min | None | ⏳ Ready |
+| **P1-1** | Sentinel-2 credentials | 5-10 min | None | ⏳ Ready |
+| **P1-3** | Validate rasterio | 45 min | After P1-2 | ⏳ Ready |
+| **P1-4** | APP_MODE=live | 5 min | After P1-1,3 | ⏳ Ready |
+
+### P1-2: Redis Provisioning
+
+**Docker Compose (recommended)**:
+```bash
+docker compose up -d  # Starts redis, api, worker
+docker compose ps     # Verify all services running
+```
+
+**Alternative**: Redis Cloud (https://redis.com/redis-cloud) for managed service
+
+**Verify**:
+```python
+import redis
+r = redis.Redis.from_url("redis://localhost:6379/0")
+print(r.ping())  # Should print: True
+```
+
+### P1-1: Sentinel-2 Credentials
+
+**Steps**:
+1. Register at https://dataspace.copernicus.eu (free)
+2. Create OAuth2 client (client_credentials grant)
+3. Copy Client ID + Secret → .env
+
+**Verify**:
+```env
+SENTINEL2_CLIENT_ID=<your-id>
+SENTINEL2_CLIENT_SECRET=<your-secret>
+```
+
+### P1-3: Rasterio Validation
+
+**After P1-2**, test:
+```python
+import rasterio; from osgeo import gdal
+print(f"Rasterio: {rasterio.__version__}")
+
+from backend.app.services.change_detection import detect_construction_changes
+# Test with real COG asset
+```
+
+### P1-4: Go Live
+
+Once all P1-1,2,3 complete, update .env:
+```env
+APP_MODE=live
+SENTINEL2_CLIENT_ID=...
+SENTINEL2_CLIENT_SECRET=...
+REDIS_URL=redis://localhost:6379/0
+```
+
+---
+
+## 6.3 Batch 2 — Quality & Testing (Next Priority)
+
+After P1, focus on test coverage and CI:
+
+| Task | Priority | Time | Status |
+|------|----------|------|--------|
+| **P2-1** | pytest-cov + 80% | High | ⏳ Ready |
+| **P2-2** | Circuit breaker tests | High | ⏳ Ready |
+| **P2-4** | GitHub Actions CI | High | ⏳ Ready |
+| **P2-3** | Async job tests | Medium | ⏳ Ready |
+| **P2-5** | Rate limiting | Medium | ⏳ Ready |
+
+### P2-1: pytest-cov Setup
+
+**Add to CI**:
+```bash
+python -m pytest tests/ --cov=backend/app --cov-fail-under=80
+```
+
+**Current test status**: 38/38 passing (verified in HANDOVER Phase 3)
+
+---
+
 ## 6. Pending Tasks
 
 ### P1 — Critical (blocks production use)
