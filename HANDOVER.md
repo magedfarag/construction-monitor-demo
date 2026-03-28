@@ -216,37 +216,37 @@ requested provider
 
 ### P1 — Critical (blocks production use)
 
-| ID | Task | Notes |
-|---|---|---|
-| P1-1 | Obtain Sentinel-2 credentials | Register at https://dataspace.copernicus.eu; set `SENTINEL2_CLIENT_ID` + `SENTINEL2_CLIENT_SECRET` |
-| P1-2 | Provision Redis | `docker compose up redis` locally; managed Redis (e.g. Redis Cloud) for production |
-| P1-3 | Validate rasterio on target host | Dockerfile installs `libgdal32`; confirm GDAL version matches the distribution's apt repo |
-| P1-4 | Set `APP_MODE=live` in production `.env` | Surfaces errors when no live provider resolves instead of silently returning demo data |
-| P1-5 | Restrict CORS `allow_origins` | Change `allow_origins=["*"]` in `main.py` to the specific frontend domain |
-| P1-6 | Add authentication / API key middleware | No auth currently on any endpoint — must be secured before exposing to the internet |
+| ID | Task | Status | Notes |
+|---|---|---|---|
+| P1-1 | Obtain Sentinel-2 credentials | ⏳ TODO | Register at https://dataspace.copernicus.eu; set `SENTINEL2_CLIENT_ID` + `SENTINEL2_CLIENT_SECRET` |
+| P1-2 | Provision Redis | ⏳ TODO | `docker compose up redis` locally; managed Redis (e.g. Redis Cloud) for production |
+| P1-3 | Validate rasterio on target host | ⏳ TODO | Dockerfile installs `libgdal32`; confirm GDAL version matches the distribution's apt repo |
+| P1-4 | Set `APP_MODE=live` in production `.env` | ⏳ TODO | Surfaces errors when no live provider resolves instead of silently returning demo data |
+| P1-5 | Restrict CORS `allow_origins` | ✅ DONE (2026-03-28) | Changed from `["*"]` to configurable `ALLOWED_ORIGINS` env var; defaults to localhost |
+| P1-6 | Add authentication / API key middleware | ✅ DONE (2026-03-28) | Three auth methods: Bearer header, ?api_key query, api_key cookie; applied to POST/DELETE endpoints |
 
 ### P2 — Important
 
-| ID | Task | Notes |
-|---|---|---|
-| P2-1 | Add pytest-cov and 80 % threshold to CI | `pytest --cov=backend/app --cov-fail-under=80` |
-| P2-2 | Test circuit breaker state transitions | Unit test: CLOSED→OPEN after N failures; OPEN→HALF-OPEN after timeout |
-| P2-3 | Test async job dispatch + poll cycle | Integration test: `async_execution=True` → `job_id` → poll until `completed` |
-| P2-4 | GitHub Actions CI workflow | `.github/workflows/ci.yml` — pytest + ruff + Docker build on every push |
-| P2-5 | Rate-limit `/api/analyze` | Add `slowapi` or CDN-level rate limiting |
+| ID | Task | Status | Notes |
+|---|---|---|---|
+| P2-1 | Add pytest-cov and 80 % threshold to CI | ⏳ TODO | `pytest --cov=backend/app --cov-fail-under=80` |
+| P2-2 | Test circuit breaker state transitions | ⏳ TODO | Unit test: CLOSED→OPEN after N failures; OPEN→HALF-OPEN after timeout |
+| P2-3 | Test async job dispatch + poll cycle | ⏳ TODO | Integration test: `async_execution=True` → `job_id` → poll until `completed` |
+| P2-4 | GitHub Actions CI workflow | ⏳ TODO | `.github/workflows/ci.yml` — pytest + ruff + Docker build on every push |
+| P2-5 | Rate-limit `/api/analyze` | ⏳ TODO | Add `slowapi` or CDN-level rate limiting |
 
 ### P3 — Nice to have
 
-| ID | Task | Notes |
-|---|---|---|
-| P3-1 | Commercial provider stub | `MaxarProvider` or `PlanetProvider` extending `SatelliteProvider` |
-| P3-2 | WebSocket live progress | Replace 3 s polling with `ws://…/api/jobs/{id}/stream` |
-| P3-3 | Persist job history to PostgreSQL | Replace in-memory `JobManager` fallback with SQLAlchemy + pg |
-| P3-4 | Multi-worker circuit breaker | Move `CircuitBreaker` state from process memory to Redis |
-| P3-5 | Actual satellite thumbnails | Generate real scene thumbnails instead of static demo PNGs |
-| P3-6 | `add_rate_limit` middleware | Protect all mutation endpoints |
-| P3-7 | Refresh `docs/API.md` | Still references `demo-fusion` provider name from original demo |
-| P3-8 | Refresh `docs/ARCHITECTURE.md` | Still describes demo-only architecture |
+| ID | Task | Status | Notes |
+|---|---|---|---|
+| P3-1 | Commercial provider stub | ⏳ TODO | `MaxarProvider` or `PlanetProvider` extending `SatelliteProvider` |
+| P3-2 | WebSocket live progress | ⏳ TODO | Replace 3 s polling with `ws://…/api/jobs/{id}/stream` |
+| P3-3 | Persist job history to PostgreSQL | ⏳ TODO | Replace in-memory `JobManager` fallback with SQLAlchemy + pg |
+| P3-4 | Multi-worker circuit breaker | ⏳ TODO | Move `CircuitBreaker` state from process memory to Redis |
+| P3-5 | Actual satellite thumbnails | ⏳ TODO | Generate real scene thumbnails instead of static demo PNGs |
+| P3-6 | `add_rate_limit` middleware | ⏳ TODO | Protect all mutation endpoints |
+| P3-7 | Refresh `docs/API.md` | ⏳ TODO | Still references `demo-fusion` provider name from original demo |
+| P3-8 | Refresh `docs/ARCHITECTURE.md` | ⏳ TODO | Still describes demo-only architecture |
 
 ---
 
