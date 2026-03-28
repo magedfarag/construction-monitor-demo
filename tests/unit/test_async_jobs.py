@@ -3,14 +3,11 @@ from __future__ import annotations
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from fastapi.testclient import TestClient
 from datetime import datetime
 
 from backend.app.models.requests import AnalyzeRequest
-from backend.app.models.responses import JobStatusResponse, AnalyzeResponse, ChangeRecord
+from backend.app.models.responses import JobStatusResponse, AnalyzeResponse
 from backend.app.models.jobs import Job, JobState
-from backend.app.services.job_manager import JobManager
-from backend.app.config import AppSettings
 
 
 POLYGON = {
@@ -29,6 +26,12 @@ def valid_analyze_request():
         provider="demo",
         async_execution=True,
     )
+
+
+@pytest.fixture
+def valid_analyze_request_dict(valid_analyze_request):
+    """Serialized AnalyzeRequest for Job initialization."""
+    return valid_analyze_request.model_dump()
 
 
 @pytest.fixture
@@ -82,50 +85,40 @@ def test_job_status_response_structure():
     assert response.error is None
 
 
-def test_job_manager_create_job(valid_analyze_request):
-    """Test JobManager can create a new job."""
-    with patch("redis.from_url"):
-        manager = JobManager(redis_url="redis://localhost:6379")
-        with patch.object(manager, "redis") as mock_redis:
-            # Mock Redis get/set operations
-            mock_redis.get.return_value = None
-            mock_redis.set.return_value = True
-
-            job = Job(
-                job_id="job-test-123",
-                request=valid_analyze_request,
-                state=JobState.PENDING,
-            )
-            # Simulate job creation
-            assert job.job_id == "job-test-123"
-            assert job.state == JobState.PENDING
+def test_job_create_with_request_data(valid_analyze_request_dict):
+    """Test Job can be created with request_data."""
+    job = Job(
+        job_id="job-test-123",
+        request_data=valid_analyze_request_dict,
+    )
+    assert job.job_id == "job-test-123"
+    assert job.state == JobState.PENDING
+    assert job.request_data is not None
+    assert job.request_data["async_execution"] is True
 
 
-def test_job_manager_retrieve_job(valid_analyze_request):
-    """Test JobManager can retrieve a job by ID."""
-    with patch("redis.from_url"):
-        manager = JobManager(redis_url="redis://localhost:6379")
-        with patch.object(manager, "redis") as mock_redis:
-            job = Job(
-                job_id="job-retrieve-123",
-                request=valid_analyze_request,
-                state=JobState.PENDING,
-            )
-            # Simulate retrieval
-            assert job.job_id == "job-retrieve-123"
+def test_job_create_minimal():
+    """Test Job minimal creation."""
+    request_data = {
+        "geometry": {"type": "Polygon", "coordinates": POLYGON["coordinates"]},
+        "start_date": "2026-03-01",
+        "end_date": "2026-03-28",
+    }
+    job = Job(
+        job_id="job-minimal",
+        request_data=request_data,
+    )
+    assert job.job_id == "job-minimal"
+    assert job.state == JobState.PENDING
+    assert job.result is None
+    assert job.error is None
 
 
-def test_job_status_transitions():
+def test_job_status_transitions(valid_analyze_request_dict):
     """Test valid job state transitions."""
-    # PENDING → SUCCESS
     job = Job(
         job_id="job-123",
-        request=AnalyzeRequest(
-            geometry={"type": "Polygon", "coordinates": POLYGON["coordinates"]},
-            start_date="2026-03-01",
-            end_date="2026-03-28",
-        ),
-        state=JobState.PENDING,
+        request_data=valid_analyze_request_dict,
     )
     assert job.state == JobState.PENDING
 
@@ -134,20 +127,72 @@ def test_job_status_transitions():
     assert job.state == JobState.COMPLETED
 
 
-def test_job_status_failure_state():
+def test_job_status_failure_state(valid_analyze_request_dict):
     """Test job can transition to FAILED state."""
     job = Job(
         job_id="job-fail-123",
-        request=AnalyzeRequest(
-            geometry={"type": "Polygon", "coordinates": POLYGON["coordinates"]},
-            start_date="2026-03-01",
-            end_date="2026-03-28",
-        ),
-        state=JobState.PENDING,
+        request_data=valid_analyze_request_dict,
     )
-    # Simulate failure
     job.state = JobState.FAILED
     assert job.state == JobState.FAILED
+
+
+def test_job_status_cancelled_state(valid_analyze_request_dict):
+    """Test job can transition to CANCELLED state."""
+    job = Job(
+        job_id="job-cancel-123",
+        request_data=valid_analyze_request_dict,
+    )
+    job.state = JobState.CANCELLED
+    assert job.state == JobState.CANCELLED
+
+
+def test_job_to_dict(valid_analyze_request_dict):
+    """Test Job.to_dict() serialization."""
+    job = Job(
+        job_id="job-dict-123",
+        request_data=valid_analyze_request_dict,
+    )
+    job_dict = job.to_dict()
+    
+    assert job_dict["job_id"] == "job-dict-123"
+    assert job_dict["state"] == "pending"
+    assert job_dict["result"] is None
+    assert job_dict["error"] is None
+    assert "created_at" in job_dict
+    assert "updated_at" in job_dict
+
+
+def test_job_to_dict_with_result(valid_analyze_request_dict, analyze_response):
+    """Test Job.to_dict() with completed result."""
+    job = Job(
+        job_id="job-result-123",
+        request_data=valid_analyze_request_dict,
+    )
+    job.state = JobState.COMPLETED
+    job.result = analyze_response.model_dump()
+    
+    job_dict = job.to_dict()
+    
+    assert job_dict["state"] == "completed"
+    assert job_dict["result"] is not None
+    assert job_dict["result"]["analysis_id"] == "test-analysis-123"
+
+
+def test_job_to_dict_with_error(valid_analyze_request_dict):
+    """Test Job.to_dict() with error."""
+    job = Job(
+        job_id="job-error-123",
+        request_data=valid_analyze_request_dict,
+    )
+    job.state = JobState.FAILED
+    job.error = "Analysis timeout: no scenes found"
+    
+    job_dict = job.to_dict()
+    
+    assert job_dict["state"] == "failed"
+    assert job_dict["result"] is None
+    assert "timeout" in job_dict["error"]
 
 
 def test_celery_result_mock():
@@ -238,19 +283,6 @@ def test_job_request_serializable():
     assert reconstructed.async_execution is True
 
 
-def test_job_manager_redis_unavailable_fallback():
-    """Test that JobManager handles Redis unavailable gracefully."""
-    with patch("redis.from_url", side_effect=ConnectionError("Redis unavailable")):
-        # JobManager should handle missing Redis
-        try:
-            manager = JobManager(redis_url="redis://invalid:1234")
-            # If we get here, init handled the error gracefully
-            assert manager is not None or manager is None  # Either succeed or fail gracefully
-        except ConnectionError:
-            # Expected: Redis actually unavailable
-            pass
-
-
 def test_job_dispatch_async_flag_triggers_celery():
     """Test that async_execution flag triggers Celery job dispatch."""
     request_sync = AnalyzeRequest(
@@ -307,6 +339,18 @@ def test_job_status_field_mappings():
             assert api_state == "cancelled"
         elif celery_state == "PENDING":
             assert api_state == "pending"
+
+
+def test_job_timestamps_recorded(valid_analyze_request_dict):
+    """Test that Job records creation and update timestamps."""
+    job = Job(
+        job_id="job-time-123",
+        request_data=valid_analyze_request_dict,
+    )
+    assert job.created_at is not None
+    assert job.updated_at is not None
+    assert isinstance(job.created_at, datetime)
+    assert isinstance(job.updated_at, datetime)
 
 
 if __name__ == "__main__":
