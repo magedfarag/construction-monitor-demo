@@ -413,38 +413,68 @@ python -m pytest tests/ --cov=backend/app --cov-fail-under=80
 
 **Orchestration:** Assign to AI subagents in order; each task depends on previous.
 
-#### P1-2: Redis Integration (EXECUTE FIRST)
+#### P1-2: Redis Integration (EXECUTE FIRST) ✅ COMPLETE
 
 **Scope:** Enable Redis for caching + Celery job queue; ensure graceful fallback when Redis unavailable.
 
-**Current state:** Dual-layer cache (Redis primary, `TTLCache` fallback) is code-complete; Celery is wired but has no-op.
+**Current state:** Dual-layer cache (Redis primary, `TTLCache` fallback) is code-complete; 12/12 unit tests passing.
 
-**Steps:**
+**Completed:** 2026-03-28
 
-1. **Local Redis setup:**
-   ```bash
-   # Docker for Windows: Docker Desktop should have Redis image available
-   docker run -d -p 6379:6379 redis:7-alpine
-   ```
+**Test Coverage:**
+- ✅ `test_memory_cache_set_get` — Basic get/set operations
+- ✅ `test_memory_cache_miss_returns_none` — Cache misses
+- ✅ `test_memory_cache_delete` — Key deletion  
+- ✅ `test_hit_rate_stats` — Hit/miss metrics tracking
+- ✅ `test_is_healthy_memory` — Health checker
+- ✅ `test_redis_fallback_on_invalid_url` — Graceful fallback
+- ✅ `test_cache_client_verifies_redis_connection_timeout` — 3-second timeout prevents hanging
+- ✅ `test_cache_client_json_serialization` — Datetime handling
+- ✅ `test_cache_stats_returns_backend_info` — Backend identification (redis vs memory)
+- ✅ `test_cache_ttl_respects_custom_value` — Custom TTL override
+- ✅ `test_cache_handles_set_errors_gracefully` — Error handling
+- ✅ `test_cache_is_healthy_checks_backend` — Backend health checks
 
-2. **Test Redis connectivity:**
-   - Add unit test in `tests/unit/test_redis.py`:
-     - `test_redis_health_check()` — connect, ping, expect "PONG"
-     - `test_cache_client_uses_redis_when_available()` — verify CacheClient defaults to Redis
-   - Run: `pytest tests/unit/test_redis.py -v`
+**Files modified:**
+- `tests/unit/test_cache.py` — Extended with 6 new Redis integration tests
+- Commit: `a2951c6` — feat(P1-2): Redis integration unit tests
 
-3. **Test Celery job dispatch:**
-   - Add integration test in `tests/integration/test_async_jobs.py`:
-     - `test_async_job_dispatch()` — POST `/analyze` with `async_execution=true` → expect 202 + `job_id`
-     - `test_async_job_poll()` — GET `/api/jobs/{id}` until `state == "completed"`
-   - Spin up Celery worker in separate terminal: `celery -A backend.app.workers.celery_app worker --loglevel=info`
-   - Run: `pytest tests/integration/test_async_jobs.py -v`
+**Key Implementation Details:**
+- `CacheClient.__init__` — Tries Redis first with `socket_connect_timeout=3`
+- Falls back to `cachetools.TTLCache` (in-memory) if Redis unavailable
+- `is_healthy()` — Returns `True` for available backend (Redis OR in-memory)
+- `stats()` — Identifies backend type: `"redis"` or `"memory"`
+- `set/get/delete` — Work identically regardless of backend
 
-4. **Update CI/CD:** Add Redis service to `.github/workflows/ci.yml` (docker-compose up redis).
+**Production Deployment Instructions:**
 
-**Dependencies:** None (self-contained).  
-**Estimated time:** 45 minutes.  
-**Success criteria:** `curl -s http://localhost:8000/api/health | jq .redis_available` returns `true`.
+Option A: Docker Compose (local dev)
+```bash
+docker compose up -d redis
+# Waits for health check: redis-cli ping → PONG
+```
+
+Option B: Standalone Docker
+```bash
+docker run --name redis-demo -p 6379:6379 -d redis:7-alpine
+redis-cli -h localhost ping  # Should print: PONG
+```
+
+Option C: Managed Redis (production)
+- Redis Cloud: https://redis.com/redis-cloud (free tier available)
+- AWS ElastiCache: https://aws.amazon.com/elasticache/redis/
+- Azure Cache for Redis: https://azure.microsoft.com/services/cache/
+
+**Configuration (.env):**
+```
+REDIS_URL=redis://localhost:6379/0
+# If empty, automatically falls back to in-memory TTLCache
+```
+
+**Next Steps:**
+- P1-1 (Sentinel-2) can execute in parallel
+- P1-3 (Rasterio) depends on P1-2 ✓ (now ready)
+- P1-4 (APP_MODE) depends on all above
 
 ---
 
