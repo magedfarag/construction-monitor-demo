@@ -9,7 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from backend.app.providers.base import SatelliteProvider
+from backend.app.config import AppMode
+from backend.app.providers.base import ProviderUnavailableError, SatelliteProvider
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +57,22 @@ class ProviderRegistry:
         if p and self.is_available(name):
             return p
         return None
+
+    def select_provider_by_mode(self, mode: AppMode) -> Tuple[List[str], str]:
+        """Return (priority_list, description) for providers in given mode.
+        
+        - DEMO: [demo]
+        - STAGING: [sentinel2, landsat, demo]
+        - PRODUCTION: [sentinel2, landsat]
+        """
+        if mode == AppMode.DEMO:
+            return ["demo"], "Demo mode: DemoProvider only"
+        elif mode == AppMode.STAGING:
+            return ["sentinel2", "landsat", "demo"], "Staging mode: real providers with demo fallback"
+        elif mode == AppMode.PRODUCTION:
+            return ["sentinel2", "landsat"], "Production mode: real providers only, fail-fast"
+        else:
+            raise ValueError(f"Unknown AppMode: {mode}")
 
     def health_all(self) -> Dict[str, Tuple[bool, str]]:
         """Re-run healthcheck on each provider (live network calls). """
