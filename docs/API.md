@@ -1,135 +1,168 @@
-# Construction Activity Monitor — API Reference
+# API Reference — Construction Activity Monitor v2.0
 
+**Base URL**: `http://localhost:8000` (development)  
 **Version**: 2.0.0  
-**Base URL**: `http://localhost:8000`  
-**Authentication**: API key required (Bearer header, query param `?api_key=`, or cookie)
+**Authentication**: Optional API key via `X-API-Key` header (required if `API_KEY_REQUIRED=true`)
 
 ---
 
-## **Health & Configuration Endpoints** (Public)
+## **Health & Status**
 
 ### `GET /api/health`
+Check API and dependency health (no auth required).
 
-Health check and system status.
+**Request**:
+```bash
+curl http://localhost:8000/api/health
+```
 
-**Authentication**: Not required
-
-**Response** (`200 OK`):
+**Response** (200 OK):
 ```json
 {
-  "status": "ok",
-  "mode": "live",
-  "redis": "connected",
-  "celery_worker": "ready",
-  "providers": {
-    "demo": "available",
-    "sentinel2": "unavailable",
-    "landsat": "available"
-  },
-  "version": "2.0.0"
+  "status": "healthy",
+  "timestamp": "2026-03-28T10:15:00Z",
+  "dependencies": {
+    "redis": "healthy",
+    "sentinel2_provider": "healthy",
+    "landsat_provider": "unhealthy",
+    "demo_provider": "healthy"
+  }
+}
+```
+
+**Response** (503 Service Unavailable):
+```json
+{
+  "status": "degraded",
+  "timestamp": "2026-03-28T10:15:00Z",
+  "dependencies": {
+    "redis": "unhealthy",
+    "sentinel2_provider": "unavailable",
+    "landsat_provider": "healthy",
+    "demo_provider": "healthy"
+  }
 }
 ```
 
 ---
 
 ### `GET /api/config`
+Retrieve application configuration (no auth required).
 
-Client configuration and constraints.
-
-**Authentication**: Not required
-
-**Response** (`200 OK`):
-```json
-{
-  "today": "2026-03-28",
-  "min_area_km2": 0.01,
-  "max_area_km2": 100.0,
-  "max_lookback_days": 30,
-  "supported_providers": ["demo", "sentinel2", "landsat"],
-  "app_mode": "live",
-  "async_area_threshold_km2": 50.0,
-  "default_cloud_threshold": 20.0,
-  "cache_ttl_seconds": 3600,
-  "redis_available": true,
-  "celery_available": true
-}
+**Request**:
+```bash
+curl http://localhost:8000/api/config
 ```
 
----
-
-### `GET /api/credits`
-
-Usage statistics and cache performance.
-
-**Authentication**: Not required
-
-**Response** (`200 OK`):
+**Response** (200 OK):
 ```json
 {
-  "provider_request_counts": {
-    "demo": 12,
-    "sentinel2": 3,
-    "landsat": 8
-  },
-  "cache_hit_rate": 0.65,
-  "cache_hits": 26,
-  "cache_misses": 14,
-  "estimated_scenes_fetched": 11
+  "app_mode": "live",
+  "cache_enabled": true,
+  "async_enabled": true,
+  "async_area_threshold_km2": 50.0,
+  "supported_providers": ["sentinel2", "landsat", "demo"],
+  "available_providers": ["landsat", "demo"],
+  "max_area_km2": 100.0,
+  "min_area_km2": 0.01,
+  "max_date_range_days": 365,
+  "rate_limits": {
+    "analyze": "5 per 1 minute",
+    "search": "10 per 1 minute",
+    "jobs": "20 per 1 minute"
+  }
 }
 ```
 
 ---
 
 ### `GET /api/providers`
+List available satellite providers and their current status (no auth required).
 
-List available imagery providers.
+**Request**:
+```bash
+curl http://localhost:8000/api/providers
+```
 
-**Authentication**: Not required
-
-**Response** (`200 OK`):
+**Response** (200 OK):
 ```json
 {
   "providers": [
     {
-      "name": "demo",
-      "display_name": "Demo (Synthetic Data)",
-      "available": true,
-      "reason": null,
-      "resolution_m": 30,
-      "notes": ["No credentials required", "Always available"]
-    },
-    {
-      "name": "sentinel2",
-      "display_name": "Sentinel-2 (Copernicus)",
+      "id": "sentinel2",
+      "name": "Sentinel-2 (Copernicus)",
       "available": false,
-      "reason": "SENTINEL2_CLIENT_ID not configured",
+      "status": "OPEN",
+      "last_failure": "2026-03-28T09:45:00Z",
       "resolution_m": 10,
-      "notes": ["Requires OAuth2 credentials", "Free and open data"]
+      "latency_ms": 1250
     },
     {
-      "name": "landsat",
-      "display_name": "Landsat (USGS)",
+      "id": "landsat",
+      "name": "Landsat 8/9 (USGS)",
       "available": true,
-      "reason": null,
+      "status": "CLOSED",
+      "last_success": "2026-03-28T10:10:00Z",
       "resolution_m": 30,
-      "notes": ["No authentication required", "Public domain imagery"]
+      "latency_ms": 850
+    },
+    {
+      "id": "demo",
+      "name": "Demo Provider (Mock)",
+      "available": true,
+      "status": "CLOSED",
+      "last_success": "2026-03-28T10:13:00Z",
+      "resolution_m": 10,
+      "latency_ms": 5
     }
-  ],
-  "demo_available": true
+  ]
 }
 ```
 
 ---
 
-## **Analysis Endpoints** (Protected)
+### `GET /api/credits`
+Check credit/quota usage across providers (no auth required).
+
+**Request**:
+```bash
+curl http://localhost:8000/api/credits
+```
+
+**Response** (200 OK):
+```json
+{
+  "organizations": [
+    {
+      "provider": "sentinel2",
+      "organization": "Copernicus",
+      "requests_this_month": 1250,
+      "quota_monthly": 50000,
+      "utilization_percent": 2.5
+    },
+    {
+      "provider": "landsat",
+      "organization": "USGS",
+      "requests_this_month": 8900,
+      "quota_monthly": 999999,
+      "utilization_percent": 0.89
+    }
+  ]
+}
+```
+
+---
+
+## **Analysis**
 
 ### `POST /api/analyze`
+Analyze an area of interest (AOI) for construction changes between two dates (auth required, rate-limited: 5/min).
 
-Detect construction activity in satellite imagery for an AOI.
-
-**Authentication**: Required (API key)
-
-**Rate Limit**: 5 requests per minute (HTTP 429 if exceeded)
+**Request Headers**:
+```
+X-API-Key: your-api-key  (if API_KEY_REQUIRED=true)
+Content-Type: application/json
+```
 
 **Request Body**:
 ```json
@@ -137,325 +170,410 @@ Detect construction activity in satellite imagery for an AOI.
   "geometry": {
     "type": "Polygon",
     "coordinates": [
-      [[30.0, 50.0], [30.1, 50.0], [30.1, 50.1], [30.0, 50.1], [30.0, 50.0]]
+      [
+        [46.655, 24.710],
+        [46.670, 24.710],
+        [46.670, 24.720],
+        [46.655, 24.720],
+        [46.655, 24.710]
+      ]
     ]
   },
-  "start_date": "2026-03-01",
+  "start_date": "2026-02-27",
   "end_date": "2026-03-28",
   "provider": "auto",
-  "cloud_threshold": 20.0,
-  "processing_mode": "balanced",
+  "confidence_threshold": 50,
   "async_execution": false
 }
 ```
 
-**Parameters**:
-- `geometry` (required): GeoJSON Polygon or MultiPolygon
-- `start_date` (required): ISO 8601 date (YYYY-MM-DD)
-- `end_date` (required): ISO 8601 date; must be >= start_date
-- `provider` (optional): `auto` | `demo` | `sentinel2` | `landsat` (default: `auto`)
-- `cloud_threshold` (optional): 0-100, max acceptable cloud cover % (default: 20)
-- `processing_mode` (optional): `fast` | `balanced` | `thorough` (default: `balanced`)
-- `async_execution` (optional): If true, return job ticket immediately (default: false)
-- `area_km2` (optional): Client-computed area (backend re-validates)
+**Request Fields**:
+- `geometry` (required): GeoJSON Polygon or MultiPolygon (must be valid geography)
+- `start_date` (required): ISO 8601 date string (YYYY-MM-DD)
+- `end_date` (required): ISO 8601 date string (YYYY-MM-DD)
+- `provider` (optional, default: "auto"): "sentinel2" | "landsat" | "demo" | "auto"
+- `confidence_threshold` (optional, default: 50): 0–100, filter changes below threshold
+- `async_execution` (optional, default: false): true to dispatch to background worker
 
-**Response** (`200 OK` — Synchronous):
+**Response** (200 OK, sync):
 ```json
 {
-  "analysis_id": "analysis-20260328-abc123",
-  "requested_area_km2": 100.0,
-  "provider": "demo",
-  "is_demo": true,
-  "request_bounds": [30.0, 50.0, 30.1, 50.1],
-  "imagery_window": {
-    "start": "2026-03-01",
-    "end": "2026-03-28"
-  },
-  "warnings": [],
+  "analysis_id": "ana-20260328-abc123",
+  "status": "completed",
+  "provider": "landsat",
+  "is_demo": false,
+  "area_km2": 1.234,
   "changes": [
     {
-      "change_id": "chg-123",
-      "detected_at": "2026-03-15T10:30:00Z",
+      "change_id": "chg-001",
       "change_type": "Excavation",
-      "confidence": 87.5,
-      "center": {"lng": 30.05, "lat": 50.05},
-      "bbox": [30.04, 50.04, 30.06, 50.06],
-      "provider": "demo",
-      "summary": "Large irregular excavation with machinery tracks",
-      "rationale": ["Clear soil disturbance", "Geometric irregularity matches equipment activity"],
-      "before_image": "/static/assets/change_1_before.png",
-      "after_image": "/static/assets/change_1_after.png",
-      "thumbnail": "/static/assets/change_1_thumb.png",
-      "scene_id_before": "S2A_MSIL2A_20260301...",
-      "scene_id_after": "S2A_MSIL2A_20260315...",
-      "resolution_m": 10,
-      "warnings": []
+      "confidence": 87,
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[...]]
+      },
+      "centroid": { "lng": 46.6625, "lat": 24.715 },
+      "rationale": [
+        "NDVI decreased by 0.35 (vegetation loss)",
+        "Cluster area: 5.2 hectares",
+        "Sharp boundaries (machinery signature)"
+      ]
     }
   ],
-  "stats": {
-    "total_changes": 3,
-    "changes_by_type": {
-      "Excavation": 1,
-      "Foundation work": 1,
-      "Structural assembly": 1
+  "statistics": {
+    "total_changes": 1,
+    "average_confidence": 87,
+    "min_confidence": 87,
+    "max_confidence": 87,
+    "total_affected_area_km2": 0.052
+  },
+  "scenes": {
+    "before": {
+      "scene_id": "S2A_20260227T053651_N0510",
+      "date": "2026-02-27",
+      "satellite": "Sentinel-2A",
+      "cloud_percent": 12.5
     },
-    "confidence_mean": 88.7,
-    "confidence_min": 82.3,
-    "confidence_max": 91.2
-  }
+    "after": {
+      "scene_id": "LC09_L2SP_161045_20260328_20260328_02_T1",
+      "date": "2026-03-28",
+      "satellite": "Landsat 9",
+      "cloud_percent": 8.3
+    }
+  },
+  "warnings": [],
+  "execution_time_ms": 2350
 }
 ```
 
-**Response** (`200 OK` — Asynchronous):
+**Response** (202 Accepted, async):
 ```json
 {
-  "job_id": "job-20260328-xyz789",
-  "state": "pending",
-  "result": null,
-  "error": null,
-  "created_at": "2026-03-28T10:00:00Z",
-  "updated_at": "2026-03-28T10:00:00Z"
+  "job_id": "job-20260328-def456",
+  "status": "pending",
+  "analysis_id": null,
+  "timestamp": "2026-03-28T10:15:00Z",
+  "poll_url": "/api/jobs/job-20260328-def456"
 }
 ```
 
 **Error Responses**:
-- `400`: Invalid geometry, date range, or area bounds
-- `422`: Validation error (e.g., Point geometry instead of Polygon)
-- `429`: Rate limit exceeded
-- `503`: No providers available (app_mode=live)
+
+- **400 Bad Request**: Invalid geometry or date range
+  ```json
+  {
+    "error": "invalid_request",
+    "message": "end_date must be after start_date",
+    "details": { "end_date": "2026-03-28", "start_date": "2026-03-28" }
+  }
+  ```
+
+- **402 Payment Required**: Area exceeds max bounds
+  ```json
+  {
+    "error": "area_exceeds_limit",
+    "message": "AOI area (125.5 km²) exceeds maximum (100 km²)",
+    "area_km2": 125.5,
+    "max_area_km2": 100.0
+  }
+  ```
+
+- **429 Too Many Requests**: Rate limit exceeded
+  ```json
+  {
+    "error": "rate_limited",
+    "message": "5 requests per 1 minute exceeded",
+    "retry_after": 45
+  }
+  ```
+
+- **503 Service Unavailable**: All providers down
+  ```json
+  {
+    "error": "no_providers_available",
+    "message": "No imagery providers available",
+    "suggestions": ["Check network connectivity", "Try again in 1 minute"]
+  }
+  ```
 
 ---
 
 ### `POST /api/search`
+Search for satellite imagery scenes without performing change detection (auth required, rate-limited: 10/min).
 
-Search satellite imagery without running analysis.
-
-**Authentication**: Required (API key)
-
-**Rate Limit**: 10 requests per minute (HTTP 429 if exceeded)
+**Request Headers**:
+```
+X-API-Key: your-api-key
+Content-Type: application/json
+```
 
 **Request Body**:
 ```json
 {
   "geometry": {
     "type": "Polygon",
-    "coordinates": [[[30.0, 50.0], [30.1, 50.0], [30.1, 50.1], [30.0, 50.1], [30.0, 50.0]]]
+    "coordinates": [[...]]
   },
-  "start_date": "2026-03-01",
+  "start_date": "2026-02-27",
   "end_date": "2026-03-28",
   "provider": "auto",
-  "cloud_threshold": 20.0,
+  "cloud_threshold": 20,
   "max_results": 10
 }
 ```
 
-**Response** (`200 OK`):
+**Response** (200 OK):
 ```json
 {
+  "provider": "landsat",
+  "geometry_bounds": { "north": 24.720, "south": 24.710, "east": 46.670, "west": 46.655 },
   "scenes": [
     {
-      "scene_id": "S2A_MSIL2A_20260315T101031_N0509_R065_T32UPD_20260315T102021",
-      "provider": "sentinel2",
-      "satellite": "Sentinel-2A",
-      "acquired_at": "2026-03-15T10:10:31Z",
-      "cloud_cover": 8.5,
-      "bbox": [30.0, 50.0, 30.1, 50.1],
-      "resolution_m": 10,
-      "asset_urls": {
-        "thumbnail": "https://...",
-        "visual": "https://...",
-        "nir": "https://..."
-      }
+      "scene_id": "LC09_L2SP_161045_20260328_20260328_02_T1",
+      "date": "2026-03-28",
+      "satellite": "Landsat 9",
+      "cloud_percent": 8.3,
+      "platform": "Landsat",
+      "resolution_m": 30,
+      "instrument": "OLI-2",
+      "acquisition_time": "2026-03-28T05:35:00Z"
+    },
+    {
+      "scene_id": "LC08_L2SP_160045_20260320_20260328_02_T1",
+      "date": "2026-03-20",
+      "satellite": "Landsat 8",
+      "cloud_percent": 15.2,
+      "platform": "Landsat",
+      "resolution_m": 30,
+      "instrument": "OLI",
+      "acquisition_time": "2026-03-20T05:35:00Z"
     }
   ],
-  "total": 1,
-  "provider": "sentinel2",
-  "warnings": []
+  "scene_count": 2,
+  "search_time_ms": 1240
 }
 ```
 
 ---
 
-## **Async Job Endpoints** (Protected)
+## **Async Jobs**
 
 ### `GET /api/jobs/{job_id}`
+Check the status and result of an async analysis job (auth required).
 
-Poll status of an asynchronous analysis job.
+**Request**:
+```bash
+curl -H "X-API-Key: your-api-key" http://localhost:8000/api/jobs/job-20260328-def456
+```
 
-**Authentication**: Required (API key)
-
-**Rate Limit**: 20 requests per minute (HTTP 429 if exceeded)
-
-**Path Parameters**:
-- `job_id` (required): Job ID returned by `POST /api/analyze` with `async_execution=true`
-
-**Response** (`200 OK` — Pending):
+**Response** (200 OK, pending):
 ```json
 {
-  "job_id": "job-20260328-xyz789",
-  "state": "pending",
+  "job_id": "job-20260328-def456",
+  "status": "running",
+  "progress_percent": 65,
+  "created_at": "2026-03-28T10:15:00Z",
+  "started_at": "2026-03-28T10:15:05Z",
+  "updated_at": "2026-03-28T10:15:25Z",
   "result": null,
   "error": null,
-  "created_at": "2026-03-28T10:00:00Z",
-  "updated_at": "2026-03-28T10:00:05Z"
+  "cancel_url": "/api/jobs/job-20260328-def456/cancel"
 }
 ```
 
-**Response** (`200 OK` — Completed):
+**Response** (200 OK, completed):
 ```json
 {
-  "job_id": "job-20260328-xyz789",
-  "state": "completed",
-  "result": { /* full AnalyzeResponse object */ },
-  "error": null,
-  "created_at": "2026-03-28T10:00:00Z",
-  "updated_at": "2026-03-28T10:03:45Z"
+  "job_id": "job-20260328-def456",
+  "status": "completed",
+  "progress_percent": 100,
+  "created_at": "2026-03-28T10:15:00Z",
+  "started_at": "2026-03-28T10:15:05Z",
+  "completed_at": "2026-03-28T10:17:30Z",
+  "result": {
+    "analysis_id": "ana-20260328-def456",
+    "changes": [...],
+    "statistics": {...}
+  },
+  "error": null
 }
 ```
 
-**Response** (`200 OK` — Failed):
+**Response** (200 OK, failed):
 ```json
 {
-  "job_id": "job-20260328-xyz789",
-  "state": "failed",
+  "job_id": "job-20260328-def456",
+  "status": "failed",
+  "progress_percent": 0,
+  "created_at": "2026-03-28T10:15:00Z",
+  "started_at": "2026-03-28T10:15:05Z",
+  "failed_at": "2026-03-28T10:15:35Z",
   "result": null,
-  "error": "No scenes found matching criteria",
-  "created_at": "2026-03-28T10:00:00Z",
-  "updated_at": "2026-03-28T10:02:15Z"
+  "error": {
+    "code": "provider_unavailable",
+    "message": "All imagery providers unavailable"
+  }
 }
 ```
-
-**Possible States**: `pending`, `running`, `completed`, `failed`, `cancelled`
 
 **Error Responses**:
-- `429`: Rate limit exceeded
-- `503`: Celery/Redis not configured
+
+- **404 Not Found**: Job does not exist
+  ```json
+  {
+    "error": "job_not_found",
+    "job_id": "job-20260328-unknown"
+  }
+  ```
 
 ---
 
 ### `DELETE /api/jobs/{job_id}/cancel`
+Cancel an in-progress async analysis job (auth required).
 
-Cancel a pending or running async job.
+**Request**:
+```bash
+curl -X DELETE -H "X-API-Key: your-api-key" \
+  http://localhost:8000/api/jobs/job-20260328-def456/cancel
+```
 
-**Authentication**: Required (API key)
-
-**Path Parameters**:
-- `job_id` (required): Job ID to cancel
-
-**Response** (`202 Accepted`):
+**Response** (200 OK):
 ```json
 {
-  "job_id": "job-20260328-xyz789",
-  "status": "cancellation_requested"
+  "job_id": "job-20260328-def456",
+  "status": "cancelled",
+  "message": "Job cancelled successfully",
+  "cancelled_at": "2026-03-28T10:16:00Z"
 }
 ```
 
 **Error Responses**:
-- `503`: Celery not configured
+
+- **409 Conflict**: Job already completed/failed
+  ```json
+  {
+    "error": "job_not_cancellable",
+    "message": "Job is already completed (status: completed)"
+  }
+  ```
 
 ---
 
-## **Static Content**
-
-### `GET /`
-
-Serves the interactive map UI (index.html).
-
----
-
-## **Error Response Format**
+## **Error Format**
 
 All errors follow this structure:
 
 ```json
 {
-  "detail": "Human-readable error message",
-  "error": "machine_readable_error_code"  // Optional
+  "error": "error_code",
+  "message": "Human-readable error message",
+  "details": {
+    "field": "additional context"
+  }
 }
 ```
 
-**Common HTTP Status Codes**:
-- `200`: Success
-- `202`: Accepted (async job created)
-- `400`: Bad request (invalid data)
-- `422`: Validation error (schema mismatch)
-- `429`: Rate limit exceeded
-- `500`: Internal server error
-- `503`: Service unavailable (provider or infrastructure)
+**Common Error Codes**:
+- `invalid_request`: Malformed request
+- `unauthorized`: Missing/invalid API key
+- `rate_limited`: Rate limit exceeded
+- `area_exceeds_limit`: AOI too large
+- `date_range_exceeded`: Date range > 365 days
+- `no_providers_available`: All providers down
+- `provider_unavailable`: Specific provider unavailable
+- `unsupported_geometry`: Geometry type not supported (only Polygon/MultiPolygon)
+- `internal_error`: Unexpected server error
+
+---
+
+## **Rate Limits**
+
+Rate limits are per API key (or per IP if anonymous):
+
+| Endpoint | Limit | Window |
+|----------|-------|--------|
+| `POST /api/analyze` | 5 | 1 minute |
+| `POST /api/search` | 10 | 1 minute |
+| `GET/DELETE /api/jobs/*` | 20 | 1 minute |
+
+**Rate Limit Headers**:
+```
+X-RateLimit-Limit: 5
+X-RateLimit-Remaining: 2
+X-RateLimit-Reset: 1711607700
+```
+
+When limit exceeded: **429 Too Many Requests** with `Retry-After` header.
 
 ---
 
 ## **Authentication**
 
-Three methods to provide API key:
+### API Key
+If `API_KEY_REQUIRED=true`, include API key in all protected endpoints:
 
-1. **Bearer Token** (Recommended):
-   ```
-   Authorization: Bearer YOUR_API_KEY
-   ```
-
-2. **Query Parameter**:
-   ```
-   GET /api/analyze?api_key=YOUR_API_KEY
-   ```
-
-3. **Cookie**:
-   ```
-   Cookie: api_key=YOUR_API_KEY
-   ```
-
-Endpoints marked "Protected" require authentication. Public endpoints do not.
-
----
-
-## **Rate Limiting**
-
-- `/api/analyze`: 5 requests/minute
-- `/api/search`: 10 requests/minute
-- `/api/jobs/{job_id}`: 20 requests/minute
-
-Exceeding limits returns HTTP 429 with:
-```json
-{
-  "detail": "Rate limit exceeded. 5 per 1 minute",
-  "error": "rate_limit_exceeded"
-}
+```bash
+curl -H "X-API-Key: your-api-key" http://localhost:8000/api/analyze
 ```
+
+### CORS
+Allowed origins configured via `ALLOWED_ORIGINS` env (default: `http://localhost:3000`).
 
 ---
 
 ## **Examples**
 
-### Synchronous Analysis (Demo Provider)
+### Example 1: Analyze AOI (Sync)
 ```bash
 curl -X POST http://localhost:8000/api/analyze \
-  -H "Authorization: Bearer YOUR_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "geometry": {
       "type": "Polygon",
-      "coordinates": [[[30.0, 50.0], [30.1, 50.0], [30.1, 50.1], [30.0, 50.1], [30.0, 50.0]]]
+      "coordinates": [[[46.655, 24.710], [46.670, 24.710], [46.670, 24.720], [46.655, 24.720], [46.655, 24.710]]]
     },
-    "start_date": "2026-03-01",
+    "start_date": "2026-02-27",
     "end_date": "2026-03-28"
   }'
 ```
 
-### Asynchronous Analysis (Large AOI)
+### Example 2: Analyze AOI (Async)
 ```bash
-curl -X POST http://localhost:8000/api/analyze \
-  -H "Authorization: Bearer YOUR_API_KEY" \
+# Start job
+JOB_ID=$(curl -s -X POST http://localhost:8000/api/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"geometry": {...}, "async_execution": true}' \
+  | jq -r '.job_id')
+
+# Poll status
+curl http://localhost:8000/api/jobs/$JOB_ID
+
+# Cancel if needed
+curl -X DELETE http://localhost:8000/api/jobs/$JOB_ID/cancel
+```
+
+### Example 3: Search Imagery
+```bash
+curl -X POST http://localhost:8000/api/search \
   -H "Content-Type: application/json" \
   -d '{
     "geometry": {...},
-    "start_date": "2026-01-01",
+    "start_date": "2026-02-27",
     "end_date": "2026-03-28",
-    "async_execution": true
+    "cloud_threshold": 20
   }'
 ```
 
-Then poll the job:
-```bash
-curl -X GET http://localhost:8000/api/jobs/{job_id} \
-  -H "Authorization: Bearer YOUR_API_KEY"
-```
+---
+
+## **Changelog**
+
+### v2.0.0 (2026-03-28)
+- Added async job management (`/api/jobs/*`)
+- Added provider registry endpoint (`/api/providers`)
+- Added credits/quota endpoint (`/api/credits`)
+- Rate limiting on analyze (5/min), search (10/min), jobs (20/min)
+- Improved error responses with structured codes
+
+### v1.0.0 (2026-01-15)
+- Initial release: sync analyze + health check
