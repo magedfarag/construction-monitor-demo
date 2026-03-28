@@ -3,7 +3,7 @@
 **Date:** 2026-03-28
 **Repository:** https://github.com/magedfarag/construction-monitor-demo
 **Branch:** `main`
-**Test status:** 38 / 38 passing
+**Test status:** 150 / 150 passing (7 skipped)
 
 ---
 
@@ -193,7 +193,7 @@ requested provider
 - [x] `CircuitBreaker` wired into `AnalysisService._run_live_analysis()`
 - [x] `analyze.py` router injects `breaker` from DI
 - [x] `providers.py` duplicate-code bug fixed
-- [x] **38 / 38 tests passing**
+- [x] **150 / 150 tests passing** (7 skipped)
 
 ### Phase 4 — Frontend
 - [x] `index.html` — provider strip, mode badge, cloud slider, processing mode,
@@ -317,7 +317,7 @@ After P1, focus on test coverage and CI:
 python -m pytest tests/ --cov=backend/app --cov-fail-under=80
 ```
 
-**Current test status**: 38/38 passing (verified in HANDOVER Phase 3)
+**Current test status**: 150/150 passing, 7 skipped (verified in HANDOVER Phase 3)
 
 ---
 
@@ -330,7 +330,7 @@ python -m pytest tests/ --cov=backend/app --cov-fail-under=80
 | P1-1 | Obtain Sentinel-2 credentials | ⏳ TODO | Register at https://dataspace.copernicus.eu; set `SENTINEL2_CLIENT_ID` + `SENTINEL2_CLIENT_SECRET` |
 | P1-2 | Provision Redis | ⏳ TODO | `docker compose up redis` locally; managed Redis (e.g. Redis Cloud) for production |
 | P1-3 | Validate rasterio on target host | ⏳ TODO | Dockerfile installs `libgdal32`; confirm GDAL version matches the distribution's apt repo |
-| P1-4 | Set `APP_MODE=live` in production `.env` | ⏳ TODO | Surfaces errors when no live provider resolves instead of silently returning demo data |
+| P1-4 | Set `APP_MODE` in production `.env` | ✅ DONE | `AppMode` enum (demo/staging/production); `select_provider_by_mode()` in registry; wired into AnalysisService; CI matrix tests all modes |
 | P1-5 | Restrict CORS `allow_origins` | ✅ DONE (2026-03-28) | Changed from `["*"]` to configurable `ALLOWED_ORIGINS` env var; defaults to localhost |
 | P1-6 | Add authentication / API key middleware | ✅ DONE (2026-03-28) | Three auth methods: Bearer header, ?api_key query, api_key cookie; applied to POST/DELETE endpoints |
 
@@ -353,7 +353,7 @@ python -m pytest tests/ --cov=backend/app --cov-fail-under=80
 | P3-3 | Persist job history to PostgreSQL | ⏳ TODO | Replace in-memory `JobManager` fallback with SQLAlchemy + pg |
 | P3-4 | Multi-worker circuit breaker | ⏳ TODO | Move `CircuitBreaker` state from process memory to Redis |
 | P3-5 | Actual satellite thumbnails | ⏳ TODO | Generate real scene thumbnails instead of static demo PNGs |
-| P3-6 | `add_rate_limit` middleware | ⏳ TODO | Protect all mutation endpoints |
+| P3-6 | `add_rate_limit` middleware | ✅ DONE | slowapi `@limiter.limit()` on `/analyze` (5/min), `/search` (10/min), `/jobs` (20/min) |
 | P3-7 | Refresh `docs/API.md` | ⏳ TODO | Still references `demo-fusion` provider name from original demo |
 | P3-8 | Refresh `docs/ARCHITECTURE.md` | ⏳ TODO | Still describes demo-only architecture |
 
@@ -668,7 +668,7 @@ See `.env.example` for the full annotated list. Key variables:
 
 | Variable | Default | Required for |
 |---|---|---|
-| `APP_MODE` | `auto` | Mode (`demo` / `auto` / `live`) |
+| `APP_MODE` | `staging` | Mode (`demo` / `staging` / `production`) |
 | `SENTINEL2_CLIENT_ID` | `` | Live Sentinel-2 imagery |
 | `SENTINEL2_CLIENT_SECRET` | `` | Live Sentinel-2 imagery |
 | `REDIS_URL` | `` | Async jobs + distributed cache |
@@ -725,8 +725,8 @@ python -m pytest tests/ -v
 | L1 | Change detection returns empty list if rasterio unavailable | High — Dockerfile handles this |
 | L2 | `CircuitBreaker` state is per-process (not shared across workers) | Medium |
 | L3 | Flat-earth area approximation in `_polygon_area_km2()` | Low |
-| L4 | No authentication / authorization on any endpoint | **Critical** — must fix before production |
-| L5 | CORS `allow_origins=["*"]` | High — restrict in production |
+| L4 | ~~No authentication / authorization~~ | ✅ Fixed (P1-6): API key auth on mutation endpoints |
+| L5 | ~~CORS `allow_origins=["*"]`~~ | ✅ Fixed (P1-5): configurable `ALLOWED_ORIGINS` env var |
 | L6 | Async job result expires after 24 h (Redis TTL) | Low |
 | L7 | No rate limiting on `/api/analyze` | High |
 | L8 | `docs/API.md` and `docs/ARCHITECTURE.md` reflect old demo only | Low |

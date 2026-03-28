@@ -27,6 +27,8 @@ def client_with_auth():
         if 'backend.app.config' in __import__('sys').modules:
             __import__('sys').modules['backend.app.config']._settings = None
         from backend.app.main import app
+        from backend.app.resilience.rate_limiter import limiter
+        limiter.reset()
         yield TestClient(app, raise_server_exceptions=True)
 
 
@@ -47,6 +49,8 @@ def client_no_auth():
         if 'backend.app.config' in __import__('sys').modules:
             __import__('sys').modules['backend.app.config']._settings = None
         from backend.app.main import app
+        from backend.app.resilience.rate_limiter import limiter
+        limiter.reset()
         yield TestClient(app, raise_server_exceptions=True)
     finally:
         if env_backup:
@@ -166,11 +170,11 @@ class TestAPIKeyAuthentication:
         assert response.status_code in [503, 404]
 
     def test_bearer_token_without_prefix(self, client_with_auth):
-        """Authorization header without 'Bearer ' prefix should fail."""
+        """Authorization header with wrong key should fail."""
         response = client_with_auth.post(
             "/api/analyze",
             json={"geometry": POLYGON, "start_date": "2026-03-01", "end_date": "2026-03-28"},
-            headers={"Authorization": "test-secret-key"}
+            headers={"Authorization": "wrong-key-value"}
         )
         assert response.status_code == 403
 

@@ -3,11 +3,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings, verify_api_key, verify_api_key
+from backend.app.dependencies import get_app_settings, verify_api_key
 from backend.app.models.responses import AnalyzeResponse, JobStatusResponse
+from backend.app.resilience.rate_limiter import JOBS_RATE_LIMIT, limiter
 
 router = APIRouter(prefix="/api", tags=["jobs"])
 
@@ -17,7 +18,9 @@ router = APIRouter(prefix="/api", tags=["jobs"])
     response_model=JobStatusResponse,
     summary="Async job status",
 )
+@limiter.limit(JOBS_RATE_LIMIT)
 def get_job_status(
+    request: Request,
     job_id: str,
     settings: Annotated[AppSettings, Depends(get_app_settings)],
 ) -> JobStatusResponse:

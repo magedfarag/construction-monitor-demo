@@ -3,23 +3,26 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from backend.app.dependencies import get_registry, verify_api_key, verify_api_key
+from backend.app.dependencies import get_registry, verify_api_key
 from backend.app.models.requests import SearchRequest
 from backend.app.models.responses import SceneSearchResult, SearchResponse
 from backend.app.providers.registry import ProviderRegistry
+from backend.app.resilience.rate_limiter import SEARCH_RATE_LIMIT, limiter
 
 router = APIRouter(prefix="/api", tags=["search"])
 
 
 @router.post("/search", response_model=SearchResponse, summary="Search satellite imagery")
+@limiter.limit(SEARCH_RATE_LIMIT)
 def search_imagery(
-    request: SearchRequest,
+    body: SearchRequest,
+    request: Request,
     registry: Annotated[ProviderRegistry, Depends(get_registry)],
     _: Annotated[str, Depends(verify_api_key)],  # Required API key authentication
 ) -> SearchResponse:
-    provider = registry.select_provider(request.provider)
+    provider = registry.select_provider(body.provider)
     warnings = []
 
     if provider is None or provider.provider_name == "demo":
@@ -29,11 +32,11 @@ def search_imagery(
 
     try:
         scenes = provider.search_imagery(
-            geometry=request.geometry.model_dump(),
-            start_date=request.start_date.isoformat(),
-            end_date=request.end_date.isoformat(),
-            cloud_threshold=request.cloud_threshold,
-            max_results=request.max_results,
+            geometry=body.geometry.model_dump(),
+            start_date=body.start_date.isoformat(),
+            end_date=body.end_date.isoformat(),
+            cloud_threshold=body.cloud_threshold,
+            max_results=body.max_results,
         )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Provider search failed: {exc!s}") from exc

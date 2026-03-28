@@ -11,8 +11,12 @@ env:
 
 jobs:
   test:
-    name: Test (Unit + Integration)
+    name: Test (${{ matrix.app_mode }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app_mode: [demo, staging, production]
     services:
       redis:
         image: redis:7-alpine
@@ -33,12 +37,17 @@ jobs:
       - name: Lint with ruff (non-blocking)
         run: ruff check backend/ tests/ || true
       - name: Tests — Unit
+        env:
+          APP_MODE: ${{ matrix.app_mode }}
         run: python -m pytest tests/unit/ -v --tb=short
       - name: Tests — Integration
         env:
+          APP_MODE: ${{ matrix.app_mode }}
           REDIS_URL: redis://localhost:6379/0
         run: python -m pytest tests/integration/ -v --tb=short
       - name: Coverage Report
+        env:
+          APP_MODE: ${{ matrix.app_mode }}
         run: >
           python -m pytest tests/ 
           --cov=backend/app 
@@ -46,6 +55,8 @@ jobs:
           --cov-report=html 
           -v
       - name: Check Coverage Threshold (>20%)
+        env:
+          APP_MODE: ${{ matrix.app_mode }}
         run: >
           python -m pytest tests/ 
           --cov=backend/app 
@@ -55,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report
+          name: coverage-report-${{ matrix.app_mode }}
           path: htmlcov/
 
   security:

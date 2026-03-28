@@ -67,6 +67,7 @@ class ProvidersResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     mode: str
+    demo_available: bool = True
     redis: str
     celery_worker: str
     providers: Dict[str, str]

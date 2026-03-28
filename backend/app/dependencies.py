@@ -112,23 +112,3 @@ def verify_api_key(
         )
 
     return provided_key
-
-    # Extract Bearer token from Authorization header (format: "Bearer <key>")
-    provided_key = None
-    if header_key:
-        if header_key.startswith("Bearer "):
-            provided_key = header_key[7:]  # Strip "Bearer " prefix
-        else:
-            provided_key = header_key
-    elif query_key:
-        provided_key = query_key
-    elif cookie_key:
-        provided_key = cookie_key
-
-    if not provided_key or provided_key != configured_key:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid or missing API key. Provide via Authorization header (Bearer), ?api_key query param, or api_key cookie.",
-        )
-
-    return provided_key

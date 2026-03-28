@@ -185,15 +185,32 @@ class AnalysisService:
     def _resolve_provider(
         self, requested: str
     ):
-        """Return (provider_instance, is_demo, warnings)."""
+        """Return (provider_instance, is_demo, warnings).
+
+        Uses select_provider_by_mode() to determine the provider priority
+        chain for the current app mode, then resolves accordingly.
+        """
         mode = self._settings.app_mode
+        priority, _desc = self._registry.select_provider_by_mode(mode)
 
         if mode == AppMode.DEMO or requested == "demo":
             return self._demo, True, []
 
+        # Try requested provider first, then fall through priority chain
         provider = self._registry.select_provider(requested)
         if provider and provider.provider_name != "demo":
             return provider, False, []
+
+        # Try remaining providers in mode-defined priority order
+        for name in priority:
+            if name == "demo":
+                continue
+            alt = self._registry.select_provider(name)
+            if alt and alt.provider_name != "demo":
+                return alt, False, [
+                    f"Requested provider '{requested}' unavailable; "
+                    f"using '{name}' from {mode.value} priority chain."
+                ]
 
         # No live provider available — warn and fall back to demo
         msg = (

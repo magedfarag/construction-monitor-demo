@@ -14,6 +14,8 @@ from backend.app.logging_config import configure_logging
 from backend.app.providers.demo import DemoProvider
 from backend.app.providers.registry import ProviderRegistry
 from backend.app.resilience.circuit_breaker import CircuitBreaker
+from backend.app.resilience.rate_limiter import limiter, rate_limit_error_handler
+from slowapi.errors import RateLimitExceeded
 
 APP_DIR    = Path(__file__).resolve().parent
 STATIC_DIR = APP_DIR / "static"
@@ -59,6 +61,10 @@ app = FastAPI(
     description="Detects construction activity in satellite imagery.",
     lifespan=lifespan,
 )
+
+# Rate limiter — mount on app state so slowapi can access it
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)
 
 # CORS Configuration: Restrict to configured origins; deny by default.
 # Settings are lazily constructed at lifespan; we read them here for middleware.

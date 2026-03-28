@@ -43,6 +43,7 @@ def health(
     return HealthResponse(
         status="ok",
         mode=settings.app_mode,
+        demo_available=registry.is_available("demo"),
         redis="ok" if cache.is_healthy() else "unavailable",
         celery_worker=celery_status,
         providers=provider_status,

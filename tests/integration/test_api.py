@@ -17,6 +17,8 @@ def client():
     dependencies.set_cache(CacheClient())
     dependencies.set_breaker(CircuitBreaker())
     from backend.app.main import app
+    from backend.app.resilience.rate_limiter import limiter
+    limiter.reset()
     return TestClient(app, raise_server_exceptions=True)
 
 def test_health_ok(client):
