@@ -18,10 +18,23 @@ Copy .env.example → .env and fill in values before running.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal, Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AppMode(str, Enum):
+    """Application operating mode.
+    
+    - DEMO: Always use DemoProvider (for testing, no live data)
+    - STAGING: Real providers with demo fallback (safe default)
+    - PRODUCTION: Real providers only (no demo fallback, fail-fast)
+    """
+    DEMO = "demo"
+    STAGING = "staging"
+    PRODUCTION = "production"
 
 
 class AppSettings(BaseSettings):
@@ -36,13 +49,9 @@ class AppSettings(BaseSettings):
     )
 
     # ── App behaviour ────────────────────────────────────────────────────────
-    app_mode: Literal["demo", "auto", "live"] = Field(
-        default="auto",
-        description=(
-            "demo=always return deterministic sample data regardless of credentials; "
-            "auto=prefer live providers, fallback to demo; "
-            "live=require at least one live provider, error if none available"
-        ),
+    app_mode: AppMode = Field(
+        default=AppMode.STAGING,
+        description="Operating mode: demo (always demo), staging (sentinel→landsat→demo), production (sentinel→landsat only)",
     )
 
     # ── CORS / Security ──────────────────────────────────────────────────────

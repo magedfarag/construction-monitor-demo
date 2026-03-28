@@ -14,7 +14,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional
 
 from backend.app.cache.client import CacheClient
-from backend.app.config import AppSettings
+from backend.app.config import AppMode, AppSettings
 from backend.app.models.jobs import Job, JobState
 from backend.app.models.requests import AnalyzeRequest
 from backend.app.models.responses import AnalyzeResponse, ChangeRecord
@@ -188,7 +188,7 @@ class AnalysisService:
         """Return (provider_instance, is_demo, warnings)."""
         mode = self._settings.app_mode
 
-        if mode == "demo" or requested == "demo":
+        if mode == AppMode.DEMO or requested == "demo":
             return self._demo, True, []
 
         provider = self._registry.select_provider(requested)
@@ -201,7 +201,7 @@ class AnalysisService:
             "(missing credentials or provider unreachable). "
             "Falling back to demo mode."
         )
-        if mode == "live":
+        if mode == AppMode.PRODUCTION:
             raise ProviderUnavailableError(msg)
         return self._demo, True, [msg]
 
