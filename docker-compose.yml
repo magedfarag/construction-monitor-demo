@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+
+  api:
+    build: .
+    ports: ["8000:8000"]
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      APP_MODE: "auto"
+      LOG_LEVEL: "INFO"
+      LOG_FORMAT: "json"
+      # Set these to enable live Sentinel-2 searches:
+      # SENTINEL2_CLIENT_ID: ""
+      # SENTINEL2_CLIENT_SECRET: ""
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app:ro
+
+  worker:
+    build: .
+    command: >
+      celery -A backend.app.workers.celery_app.celery_app worker
+      --loglevel=info --pool=solo --concurrency=2
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      APP_MODE: "auto"
+    depends_on:
+      redis:
+        condition: service_healthy
