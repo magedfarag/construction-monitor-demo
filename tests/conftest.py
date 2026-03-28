@@ -1,8 +1,14 @@
 """Shared pytest fixtures for all test suites."""
 from __future__ import annotations
 
+import os
 import pytest
 from fastapi.testclient import TestClient
+
+# Ensure tests run in isolated mode without external services
+# Override any .env file settings
+os.environ["REDIS_URL"] = ""
+os.environ["CELERY_BROKER_URL"] = ""
 
 from backend.app import dependencies
 from backend.app.cache.client import CacheClient

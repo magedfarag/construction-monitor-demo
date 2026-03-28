@@ -51,5 +51,16 @@ try:
 except (ImportError, Exception) as exc:
     log.warning("Celery tasks not registered: %s", exc)
 
-    def run_analysis_task(*args, **kwargs):  # type: ignore[misc]
-        raise RuntimeError("Celery is not configured")
+    class _FakeCeleryTask:
+        """Fake Celery task that raises an error when called."""
+        def delay(self, *args, **kwargs):
+            raise RuntimeError(
+                "Celery is not configured. Set REDIS_URL or CELERY_BROKER_URL to enable async jobs."
+            )
+        
+        def apply_async(self, *args, **kwargs):
+            raise RuntimeError(
+                "Celery is not configured. Set REDIS_URL or CELERY_BROKER_URL to enable async jobs."
+            )
+
+    run_analysis_task = _FakeCeleryTask()  # type: ignore[assignment]
