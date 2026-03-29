@@ -15,11 +15,13 @@ from backend.app.cache.client import CacheClient
 from backend.app.config import AppSettings, get_settings
 from backend.app.providers.registry import ProviderRegistry
 from backend.app.resilience.circuit_breaker import CircuitBreaker
+from backend.app.services.job_manager import JobManager
 
 # These are set by main.py lifespan
-_registry: Optional[ProviderRegistry] = None
-_cache:    Optional[CacheClient]      = None
-_breaker:  Optional[CircuitBreaker]   = None
+_registry:    Optional[ProviderRegistry] = None
+_cache:       Optional[CacheClient]      = None
+_breaker:     Optional[CircuitBreaker]   = None
+_job_manager: Optional[JobManager]       = None
 
 
 def set_registry(r: ProviderRegistry) -> None:
@@ -35,6 +37,11 @@ def set_cache(c: CacheClient) -> None:
 def set_breaker(b: CircuitBreaker) -> None:
     global _breaker
     _breaker = b
+
+
+def set_job_manager(jm: Optional[JobManager]) -> None:
+    global _job_manager
+    _job_manager = jm
 
 
 # FastAPI-injectable callables ─────────────────────────────────────────────
@@ -56,6 +63,10 @@ def get_cache() -> CacheClient:
 def get_circuit_breaker() -> CircuitBreaker:
     assert _breaker is not None, "CircuitBreaker not initialised"
     return _breaker
+
+
+def get_job_manager() -> Optional[JobManager]:
+    return _job_manager
 
 
 # ──────────────────────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@ STATIC_DIR = APP_DIR / "static"
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     import logging as _log
     settings = get_settings()
-    configure_logging(log_level=settings.log_level, log_format=settings.log_format)
+    configure_logging(level=settings.log_level, fmt=settings.log_format)
     registry = ProviderRegistry()
     registry.register(DemoProvider())
     if settings.sentinel2_is_configured():
@@ -57,9 +57,15 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         recovery_timeout=settings.circuit_breaker_recovery_timeout,
         redis_url=settings.redis_url,
     )
+    # JobManager — created once; avoids per-request Redis connect/timeout
+    jm = None
+    if settings.redis_available() or settings.database_url:
+        from backend.app.services.job_manager import JobManager
+        jm = JobManager(redis_url=settings.redis_url, database_url=settings.database_url)
     dependencies.set_registry(registry)
     dependencies.set_cache(cache)
     dependencies.set_breaker(breaker)
+    dependencies.set_job_manager(jm)
     _log.getLogger(__name__).info(
         "Application started | mode=%s providers=%s redis=%s",
         settings.app_mode,

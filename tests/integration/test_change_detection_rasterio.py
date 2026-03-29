@@ -148,7 +148,7 @@ class TestChangeDetectionIntegration:
             'all_providers': lambda: [provider],
         })()
         
-        cache = CacheClient(settings.redis_url)
+        cache = CacheClient(redis_url=settings.redis_url)
         breaker = CircuitBreaker()
         
         service = AnalysisService(

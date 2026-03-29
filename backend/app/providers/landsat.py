@@ -38,8 +38,6 @@ class LandsatProvider(SatelliteProvider):
             "intersects":  geometry,
             "datetime":    f"{start_date}T00:00:00Z/{end_date}T23:59:59Z",
             "limit":       max_results,
-            "query":       {"eo:cloud_cover": {"lte": cloud_threshold}},
-            "sortby":      [{"field": "datetime", "direction": "desc"}],
         }
         try:
             resp = httpx.post(
@@ -51,7 +49,18 @@ class LandsatProvider(SatelliteProvider):
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             raise ProviderUnavailableError(f"USGS STAC unreachable: {exc}") from exc
-        return [self._normalise(item) for item in resp.json().get("features", [])]
+        features = resp.json().get("features", [])
+        # Post-filter by cloud cover (USGS STAC doesn't support query extension)
+        filtered = [
+            f for f in features
+            if float(f.get("properties", {}).get("eo:cloud_cover", 100.0)) <= cloud_threshold
+        ]
+        # Sort by datetime descending
+        filtered.sort(
+            key=lambda f: f.get("properties", {}).get("datetime", ""),
+            reverse=True,
+        )
+        return [self._normalise(item) for item in filtered[:max_results]]
 
     def fetch_scene_metadata(self, scene_id: str) -> Optional[SceneMetadata]:
         try:

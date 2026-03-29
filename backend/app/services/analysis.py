@@ -117,7 +117,7 @@ class AnalysisService:
                 "DEMO MODE: Results are synthetic curated data, not real satellite detections."
             )
         else:
-            changes_raw, detection_warnings = self._run_live_analysis(
+            changes_raw, detection_warnings = self._run_live_with_fallback(
                 provider, request, bounds, area_km2
             )
             warnings.extend(detection_warnings)
@@ -221,6 +221,67 @@ class AnalysisService:
         if mode == AppMode.PRODUCTION:
             raise ProviderUnavailableError(msg)
         return self._demo, True, [msg]
+
+    def _run_live_with_fallback(
+        self,
+        primary: SatelliteProvider,
+        request: AnalyzeRequest,
+        bounds: List[float],
+        area_km2: float,
+    ):
+        """Try primary provider, then alternates from the priority chain.
+
+        In production mode, raises ProviderUnavailableError if all fail.
+        In staging mode, falls back to demo data.
+        """
+        mode = self._settings.app_mode
+        priority, _ = self._registry.select_provider_by_mode(mode)
+        tried: set[str] = set()
+
+        # Build ordered list: primary first, then remaining by priority
+        providers_to_try: List[SatelliteProvider] = [primary]
+        tried.add(primary.provider_name)
+        for name in priority:
+            if name in tried or name == "demo":
+                continue
+            alt = self._registry.select_provider(name)
+            if alt and alt.provider_name != "demo":
+                providers_to_try.append(alt)
+                tried.add(name)
+
+        last_exc: Optional[Exception] = None
+        for provider in providers_to_try:
+            try:
+                changes_raw, detection_warnings = self._run_live_analysis(
+                    provider, request, bounds, area_km2
+                )
+                if provider is not primary:
+                    detection_warnings.append(
+                        f"Primary provider '{primary.provider_name}' failed; "
+                        f"fell back to '{provider.provider_name}'."
+                    )
+                return changes_raw, detection_warnings
+            except ProviderUnavailableError as exc:
+                log.warning(
+                    "Provider %s failed: %s — trying next",
+                    provider.provider_name, exc,
+                )
+                last_exc = exc
+
+        # All live providers exhausted
+        if mode == AppMode.PRODUCTION:
+            raise ProviderUnavailableError(
+                f"All live providers failed. Last error: {last_exc}"
+            )
+        # Staging: fall back to demo
+        changes_raw = self._demo.generate_changes(
+            bounds, request.start_date, request.end_date
+        )
+        return changes_raw, [
+            f"All live providers failed (last: {last_exc}). "
+            "Falling back to demo data.",
+            "DEMO MODE: Results are synthetic curated data, not real satellite detections.",
+        ]
 
     def _run_live_analysis(
         self,

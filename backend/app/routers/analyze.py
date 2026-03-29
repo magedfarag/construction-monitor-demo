@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from backend.app.cache.client import CacheClient
 from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings, get_cache, get_circuit_breaker, get_registry, verify_api_key
+from backend.app.dependencies import get_app_settings, get_cache, get_circuit_breaker, get_job_manager, get_registry, verify_api_key
 from backend.app.models.requests import AnalyzeRequest
 from backend.app.models.responses import AnalyzeResponse, JobStatusResponse
 from backend.app.providers.base import ProviderUnavailableError
@@ -27,12 +27,10 @@ def _get_analysis_service(
     registry: ProviderRegistry,
     cache: CacheClient,
     breaker: CircuitBreaker,
+    job_manager: Union[JobManager, None] = None,
 ) -> AnalysisService:
-    """Construct AnalysisService with optional JobManager."""
-    jm: Union[JobManager, None] = None
-    if settings.redis_available() or settings.database_url:
-        jm = JobManager(redis_url=settings.redis_url, database_url=settings.database_url)
-    return AnalysisService(registry=registry, cache=cache, settings=settings, job_manager=jm, breaker=breaker)
+    """Construct AnalysisService with optional JobManager (singleton from DI)."""
+    return AnalysisService(registry=registry, cache=cache, settings=settings, job_manager=job_manager, breaker=breaker)
 
 
 def _validate_area(request: AnalyzeRequest) -> float:
@@ -75,12 +73,13 @@ def analyze(
     registry: Annotated[ProviderRegistry, Depends(get_registry)],
     cache:    Annotated[CacheClient,      Depends(get_cache)],
     breaker:  Annotated[CircuitBreaker,   Depends(get_circuit_breaker)],
+    job_manager: Annotated[Union[JobManager, None], Depends(get_job_manager)],
     _: Annotated[str, Depends(verify_api_key)],  # Required API key authentication
 ) -> Union[AnalyzeResponse, JobStatusResponse]:
     area = _validate_area(body)
     use_async = body.async_execution or area > settings.async_area_threshold_km2
 
-    svc = _get_analysis_service(settings, registry, cache, breaker)
+    svc = _get_analysis_service(settings, registry, cache, breaker, job_manager)
 
     try:
         if use_async and settings.effective_celery_broker():

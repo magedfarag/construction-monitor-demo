@@ -6,9 +6,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 # Ensure tests run in isolated mode without external services
-# Override any .env file settings
+# Override any .env file settings so unit tests have deterministic defaults
+os.environ["APP_MODE"] = "staging"
 os.environ["REDIS_URL"] = ""
 os.environ["CELERY_BROKER_URL"] = ""
+os.environ["SENTINEL2_CLIENT_ID"] = ""
+os.environ["SENTINEL2_CLIENT_SECRET"] = ""
+os.environ["MAXAR_API_KEY"] = ""
+os.environ["PLANET_API_KEY"] = ""
+os.environ["DATABASE_URL"] = ""
 
 from backend.app import dependencies
 from backend.app.cache.client import CacheClient
@@ -16,6 +22,10 @@ from backend.app.config import AppSettings
 from backend.app.providers.demo import DemoProvider
 from backend.app.providers.registry import ProviderRegistry
 from backend.app.resilience.circuit_breaker import CircuitBreaker
+
+# Reset settings singleton so it picks up the overridden env vars above
+import backend.app.config as _cfg
+_cfg._settings = None
 
 
 @pytest.fixture(scope="session")
