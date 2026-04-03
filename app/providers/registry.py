@@ -9,8 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Dict, List, Optional, Tuple
 
-from backend.app.config import AppMode
-from backend.app.providers.base import ProviderUnavailableError, SatelliteProvider
+from app.config import AppMode
+from app.providers.base import ProviderUnavailableError, SatelliteProvider
 
 log = logging.getLogger(__name__)
 

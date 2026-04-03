@@ -5,11 +5,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from backend.app.cache.client import CacheClient
-from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings, get_cache
-from backend.app.models.responses import ConfigResponse
-from backend.app.providers.demo import TODAY, MAX_LOOKBACK, MIN_AREA_KM2, MAX_AREA_KM2
+from app.cache.client import CacheClient
+from app.config import AppSettings
+from app.dependencies import get_app_settings, get_cache
+from app.models.responses import ConfigResponse
+from app.providers.demo import TODAY, MAX_LOOKBACK, MIN_AREA_KM2, MAX_AREA_KM2
 
 router = APIRouter(prefix="/api", tags=["system"])
 

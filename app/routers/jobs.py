@@ -5,10 +5,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings, verify_api_key
-from backend.app.models.responses import AnalyzeResponse, JobStatusResponse
-from backend.app.resilience.rate_limiter import JOBS_RATE_LIMIT, limiter
+from app.config import AppSettings
+from app.dependencies import get_app_settings, verify_api_key
+from app.models.responses import AnalyzeResponse, JobStatusResponse
+from app.resilience.rate_limiter import JOBS_RATE_LIMIT, limiter
 
 router = APIRouter(prefix="/api", tags=["jobs"])
 
@@ -32,7 +32,7 @@ def get_job_status(
         )
     try:
         from celery.result import AsyncResult
-        from backend.app.workers.celery_app import celery_app
+        from app.workers.celery_app import celery_app
 
         res = AsyncResult(job_id, app=celery_app)
         state = res.state.lower()
@@ -74,7 +74,7 @@ def cancel_job(
     if not settings.effective_celery_broker():
         raise HTTPException(status_code=503, detail="Celery not configured")
     try:
-        from backend.app.workers.celery_app import celery_app
+        from app.workers.celery_app import celery_app
         celery_app.control.revoke(job_id, terminate=True)
         return {"job_id": job_id, "status": "cancellation_requested"}
     except Exception as exc:  # noqa: BLE001

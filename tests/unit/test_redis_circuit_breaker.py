@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from backend.app.resilience.circuit_breaker import CBState, CircuitBreaker
+from app.resilience.circuit_breaker import CBState, CircuitBreaker
 
 
 class TestRedisBackend:

@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from backend.app.models.scene import SceneMetadata
+from app.models.scene import SceneMetadata
 
 
 def _recency_score(scene: SceneMetadata, newest_dt: datetime, oldest_dt: datetime) -> float:

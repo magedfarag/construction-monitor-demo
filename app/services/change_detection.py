@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.app.models.scene import SceneMetadata
+from app.models.scene import SceneMetadata
 
 log = logging.getLogger(__name__)
 
@@ -318,7 +318,7 @@ def run_change_detection(
         ch_bbox = [round(v, 6) for v in [ch_min_lon, ch_min_lat, ch_max_lon, ch_max_lat]]
 
         # Generate thumbnails from TCI/visual COG (populates cache for /api/thumbnails)
-        from backend.app.services.thumbnails import generate_thumbnail, thumbnail_url
+        from app.services.thumbnails import generate_thumbnail, thumbnail_url
         tci_before = before.assets.get("TCI", "")
         tci_after = after.assets.get("TCI", "")
         before_thumb = None

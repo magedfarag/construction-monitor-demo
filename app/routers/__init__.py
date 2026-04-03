@@ -1,14 +1,7 @@
 """FastAPI route sub-modules."""
-from backend.app.routers import (
-    health,
-    config_router,
-    providers_router,
-    credits,
-    analyze,
-    jobs,
-    search,
+from app.routers import analyze, config_router, credits, health, jobs, providers_router, search, thumbnails
+from app.routers import (
     ws_jobs,
-    thumbnails,
 )
 
 __all__ = [

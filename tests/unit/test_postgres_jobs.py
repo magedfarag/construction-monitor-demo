@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 from datetime import datetime
 
-from backend.app.services.postgres_jobs import SQLALCHEMY_AVAILABLE
+from app.services.postgres_jobs import SQLALCHEMY_AVAILABLE
 
 
 pytestmark = pytest.mark.skipif(
@@ -22,7 +22,7 @@ SQLITE_URL = "sqlite://"  # in-memory SQLite
 @pytest.fixture
 def pg_store():
     """Fresh PostgresJobStore backed by in-memory SQLite."""
-    from backend.app.services.postgres_jobs import PostgresJobStore
+    from app.services.postgres_jobs import PostgresJobStore
     store = PostgresJobStore(SQLITE_URL)
     yield store
     store.close()
@@ -87,17 +87,17 @@ class TestJobManagerWithPostgres:
     """JobManager integration with PostgreSQL backend."""
 
     def test_backend_property_with_database(self):
-        from backend.app.services.job_manager import JobManager
+        from app.services.job_manager import JobManager
         jm = JobManager(database_url=SQLITE_URL)
         assert "postgresql" in jm.backend
 
     def test_backend_property_memory_only(self):
-        from backend.app.services.job_manager import JobManager
+        from app.services.job_manager import JobManager
         jm = JobManager()
         assert jm.backend == "memory"
 
     def test_create_and_get_job_via_postgres(self):
-        from backend.app.services.job_manager import JobManager
+        from app.services.job_manager import JobManager
         jm = JobManager(database_url=SQLITE_URL)
         job = jm.create_job(request_data={"test": True})
         loaded = jm.get_job(job.job_id)
@@ -105,8 +105,8 @@ class TestJobManagerWithPostgres:
         assert loaded.job_id == job.job_id
 
     def test_update_job_via_postgres(self):
-        from backend.app.services.job_manager import JobManager
-        from backend.app.models.jobs import JobState
+        from app.services.job_manager import JobManager
+        from app.models.jobs import JobState
         jm = JobManager(database_url=SQLITE_URL)
         job = jm.create_job(request_data={"test": True})
         jm.update_job(job.job_id, JobState.COMPLETED, result={"analysis_id": "a-1"})
@@ -115,7 +115,7 @@ class TestJobManagerWithPostgres:
 
     def test_postgres_survives_memory_clear(self):
         """Jobs persisted to PG are recoverable even if memory dict is cleared."""
-        from backend.app.services.job_manager import JobManager
+        from app.services.job_manager import JobManager
         jm = JobManager(database_url=SQLITE_URL)
         job = jm.create_job(request_data={"test": True})
         jm._memory.clear()  # simulate process restart

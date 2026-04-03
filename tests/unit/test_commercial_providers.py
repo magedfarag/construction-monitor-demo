@@ -4,10 +4,10 @@ from __future__ import annotations
 import pytest
 from unittest.mock import patch, MagicMock
 
-from backend.app.config import AppSettings
-from backend.app.providers.base import ProviderUnavailableError
-from backend.app.providers.maxar import MaxarProvider
-from backend.app.providers.planet import PlanetProvider
+from app.config import AppSettings
+from app.providers.base import ProviderUnavailableError
+from app.providers.maxar import MaxarProvider
+from app.providers.planet import PlanetProvider
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
@@ -159,21 +159,21 @@ class TestPlanetProvider:
 
 class TestCommercialProviderRegistry:
     def test_maxar_registered_when_configured(self, settings_maxar):
-        from backend.app.providers.registry import ProviderRegistry
+        from app.providers.registry import ProviderRegistry
         reg = ProviderRegistry()
         reg.register(MaxarProvider(settings_maxar))
         assert reg.get("maxar") is not None
         assert reg.is_available("maxar") is True
 
     def test_planet_registered_when_configured(self, settings_planet):
-        from backend.app.providers.registry import ProviderRegistry
+        from app.providers.registry import ProviderRegistry
         reg = ProviderRegistry()
         reg.register(PlanetProvider(settings_planet))
         assert reg.get("planet") is not None
         assert reg.is_available("planet") is True
 
     def test_providers_unavailable_without_keys(self, settings_no_keys):
-        from backend.app.providers.registry import ProviderRegistry
+        from app.providers.registry import ProviderRegistry
         reg = ProviderRegistry()
         reg.register(MaxarProvider(settings_no_keys))
         reg.register(PlanetProvider(settings_no_keys))
@@ -181,8 +181,8 @@ class TestCommercialProviderRegistry:
         assert reg.is_available("planet") is False
 
     def test_mode_priority_includes_commercial(self):
-        from backend.app.config import AppMode
-        from backend.app.providers.registry import ProviderRegistry
+        from app.config import AppMode
+        from app.providers.registry import ProviderRegistry
         reg = ProviderRegistry()
         providers, _ = reg.select_provider_by_mode(AppMode.STAGING)
         assert "maxar" in providers

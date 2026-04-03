@@ -7,14 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.app import dependencies
-from backend.app.cache.client import CacheClient
-from backend.app.config import get_settings
-from backend.app.logging_config import configure_logging
-from backend.app.providers.demo import DemoProvider
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.circuit_breaker import CircuitBreaker
-from backend.app.resilience.rate_limiter import limiter, rate_limit_error_handler
+from app import dependencies
+from app.cache.client import CacheClient
+from app.config import get_settings
+from app.logging_config import configure_logging
+from app.providers.demo import DemoProvider
+from app.providers.registry import ProviderRegistry
+from app.resilience.circuit_breaker import CircuitBreaker
+from app.resilience.rate_limiter import limiter, rate_limit_error_handler
 from slowapi.errors import RateLimitExceeded
 
 APP_DIR    = Path(__file__).resolve().parent
@@ -29,25 +29,25 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     registry.register(DemoProvider())
     if settings.sentinel2_is_configured():
         try:
-            from backend.app.providers.sentinel2 import Sentinel2Provider
+            from app.providers.sentinel2 import Sentinel2Provider
             registry.register(Sentinel2Provider(settings))
         except Exception as exc:
             _log.getLogger(__name__).warning("Sentinel2Provider: %s", exc)
     if settings.landsat_is_configured():
         try:
-            from backend.app.providers.landsat import LandsatProvider
+            from app.providers.landsat import LandsatProvider
             registry.register(LandsatProvider(settings))
         except Exception as exc:
             _log.getLogger(__name__).warning("LandsatProvider: %s", exc)
     if settings.maxar_is_configured():
         try:
-            from backend.app.providers.maxar import MaxarProvider
+            from app.providers.maxar import MaxarProvider
             registry.register(MaxarProvider(settings))
         except Exception as exc:
             _log.getLogger(__name__).warning("MaxarProvider: %s", exc)
     if settings.planet_is_configured():
         try:
-            from backend.app.providers.planet import PlanetProvider
+            from app.providers.planet import PlanetProvider
             registry.register(PlanetProvider(settings))
         except Exception as exc:
             _log.getLogger(__name__).warning("PlanetProvider: %s", exc)
@@ -60,7 +60,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # JobManager — created once; avoids per-request Redis connect/timeout
     jm = None
     if settings.redis_available() or settings.database_url:
-        from backend.app.services.job_manager import JobManager
+        from app.services.job_manager import JobManager
         jm = JobManager(redis_url=settings.redis_url, database_url=settings.database_url)
     dependencies.set_registry(registry)
     dependencies.set_cache(cache)
@@ -101,7 +101,8 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
 
-from backend.app.routers import health, config_router, providers_router, credits, analyze, jobs, search, ws_jobs, thumbnails
+from app.routers import analyze, config_router, credits, health, jobs, providers_router, search, thumbnails
+from app.routers import ws_jobs
 app.include_router(health.router)
 app.include_router(config_router.router)
 app.include_router(providers_router.router)

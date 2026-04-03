@@ -3,10 +3,10 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 import httpx
-from backend.app.config import AppSettings
-from backend.app.models.scene import SceneMetadata
-from backend.app.providers.base import ProviderUnavailableError, SatelliteProvider
-from backend.app.resilience.retry import with_retry
+from app.config import AppSettings
+from app.models.scene import SceneMetadata
+from app.providers.base import ProviderUnavailableError, SatelliteProvider
+from app.resilience.retry import with_retry
 
 log = logging.getLogger(__name__)
 _COLLECTION = "landsat-c2l2-sr"

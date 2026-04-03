@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from unittest.mock import patch, MagicMock, PropertyMock
 
-from backend.app.routers.ws_jobs import router, _POLL_INTERVAL
+from app.routers.ws_jobs import router, _POLL_INTERVAL
 
 
 class TestWebSocketNoCelery:

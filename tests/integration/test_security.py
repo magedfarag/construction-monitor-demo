@@ -3,11 +3,11 @@ from __future__ import annotations
 import os
 import pytest
 from fastapi.testclient import TestClient
-from backend.app import dependencies
-from backend.app.cache.client import CacheClient
-from backend.app.providers.demo import DemoProvider
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.circuit_breaker import CircuitBreaker
+from app import dependencies
+from app.cache.client import CacheClient
+from app.providers.demo import DemoProvider
+from app.providers.registry import ProviderRegistry
+from app.resilience.circuit_breaker import CircuitBreaker
 from unittest.mock import patch
 
 POLYGON = {"type": "Polygon", "coordinates": [[[30.0, 50.0], [30.1, 50.0], [30.1, 50.1], [30.0, 50.1], [30.0, 50.0]]]}
@@ -26,8 +26,8 @@ def client_with_auth():
         # Force reimport to pick up env var
         if 'backend.app.config' in __import__('sys').modules:
             __import__('sys').modules['backend.app.config']._settings = None
-        from backend.app.main import app
-        from backend.app.resilience.rate_limiter import limiter
+        from app.main import app
+        from app.resilience.rate_limiter import limiter
         limiter.reset()
         yield TestClient(app, raise_server_exceptions=True)
 
@@ -48,8 +48,8 @@ def client_no_auth():
     try:
         if 'backend.app.config' in __import__('sys').modules:
             __import__('sys').modules['backend.app.config']._settings = None
-        from backend.app.main import app
-        from backend.app.resilience.rate_limiter import limiter
+        from app.main import app
+        from app.resilience.rate_limiter import limiter
         limiter.reset()
         yield TestClient(app, raise_server_exceptions=True)
     finally:

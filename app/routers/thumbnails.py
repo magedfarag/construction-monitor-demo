@@ -9,7 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Query, Response
 from fastapi.responses import JSONResponse
 
-from backend.app.services.thumbnails import get_cached_thumbnail
+from app.services.thumbnails import get_cached_thumbnail
 
 router = APIRouter(prefix="/api", tags=["thumbnails"])
 

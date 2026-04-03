@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from backend.app.services.thumbnails import (
+from app.services.thumbnails import (
     ThumbnailCache,
     cache_key,
     clear_cache,
@@ -111,7 +111,7 @@ class TestThumbnailEndpoint:
 
     def test_cached_thumbnail_returns_png(self, app_client):
         clear_cache()
-        from backend.app.services.thumbnails import _cache
+        from app.services.thumbnails import _cache
         _cache.put("test-key", b"\x89PNG-fake-data")
         resp = app_client.get("/api/thumbnails/scene-abc?key=test-key")
         assert resp.status_code == 200
@@ -128,7 +128,7 @@ class TestGenerateThumbnailGracefulDegradation:
 
     def test_returns_none_without_rasterio(self):
         from unittest.mock import patch
-        from backend.app.services.thumbnails import generate_thumbnail
+        from app.services.thumbnails import generate_thumbnail
         with patch("backend.app.services.thumbnails._rasterio_available", return_value=False):
             result = generate_thumbnail(
                 "https://example.com/scene.tif",

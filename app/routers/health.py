@@ -5,11 +5,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from backend.app.cache.client import CacheClient
-from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings, get_cache, get_registry
-from backend.app.models.responses import HealthResponse
-from backend.app.providers.registry import ProviderRegistry
+from app.cache.client import CacheClient
+from app.config import AppSettings
+from app.dependencies import get_app_settings, get_cache, get_registry
+from app.models.responses import HealthResponse
+from app.providers.registry import ProviderRegistry
 
 router = APIRouter(prefix="/api", tags=["system"])
 
@@ -34,7 +34,7 @@ def health(
     if settings.redis_available():
         try:
             from celery.app.control import Inspect
-            from backend.app.workers.celery_app import celery_app
+            from app.workers.celery_app import celery_app
             active = celery_app.control.inspect(timeout=1).active()
             celery_status = "ok" if active is not None else "no_workers"
         except Exception:  # noqa: BLE001

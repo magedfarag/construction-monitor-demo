@@ -2,11 +2,11 @@
 from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
-from backend.app import dependencies
-from backend.app.cache.client import CacheClient
-from backend.app.providers.demo import DemoProvider
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.circuit_breaker import CircuitBreaker
+from app import dependencies
+from app.cache.client import CacheClient
+from app.providers.demo import DemoProvider
+from app.providers.registry import ProviderRegistry
+from app.resilience.circuit_breaker import CircuitBreaker
 
 POLYGON = {"type": "Polygon", "coordinates": [[[30.0,50.0],[30.1,50.0],[30.1,50.1],[30.0,50.1],[30.0,50.0]]]}
 
@@ -16,8 +16,8 @@ def client():
     dependencies.set_registry(reg)
     dependencies.set_cache(CacheClient())
     dependencies.set_breaker(CircuitBreaker())
-    from backend.app.main import app
-    from backend.app.resilience.rate_limiter import limiter
+    from app.main import app
+    from app.resilience.rate_limiter import limiter
     limiter.reset()
     return TestClient(app, raise_server_exceptions=True)
 

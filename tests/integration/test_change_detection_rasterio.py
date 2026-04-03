@@ -16,10 +16,10 @@ Tests use fixed London AOI + Sentinel-2 scene IDs from P1-1.
 from __future__ import annotations
 import pytest
 from datetime import datetime
-from backend.app.config import AppSettings
-from backend.app.models.scene import SceneMetadata
-from backend.app.services.change_detection import run_change_detection
-from backend.app.services.scene_selection import rank_scenes, select_scene_pair
+from app.config import AppSettings
+from app.models.scene import SceneMetadata
+from app.services.change_detection import run_change_detection
+from app.services.scene_selection import rank_scenes, select_scene_pair
 
 # Skip entire module if rasterio not available
 _rasterio_available = False
@@ -132,10 +132,10 @@ class TestChangeDetectionIntegration:
 
     def test_analyze_live_provider_has_real_changes(self, settings):
         """Test that live Sentinel-2 analysis returns real change polygons (not demo)."""
-        from backend.app.services.analysis import AnalysisService
-        from backend.app.providers.sentinel2 import Sentinel2Provider
-        from backend.app.resilience.circuit_breaker import CircuitBreaker
-        from backend.app.cache.client import CacheClient
+        from app.services.analysis import AnalysisService
+        from app.providers.sentinel2 import Sentinel2Provider
+        from app.resilience.circuit_breaker import CircuitBreaker
+        from app.cache.client import CacheClient
         
         # Skip if no Sentinel-2 credentials
         if not settings.sentinel2_is_configured():

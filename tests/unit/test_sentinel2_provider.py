@@ -3,8 +3,8 @@ from __future__ import annotations
 from unittest.mock import patch, MagicMock
 import pytest
 import httpx
-from backend.app.config import AppSettings
-from backend.app.providers.sentinel2 import Sentinel2Provider
+from app.config import AppSettings
+from app.providers.sentinel2 import Sentinel2Provider
 
 _CDSE_STAC_URL = "https://catalogue.dataspace.copernicus.eu/stac/v1"
 _E84_STAC_URL  = "https://earth-search.aws.element84.com/v1"
@@ -201,7 +201,7 @@ class TestSentinel2CircuitBreaker:
 
     def test_circuit_breaker_tracks_provider_state(self, sentinel2_settings):
         """Test that circuit breaker transitions are tracked per provider."""
-        from backend.app.resilience.circuit_breaker import CircuitBreaker, CBState
+        from app.resilience.circuit_breaker import CircuitBreaker, CBState
         
         breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=60)
         
@@ -223,7 +223,7 @@ class TestSentinel2CircuitBreaker:
 
     def test_circuit_breaker_isolates_per_provider(self):
         """Test that circuit breaker state is isolated per provider."""
-        from backend.app.resilience.circuit_breaker import CircuitBreaker, CBState
+        from app.resilience.circuit_breaker import CircuitBreaker, CBState
         
         breaker = CircuitBreaker(failure_threshold=2, recovery_timeout=60)
         

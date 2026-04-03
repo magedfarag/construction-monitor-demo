@@ -15,7 +15,7 @@ from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from backend.app.config import get_settings
+from app.config import get_settings
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["websocket"])
@@ -39,7 +39,7 @@ async def job_stream(websocket: WebSocket, job_id: str) -> None:
 
     try:
         from celery.result import AsyncResult
-        from backend.app.workers.celery_app import celery_app
+        from app.workers.celery_app import celery_app
     except ImportError:
         await websocket.send_json({
             "type": "error",

@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 try:
     from celery import Celery
 
-    from backend.app.config import get_settings
+    from app.config import get_settings
 
     settings = get_settings()
     broker   = settings.effective_celery_broker()

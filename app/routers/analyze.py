@@ -6,18 +6,18 @@ from typing import Annotated, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from backend.app.cache.client import CacheClient
-from backend.app.config import AppSettings
-from backend.app.dependencies import get_app_settings, get_cache, get_circuit_breaker, get_job_manager, get_registry, verify_api_key
-from backend.app.models.requests import AnalyzeRequest
-from backend.app.models.responses import AnalyzeResponse, JobStatusResponse
-from backend.app.providers.base import ProviderUnavailableError
-from backend.app.providers.demo import MAX_AREA_KM2, MIN_AREA_KM2, _polygon_area_km2
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.circuit_breaker import CircuitBreaker
-from backend.app.resilience.rate_limiter import ANALYZE_RATE_LIMIT, limiter
-from backend.app.services.analysis import AnalysisService
-from backend.app.services.job_manager import JobManager
+from app.cache.client import CacheClient
+from app.config import AppSettings
+from app.dependencies import get_app_settings, get_cache, get_circuit_breaker, get_job_manager, get_registry, verify_api_key
+from app.models.requests import AnalyzeRequest
+from app.models.responses import AnalyzeResponse, JobStatusResponse
+from app.providers.base import ProviderUnavailableError
+from app.providers.demo import MAX_AREA_KM2, MIN_AREA_KM2, _polygon_area_km2
+from app.providers.registry import ProviderRegistry
+from app.resilience.circuit_breaker import CircuitBreaker
+from app.resilience.rate_limiter import ANALYZE_RATE_LIMIT, limiter
+from app.services.analysis import AnalysisService
+from app.services.job_manager import JobManager
 
 router = APIRouter(prefix="/api", tags=["analysis"])
 
@@ -35,7 +35,7 @@ def _get_analysis_service(
 
 def _validate_area(request: AnalyzeRequest) -> float:
     """Validate geometry and return computed area_km2."""
-    from backend.app.services.analysis import _flatten_coords
+    from app.services.analysis import _flatten_coords
     try:
         coords = _flatten_coords(request.geometry.model_dump())
         if coords[0] != coords[-1]:

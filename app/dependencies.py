@@ -11,11 +11,11 @@ from typing import Optional
 from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyCookie, APIKeyHeader, APIKeyQuery
 
-from backend.app.cache.client import CacheClient
-from backend.app.config import AppSettings, get_settings
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.circuit_breaker import CircuitBreaker
-from backend.app.services.job_manager import JobManager
+from app.cache.client import CacheClient
+from app.config import AppSettings, get_settings
+from app.providers.registry import ProviderRegistry
+from app.resilience.circuit_breaker import CircuitBreaker
+from app.services.job_manager import JobManager
 
 # These are set by main.py lifespan
 _registry:    Optional[ProviderRegistry] = None

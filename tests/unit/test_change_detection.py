@@ -11,9 +11,9 @@ from __future__ import annotations
 import pytest
 import numpy as np
 from datetime import datetime
-from backend.app.config import AppSettings
-from backend.app.models.scene import SceneMetadata
-from backend.app.services.change_detection import run_change_detection
+from app.config import AppSettings
+from app.models.scene import SceneMetadata
+from app.services.change_detection import run_change_detection
 
 
 @pytest.fixture

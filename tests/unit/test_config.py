@@ -1,6 +1,6 @@
 """Unit tests for AppSettings."""
 from __future__ import annotations
-from backend.app.config import AppMode, AppSettings, get_settings
+from app.config import AppMode, AppSettings, get_settings
 
 def test_defaults_are_safe():
     s = AppSettings()

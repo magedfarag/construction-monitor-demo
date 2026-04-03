@@ -11,8 +11,8 @@ import uuid
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.app.models.scene import SceneMetadata
-from backend.app.providers.base import SatelliteProvider
+from app.models.scene import SceneMetadata
+from app.providers.base import SatelliteProvider
 
 # ── Demo dataset anchor ───────────────────────────────────────────────────
 TODAY         = date(2026, 3, 28)

@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import pytest
-from backend.app.config import AppMode, AppSettings
-from backend.app.providers.demo import DemoProvider
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.providers.base import ProviderUnavailableError
-from backend.app.cache.client import CacheClient
-from backend.app.services.analysis import AnalysisService
+from app.config import AppMode, AppSettings
+from app.providers.demo import DemoProvider
+from app.providers.registry import ProviderRegistry
+from app.providers.base import ProviderUnavailableError
+from app.cache.client import CacheClient
+from app.services.analysis import AnalysisService
 
 
 class TestAppModeEnum:

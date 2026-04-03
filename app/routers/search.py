@@ -5,11 +5,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from backend.app.dependencies import get_registry, verify_api_key
-from backend.app.models.requests import SearchRequest
-from backend.app.models.responses import SceneSearchResult, SearchResponse
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.rate_limiter import SEARCH_RATE_LIMIT, limiter
+from app.dependencies import get_registry, verify_api_key
+from app.models.requests import SearchRequest
+from app.models.responses import SceneSearchResult, SearchResponse
+from app.providers.registry import ProviderRegistry
+from app.resilience.rate_limiter import SEARCH_RATE_LIMIT, limiter
 
 router = APIRouter(prefix="/api", tags=["search"])
 
@@ -27,7 +27,7 @@ def search_imagery(
 
     if provider is None or provider.provider_name == "demo":
         warnings.append("No live provider available; demo search returns synthetic metadata.")
-        from backend.app.providers.demo import DemoProvider
+        from app.providers.demo import DemoProvider
         provider = DemoProvider()
 
     try:

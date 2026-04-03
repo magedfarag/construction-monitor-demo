@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.app.models.scene import SceneMetadata
+from app.models.scene import SceneMetadata
 
 
 class ProviderUnavailableError(Exception):

@@ -5,9 +5,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from backend.app.dependencies import get_registry
-from backend.app.models.responses import ProviderInfo, ProvidersResponse
-from backend.app.providers.registry import ProviderRegistry
+from app.dependencies import get_registry
+from app.models.responses import ProviderInfo, ProvidersResponse
+from app.providers.registry import ProviderRegistry
 
 router = APIRouter(prefix="/api", tags=["providers"])
 

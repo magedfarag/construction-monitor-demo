@@ -5,9 +5,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from backend.app.cache.client import CacheClient
-from backend.app.dependencies import get_cache
-from backend.app.models.responses import CreditsResponse
+from app.cache.client import CacheClient
+from app.dependencies import get_cache
+from app.models.responses import CreditsResponse
 
 router = APIRouter(prefix="/api", tags=["usage"])
 

@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from backend.app.models.jobs import Job, JobState
+from app.models.jobs import Job, JobState
 
 log = logging.getLogger(__name__)
 _JOB_TTL = 86400  # 24 hours
@@ -41,7 +41,7 @@ class JobManager:
 
         if database_url:
             try:
-                from backend.app.services.postgres_jobs import PostgresJobStore, SQLALCHEMY_AVAILABLE
+                from app.services.postgres_jobs import PostgresJobStore, SQLALCHEMY_AVAILABLE
                 if SQLALCHEMY_AVAILABLE:
                     self._pg = PostgresJobStore(database_url)
                     log.info("JobManager backend: PostgreSQL")

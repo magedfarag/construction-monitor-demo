@@ -1,6 +1,6 @@
 """Unit tests for CacheClient."""
 from __future__ import annotations
-from backend.app.cache.client import CacheClient
+from app.cache.client import CacheClient
 
 def test_memory_cache_set_get():
     c = CacheClient(redis_url="", ttl_seconds=10, max_entries=16)

@@ -16,15 +16,15 @@ os.environ["MAXAR_API_KEY"] = ""
 os.environ["PLANET_API_KEY"] = ""
 os.environ["DATABASE_URL"] = ""
 
-from backend.app import dependencies
-from backend.app.cache.client import CacheClient
-from backend.app.config import AppSettings
-from backend.app.providers.demo import DemoProvider
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.circuit_breaker import CircuitBreaker
+from app import dependencies
+from app.cache.client import CacheClient
+from app.config import AppSettings
+from app.providers.demo import DemoProvider
+from app.providers.registry import ProviderRegistry
+from app.resilience.circuit_breaker import CircuitBreaker
 
 # Reset settings singleton so it picks up the overridden env vars above
-import backend.app.config as _cfg
+import app.config as _cfg
 _cfg._settings = None
 
 
@@ -51,7 +51,7 @@ def app_client(demo_registry, memory_cache, circuit_breaker) -> TestClient:
     dependencies.set_registry(demo_registry)
     dependencies.set_cache(memory_cache)
     dependencies.set_breaker(circuit_breaker)
-    from backend.app.main import app
+    from app.main import app
     return TestClient(app, raise_server_exceptions=True)
 
 

@@ -5,9 +5,9 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
-from backend.app.models.requests import AnalyzeRequest
-from backend.app.models.responses import JobStatusResponse, AnalyzeResponse
-from backend.app.models.jobs import Job, JobState
+from app.models.requests import AnalyzeRequest
+from app.models.responses import JobStatusResponse, AnalyzeResponse
+from app.models.jobs import Job, JobState
 
 
 POLYGON = {

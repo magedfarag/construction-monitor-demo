@@ -13,24 +13,24 @@ import uuid
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from backend.app.cache.client import CacheClient
-from backend.app.config import AppMode, AppSettings
-from backend.app.models.jobs import Job, JobState
-from backend.app.models.requests import AnalyzeRequest
-from backend.app.models.responses import AnalyzeResponse, ChangeRecord
-from backend.app.models.scene import SceneMetadata
-from backend.app.providers.base import ProviderUnavailableError, SatelliteProvider
-from backend.app.providers.demo import (
+from app.cache.client import CacheClient
+from app.config import AppMode, AppSettings
+from app.models.jobs import Job, JobState
+from app.models.requests import AnalyzeRequest
+from app.models.responses import AnalyzeResponse, ChangeRecord
+from app.models.scene import SceneMetadata
+from app.providers.base import ProviderUnavailableError, SatelliteProvider
+from app.providers.demo import (
     DemoProvider,
     MAX_AREA_KM2,
     MIN_AREA_KM2,
     TODAY,
     _polygon_area_km2,
 )
-from backend.app.providers.registry import ProviderRegistry
-from backend.app.resilience.circuit_breaker import CircuitBreaker
-from backend.app.services.job_manager import JobManager
-from backend.app.services.scene_selection import rank_scenes, select_scene_pair
+from app.providers.registry import ProviderRegistry
+from app.resilience.circuit_breaker import CircuitBreaker
+from app.services.job_manager import JobManager
+from app.services.scene_selection import rank_scenes, select_scene_pair
 
 log = logging.getLogger(__name__)
 
@@ -160,8 +160,8 @@ class AnalysisService:
                 "Set REDIS_URL (or CELERY_BROKER_URL) to enable async jobs."
             )
         try:
-            from backend.app.workers.tasks import run_analysis_task
-            from backend.app.models.jobs import JobState
+            from app.workers.tasks import run_analysis_task
+            from app.models.jobs import JobState
         except ImportError as exc:
             raise RuntimeError(f"Celery workers not available: {exc}") from exc
 
@@ -291,7 +291,7 @@ class AnalysisService:
         area_km2: float,
     ):
         """Search, rank, detect; return (changes_raw, warnings)."""
-        from backend.app.services.change_detection import run_change_detection
+        from app.services.change_detection import run_change_detection
 
         warnings: List[str] = []
         pname = provider.provider_name
