@@ -24,7 +24,7 @@ from src.models.event_search import (
     SourceSummary,
     TimelineResponse,
 )
-from src.services.event_store import EventStore
+from src.services.event_store import EventStore, get_default_event_store
 
 router = APIRouter(prefix="/api/v1/events", tags=["events"])
 
@@ -33,11 +33,15 @@ _DENSITY_THRESHOLD: int = 500
 _DENSITY_MAX_RESULTS: int = 200
 
 # ── Dependency ────────────────────────────────────────────────────────────────
-_store = EventStore()
+# _store is the process-wide singleton.  Tests that import _store directly may
+# clear _store._events for isolation.  get_event_store() always dereferences
+# the current singleton so pollers, the events router, and the playback router
+# share the same in-memory store.
+_store: EventStore = get_default_event_store()
 
 
 def get_event_store() -> EventStore:
-    return _store
+    return get_default_event_store()
 
 
 EventStoreDep = Annotated[EventStore, Depends(get_event_store)]

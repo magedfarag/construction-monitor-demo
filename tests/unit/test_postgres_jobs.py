@@ -6,7 +6,7 @@ PostgreSQL server.
 from __future__ import annotations
 
 import pytest
-from datetime import datetime
+from datetime import datetime, UTC
 
 from app.services.postgres_jobs import SQLALCHEMY_AVAILABLE
 
@@ -30,7 +30,7 @@ def pg_store():
 
 @pytest.fixture
 def sample_job_data():
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).isoformat()
     return {
         "job_id": "test-job-1",
         "state": "pending",

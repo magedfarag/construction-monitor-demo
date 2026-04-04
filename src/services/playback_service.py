@@ -42,6 +42,26 @@ def _centroid_in_bbox(
     lon, lat = float(coords[0]), float(coords[1])
     return west <= lon <= east and south <= lat <= north
 
+
+def standard_playback_windows() -> dict:
+    """Return standard 24h / 7d / 30d playback window definitions.
+
+    These windows are pre-defined per the Phase 1 contract freeze.
+    Use with materialize_async() to warm common playback windows.
+
+    Note: Materialization is synchronous in this implementation; call once at
+    startup or on a schedule via Celery beat.
+
+    Returns dict: {window_name: (start_time, end_time)}
+    """
+    now = datetime.now(timezone.utc)
+    return {
+        "24h":  (now - timedelta(hours=24),  now),
+        "7d":   (now - timedelta(days=7),    now),
+        "30d":  (now - timedelta(days=30),   now),
+    }
+
+
 class _MaterializeJob:
     """Mutable job record for a materialization request."""
 

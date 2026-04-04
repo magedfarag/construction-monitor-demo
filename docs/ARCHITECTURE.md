@@ -1,8 +1,91 @@
-# Architecture — Construction Activity Monitor v3.0
+# Architecture — ARGUS Multi-Domain Surveillance Intelligence v6.0
 
-**Date**: 2026-03-28  
-**Version**: 3.0.0  
-**Mode**: FastAPI + Redis + Celery (async jobs) + rasterio (change detection) + PostgreSQL (job persistence)
+**Date**: 2026-04-04  
+**Version**: 6.0.0  
+**Mode**: FastAPI + React + Redis + Celery + rasterio + PostgreSQL  
+**Status**: Production Release Candidate — all 6 transformation phases complete
+
+> See [docs/DATA_RETENTION_POLICY.md](DATA_RETENTION_POLICY.md) for data governance and retention rules.  
+> See [docs/RUNBOOK.md](RUNBOOK.md) for operational runbooks.  
+> See [docs/ALERTING_RULES.md](ALERTING_RULES.md) for monitoring configuration.
+
+---
+
+## Application Mode (`APP_MODE`)
+
+The platform has three operating modes controlled by the `APP_MODE` environment variable:
+
+| Mode | Value | Behaviour |
+|---|---|---|
+| Demo | `demo` | Always uses `DemoProvider` — no live data, no credentials needed. Auth role-checks bypassed. |
+| Staging | `staging` | Real providers with demo fallback. Auth enforced when `API_KEY` is set. Default. |
+| Production | `production` | Real providers only — no demo fallback. Any provider failure raises an error. Auth always enforced. |
+
+```python
+class AppMode(str, Enum):
+    DEMO       = "demo"
+    STAGING    = "staging"
+    PRODUCTION = "production"
+```
+
+---
+
+## Authentication and RBAC (Phase 6 Track A)
+
+All privileged API surfaces are protected by HMAC-SHA256 signed tokens defined in `app/dependencies.py`.
+
+### Roles
+
+| Role | Numeric level | Capabilities |
+|---|---|---|
+| `analyst` | 1 | Read all data, query briefings, list investigations |
+| `operator` | 2 | Analyst + create/update/delete investigations and signals |
+| `admin` | 3 | Operator + administrative operations |
+
+Role hierarchy is additive: a higher role satisfies any lower-role check.
+
+### Token format
+
+```
+base64url(payload_json).base64url(HMAC-SHA256(payload_json, JWT_SECRET))
+```
+
+Tokens are issued by `create_access_token(user_id, role)` and verified by `get_current_user()`.
+
+### Demo and dev bypass
+
+- `APP_MODE=demo` — all role checks bypass; all requests treated as `admin`.
+- `API_KEY` not set (dev mode) — all requests treated as `admin`.
+- Raw `API_KEY` match maps to `analyst` role.
+- `ADMIN_API_KEY` / `OPERATOR_API_KEY` / `ANALYST_API_KEY` env vars enable direct tiered key issuance.
+
+### Audit logging
+
+`AuditLoggingMiddleware` (registered on `app` in `main.py`) logs every request to the `argus.audit` logger:
+
+- JSON-formatted append-only entries via `app/audit_log.py`
+- `user_id` stored as 16-char SHA-256 prefix (no cleartext PII)
+- Runs as a `BackgroundTask` — zero request-path latency impact
+
+See `docs/DATA_RETENTION_POLICY.md` for audit log retention requirements.
+
+---
+
+## Metrics and Observability (Phase 6 Track C)
+
+In-process metrics registry in `app/metrics.py`:
+
+- **Counters**: `http_requests_total`, `http_errors_total`, `connector_errors_total`, `analysis_total`
+- **Histograms**: `http_request_duration_seconds`, `replay_query_duration_seconds`
+- **Gauges**: `connector_last_fetch_timestamp`
+
+Exposed at `/api/v1/health/connectors` (per-connector health) and `/api/v1/health/metrics` (snapshot).
+
+Prometheus scrape endpoint at `/metrics` (requires `prometheus-fastapi-instrumentator`).
+
+Background health prober runs every 5 minutes and probes all registered STAC catalogs + GDELT + OpenSky.
+
+See `docs/ALERTING_RULES.md` for the 8 Prometheus alerting rules and `docs/RUNBOOK.md` for incident response procedures.
 
 ---
 
@@ -29,16 +112,24 @@
 │ • JobManager: Redis + PostgreSQL + memory hierarchy │
 │ • ThumbnailService: COG→PNG crop with LRU cache    │
 │                                                     │
-│ Routers:                                            │
-│   ├─ health.py: GET /api/health                    │
-│   ├─ config_router.py: GET /api/config             │
-│   ├─ providers_router.py: GET /api/providers       │
-│   ├─ analyze.py: POST /api/analyze (rate-limited)  │
-│   ├─ search.py: POST /api/search (rate-limited)    │
-│   ├─ jobs.py: GET/DELETE /api/jobs/* (async mgmt)  │
-│   ├─ ws_jobs.py: WS /api/jobs/{id}/stream          │
-│   ├─ thumbnails.py: GET /api/thumbnails/{id}       │
-│   └─ credits.py: GET /api/credits                  │
+│ V1 Routers (app/routers/):                          │
+│   ├─ health.py:          GET /api/health            │
+│   ├─ health_connectors:  GET /api/v1/health/connectors, /metrics│
+│   ├─ config_router.py:   GET /api/config            │
+│   ├─ providers_router.py: GET /api/providers        │
+│   ├─ analyze.py:         POST /api/analyze          │
+│   ├─ search.py:          POST /api/search           │
+│   ├─ jobs.py:            GET/DELETE /api/jobs/*     │
+│   ├─ ws_jobs.py:         WS /api/jobs/{id}/stream   │
+│   ├─ thumbnails.py:      GET /api/thumbnails/{id}   │
+│   └─ credits.py:         GET /api/credits           │
+│                                                     │
+│ V2 Routers (src/api/) — see API table for all paths:│
+│   AOIs, Events, Imagery, Playback, Analytics,       │
+│   Exports, Source Health, Orbits, Airspace,         │
+│   Jamming, Strikes, Vessels, Chokepoints,           │
+│   Dark Ships, Intel, Cameras, Detections,           │
+│   Investigations, Absence, Evidence Packs, Analyst  │
 └────────┬────────────────────────────────────────────┘
          │
     ┌────┴────────┬────────────┬──────────┬──────────────┐
@@ -375,7 +466,7 @@ LOG_FORMAT=json                         # or text
 
 ## **Deployment**
 
-- **Docker**: `docker build -t construction-monitor . && docker-compose up`
+- **Docker**: `docker build -t argus-intel . && docker-compose up`
 - **Services**: redis (cache/broker), postgresql (job persistence), api (FastAPI), worker (Celery)
 - **Reverse Proxy**: Nginx/HAProxy for:
   - HTTPS termination
@@ -386,11 +477,70 @@ LOG_FORMAT=json                         # or text
 
 ---
 
+## **V2 Operational and Intelligence Layers (src/)**
+
+All V2 services share an in-memory `EventStore` seeded at startup by `src/services/demo_seeder.py`.
+
+### **Unified Data Plane** (`src/`)
+
+| Module | Purpose |
+|---|---|
+| `src/connectors/` | STAC (Earth Search, Planetary Computer, CDSE Sentinel-2, USGS Landsat), GDELT, AIS, OpenSky |
+| `src/services/event_store.py` | Canonical in-memory event store shared by all V2 routers |
+| `src/services/playback.py` | Time-window slice queries; 24h / 7d / 30d replay windows |
+| `src/services/change_analytics.py` | Cross-event trend analysis |
+| `src/normalization/pipeline.py` | Deduplication + ingestion pipeline |
+
+### **Operational Layers (Phase 2)**
+
+| Router | Prefix | Description |
+|---|---|---|
+| `src/api/orbits.py` | `/api/v1/orbits` | Satellite pass predictions; TLE-based flat-earth approximation |
+| `src/api/airspace.py` | `/api/v1/airspace` | No-fly zones, airspace violations, NOTAM alerts |
+| `src/api/jamming.py` | `/api/v1/jamming` | GPS / GNSS jamming events; affected-arc queries |
+| `src/api/strike.py` | `/api/v1/strikes` | Strike reconstruction events; evidence attachment |
+
+### **Maritime Intelligence (Phase 6 Maritime)**
+
+| Router | Prefix | Description |
+|---|---|---|
+| `src/api/vessels.py` | `/api/v1/vessels` | Vessel registry lookup by MMSI / IMO |
+| `src/api/chokepoints.py` | `/api/v1/chokepoints` | Chokepoint transit density |
+| `src/api/dark_ships.py` | `/api/v1/dark-ships` | AIS gap / dark-ship detection |
+| `src/api/intel.py` | `/api/v1/intel` | Aggregated intelligence briefing |
+
+### **Sensor Fusion (Phase 4)**
+
+| Router | Prefix | Description |
+|---|---|---|
+| `src/api/cameras.py` | `/api/v1/cameras` | Camera feed inventory; nearest observation by time |
+| `src/api/detections.py` | `/api/v1/detections` | Detection overlays (confidence radius, click popups) |
+
+**Camera observation model**: `CameraObservation` records bearing, elevation, and confidence for each camera-entity pair.  Nearest observations to `currentTime` drive the frontend highlight pass.
+
+### **Investigation Workflows (Phase 5)**
+
+| Router | Prefix | Auth | Description |
+|---|---|---|---|
+| `src/api/investigations.py` | `/api/v1/investigations` | GET: analyst; POST/PUT/DELETE: operator | Saved investigations with sub-resource evidence and AOI linking |
+| `src/api/evidence_packs.py` | `/api/v1/evidence-packs` | operator | Evidence pack generation and ZIP download |
+| `src/api/analyst.py` | `/api/v1/analyst` | GET: analyst; POST: operator | Saved queries and AI briefing generation |
+| `src/api/absence.py` | `/api/v1/absence` | GET: analyst; POST: operator | Absence-as-signal analytics; AIS gap detection |
+
+### **Source Health Dashboard (Phase 5 / Track C)**
+
+| Router | Prefix | Description |
+|---|---|---|
+| `src/api/source_health.py` | `/api/v1/health` | Full dashboard, per-connector status, SLA alerts |
+| `app/routers/health_connectors.py` | `/api/v1/health` | Per-connector health + in-process metrics snapshot |
+
+---
+
 ## **Future Extensions**
 
-1. **Streaming Tiles**: Replace static scene pair with sliding-window analysis
-2. **User Accounts**: Add JWT authentication alongside API keys
-3. **Vector Output**: Export change polygons as GeoJSON; integrate with GIS workflows
-4. **Multi-Temporal**: Composite 3+ scenes for seasonal suppression
-5. **Segmentation**: Deep learning model (U-Net, ResNet) instead of NDVI rules
-6. **Dashboard**: Analytics on provider performance, change type distributions, historical trends
+1. **Postgres persistence**: Replace in-memory AOI, event, investigation stores with PostGIS
+2. **Redis caching**: Replace per-worker in-process rate limiter with shared Redis state
+3. **External identity provider**: Replace HMAC-self-signed tokens with OAuth2 / OIDC
+4. **Live connector activation**: Activate AIS, OpenSky, GDELT connectors with real credentials
+5. **3D terrain streaming**: Replace flat-earth orbit approximations with WGS-84 ellipsoid model
+6. **Streaming tiles**: Sliding-window analysis instead of before/after scene pair

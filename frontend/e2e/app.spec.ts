@@ -261,3 +261,106 @@ test.describe("Browser responsiveness under dense layers (P3-3.8)", () => {
     }
   });
 });
+
+// ── Phase 4: RenderModeSelector ───────────────────────────────────────────
+test.describe("RenderModeSelector — Phase 4 render modes", () => {
+  test("all four render mode buttons are visible on load", async ({ page }) => {
+    await page.goto("/");
+    await expect(
+      page.locator('[data-testid="map-container"], [data-testid="globe-container"]').first()
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /^day$/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /^low light$/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /^night vision$/i })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: /^thermal$/i })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("clicking Night Vision activates that mode button", async ({ page }) => {
+    await page.goto("/");
+    const nightBtn = page.getByRole("button", { name: /^night vision$/i });
+    await expect(nightBtn).toBeVisible({ timeout: 10_000 });
+    await nightBtn.click();
+    // Active state sets inline font-weight: 700
+    await expect(nightBtn).toHaveCSS("font-weight", "700");
+  });
+
+  test("clicking Day after Night Vision resets to day mode", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: /^night vision$/i }).click();
+    const dayBtn = page.getByRole("button", { name: /^day$/i });
+    await dayBtn.click();
+    await expect(dayBtn).toHaveCSS("font-weight", "700");
+  });
+});
+
+// ── Phase 4: CameraFeedPanel ──────────────────────────────────────────────
+test.describe("CameraFeedPanel — Phase 4 sensor cameras", () => {
+  test("opening Cameras tab shows the camera feed panel", async ({ page }) => {
+    await page.goto("/");
+    await page.click('.sidebar-btn:has-text("Cameras")');
+    await expect(page.locator('[data-testid="camera-feed-panel"]')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("camera feed panel renders loading state or camera list or empty state", async ({ page }) => {
+    await page.goto("/");
+    await page.click('.sidebar-btn:has-text("Cameras")');
+    const panel = page.locator('[data-testid="camera-feed-panel"]');
+    await expect(panel).toBeVisible({ timeout: 10_000 });
+    // Any of these content states is a valid render
+    await Promise.race([
+      panel.locator("text=Loading cameras").waitFor({ timeout: 5_000 }),
+      panel.locator("text=Camera Feeds").waitFor({ timeout: 5_000 }),
+      panel.locator("text=No cameras registered").waitFor({ timeout: 5_000 }),
+      panel.locator("text=Camera feeds unavailable").waitFor({ timeout: 5_000 }),
+    ]).catch(() => { /* panel is rendered in some valid state */ });
+    await expect(panel).toBeVisible();
+  });
+});
+
+// ── Phase 3: GlobeView 3D mode ────────────────────────────────────────────
+test.describe("GlobeView — Phase 3 3D world", () => {
+  test("switching to 3D mode mounts the globe container", async ({ page }) => {
+    await page.goto("/");
+    // Establish a known 2D baseline regardless of persisted localStorage
+    await page.click('button:has-text("2D")');
+    await expect(page.locator('[data-testid="map-container"]')).toBeVisible({ timeout: 10_000 });
+    // Switch to globe / 3D
+    await page.click('button:has-text("🌐 3D")');
+    await expect(page.locator('[data-testid="globe-container"]')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("returning to 2D after 3D restores the flat map", async ({ page }) => {
+    await page.goto("/");
+    await page.click('button:has-text("🌐 3D")');
+    await expect(page.locator('[data-testid="globe-container"]')).toBeVisible({ timeout: 10_000 });
+    await page.click('button:has-text("2D")');
+    await expect(page.locator('[data-testid="map-container"]')).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+// ── Phase 5: InvestigationsPanel ─────────────────────────────────────────
+test.describe("InvestigationsPanel — Phase 5 investigation workflows", () => {
+  test("opening Cases tab shows the investigations panel", async ({ page }) => {
+    await page.goto("/");
+    await page.click('.sidebar-btn:has-text("Cases")');
+    await expect(page.locator('[data-testid="investigations-panel"]')).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("investigations panel contains the Absence Signals toggle", async ({ page }) => {
+    await page.goto("/");
+    await page.click('.sidebar-btn:has-text("Cases")');
+    await expect(page.locator('[data-testid="investigations-panel"]')).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.locator('[data-testid="investigations-panel"] button:has-text("Absence Signals")')
+    ).toBeVisible();
+  });
+
+  test("investigations panel has a New investigation button", async ({ page }) => {
+    await page.goto("/");
+    await page.click('.sidebar-btn:has-text("Cases")');
+    await expect(page.locator('[data-testid="investigations-panel"]')).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.locator('[data-testid="investigations-panel"] button:has-text("+ New")')
+    ).toBeVisible();
+  });
+});

@@ -33,6 +33,10 @@ class EventSearchRequest(BaseModel):
         default=None,
         description="Restrict results to specific connector identifiers, e.g. ['copernicus-cdse'].",
     )
+    viewport_bbox: Optional[List[float]] = Field(
+        default=None,
+        description="Spatial viewport filter [west, south, east, north] in EPSG:4326. Optional. Delegates to TelemetryStore.query_viewport() when provided.",
+    )
     min_confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=50, ge=1, le=500)

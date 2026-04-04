@@ -9,6 +9,13 @@ interface LayerState {
   trackDensity: number;
   /** P2-3.3: imagery footprint fill opacity (0–1). */
   imageryOpacity: number;
+  showOrbits: boolean;
+  showAirspace: boolean;
+  showJamming: boolean;
+  showStrikes: boolean;
+  showTerrain: boolean;
+  show3dBuildings: boolean;
+  showDetections: boolean;
 }
 
 interface Props {
@@ -23,6 +30,13 @@ const LAYERS: { key: keyof LayerState; label: string; color: string }[] = [
   { key: "showGdelt",   label: "GDELT Context",      color: "#9c27b0" },
   { key: "showShips",   label: "Maritime (AIS)",     color: "#00bcd4" },
   { key: "showAircraft",label: "Aviation (ADS-B)",   color: "#ff5722" },
+  { key: "showOrbits",        label: "Satellite Orbits",   color: "#00ff88" },
+  { key: "showAirspace",      label: "Airspace NFZ/TFR",   color: "#ff4444" },
+  { key: "showJamming",       label: "GPS Jamming",        color: "#ff3232" },
+  { key: "showStrikes",       label: "Strike Events",      color: "#ff2200" },
+  { key: "showTerrain",       label: "Terrain (DEM)",      color: "#8b7355" },
+  { key: "show3dBuildings",   label: "3D Buildings",       color: "#b0c4de" },
+  { key: "showDetections",    label: "Detections (AI)",    color: "#ffdd00" },
 ];
 
 export function LayerPanel({ layers, onChange }: Props) {

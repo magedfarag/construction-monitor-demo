@@ -1,4 +1,4 @@
-# On-Call Handoff Document — Construction Activity Monitor
+# On-Call Handoff Document — ARGUS — Multi-Domain Surveillance Intelligence
 
 **Version:** 2.0  
 **Last updated:** 2026-04-03  
@@ -8,7 +8,7 @@
 
 ## Service Overview
 
-The Construction Activity Monitor v2 is a geospatial intelligence platform that monitors
+The ARGUS Intelligence Platform is a geospatial intelligence platform that monitors
 construction activity using satellite imagery, maritime/aviation tracking, and contextual
 events. It runs as a FastAPI backend + React frontend, backed by PostgreSQL/PostGIS,
 Redis, and MinIO object storage.

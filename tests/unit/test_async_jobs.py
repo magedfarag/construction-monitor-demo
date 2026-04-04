@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from datetime import datetime, UTC
 
 from app.models.requests import AnalyzeRequest
 from app.models.responses import JobStatusResponse, AnalyzeResponse
@@ -70,7 +70,7 @@ def test_async_execution_request_flag_required():
 
 def test_job_status_response_structure():
     """Test JobStatusResponse contains all required fields."""
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     response = JobStatusResponse(
         job_id="job-123",
         state="pending",

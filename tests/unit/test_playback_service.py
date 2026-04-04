@@ -353,3 +353,96 @@ class TestPlaybackRouterEndpoints:
     def test_get_job_endpoint_404_unknown(self, playback_client: TestClient):
         resp = playback_client.get("/api/v1/playback/jobs/nonexistent-job")
         assert resp.status_code == 404
+
+
+# ── Unified write→read path integration tests (Track C) ──────────────────────
+
+
+class TestUnifiedQueryPath:
+    """Verify that pollers writing to the singleton are visible via PlaybackService."""
+
+    def test_event_ingested_via_default_store_is_visible_in_playback_query(self):
+        """Events written to the default singleton are readable via PlaybackService(singleton)."""
+        import src.services.event_store as _es_mod
+
+        original = _es_mod._default_store
+        try:
+            fresh_store = EventStore()
+            _es_mod._default_store = fresh_store
+
+            from src.services.event_store import get_default_event_store
+
+            # Simulate poller writing an event to the process-wide singleton
+            event = _make_event(source="ais-poller", hours_offset=2)
+            get_default_event_store().ingest(event)
+
+            # PlaybackService created from the same singleton must see the event
+            svc = PlaybackService(get_default_event_store())
+            req = PlaybackQueryRequest(
+                start_time=_BASE_DT,
+                end_time=_BASE_DT + timedelta(hours=24),
+            )
+            resp = svc.query(req)
+            assert resp.total_frames == 1
+            assert resp.frames[0].event.event_id == event.event_id
+        finally:
+            _es_mod._default_store = original
+
+    def test_telemetry_ingested_via_default_store_is_visible_in_entity_track(self):
+        """Ship positions written to the default telemetry singleton are readable via query_entity."""
+        import src.services.telemetry_store as _ts_mod
+        from src.services.telemetry_store import TelemetryStore, get_default_telemetry_store
+
+        original = _ts_mod._default_store
+        try:
+            _ts_mod._default_store = TelemetryStore()
+
+            entity_id = "vessel-mmsi-123456789"
+            ts = _BASE_DT + timedelta(hours=1)
+            ship_event = CanonicalEvent(
+                event_id=make_event_id("ais-live", entity_id, ts.isoformat()),
+                source="ais-live",
+                source_type=SourceType.TELEMETRY,
+                entity_type=EntityType.VESSEL,
+                event_type=EventType.SHIP_POSITION,
+                event_time=ts,
+                ingested_at=ts,
+                entity_id=entity_id,
+                geometry={"type": "Point", "coordinates": [55.0, 25.0]},
+                centroid={"type": "Point", "coordinates": [55.0, 25.0]},
+                attributes={},
+                normalization=NormalizationRecord(normalized_by="ais-connector"),
+                provenance=ProvenanceRecord(raw_source_ref="ais://raw/mmsi/123456789"),
+                license=LicenseRecord(),
+                correlation_keys=CorrelationKeys(),
+            )
+            # Simulate AIS poller writing to the singleton
+            get_default_telemetry_store().ingest(ship_event)
+
+            # Entity track query via the same singleton
+            positions = get_default_telemetry_store().query_entity(
+                entity_id,
+                _BASE_DT,
+                _BASE_DT + timedelta(hours=24),
+            )
+            assert len(positions) == 1
+            assert positions[0].entity_id == entity_id
+            assert positions[0].event_type == EventType.SHIP_POSITION
+        finally:
+            _ts_mod._default_store = original
+
+    def test_standard_playback_windows_returns_three_windows(self):
+        """standard_playback_windows() returns exactly the 24h, 7d, 30d keys with correct spans."""
+        from src.services.playback_service import standard_playback_windows
+
+        windows = standard_playback_windows()
+        assert set(windows.keys()) == {"24h", "7d", "30d"}
+
+        start_24h, end_24h = windows["24h"]
+        assert abs((end_24h - start_24h).total_seconds() - 24 * 3600) < 2
+
+        start_7d, end_7d = windows["7d"]
+        assert abs((end_7d - start_7d).total_seconds() - 7 * 24 * 3600) < 2
+
+        start_30d, end_30d = windows["30d"]
+        assert abs((end_30d - start_30d).total_seconds() - 30 * 24 * 3600) < 2

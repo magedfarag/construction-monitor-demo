@@ -1,4 +1,4 @@
-"""Write all documentation files for the construction-monitor-demo project."""
+"""Write all documentation files for the argus-intel project."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -10,7 +10,7 @@ HANDOVER = ROOT / "HANDOVER.md"
 HANDOVER.write_text(r"""# Construction Activity Monitor — Project Handover
 
 **Date:** 2026-03-28
-**Repository:** https://github.com/magedfarag/construction-monitor-demo
+**Repository:** https://github.com/magedfarag/argus-intel
 **Branch:** `main`
 **Test status:** 38 / 38 passing
 
@@ -36,7 +36,7 @@ three services: `redis`, `api`, `worker`.
 ## 2. Repository Layout
 
 ```
-construction-monitor-demo/
+argus-intel/
 ├── backend/app/
 │   ├── main.py                   FastAPI app + lifespan DI wiring
 │   ├── config.py                 Flat AppSettings (pydantic-settings)
@@ -194,7 +194,7 @@ requested provider
 ### Phase 2 — Git + GitHub
 - [x] `.gitignore` created
 - [x] Initial commit: 102 files, 16 260 insertions
-- [x] GitHub repository created: https://github.com/magedfarag/construction-monitor-demo
+- [x] GitHub repository created: https://github.com/magedfarag/argus-intel
 - [x] Default branch: `main`
 
 ### Phase 3 — Quality
@@ -381,7 +381,7 @@ python -m pytest tests/ -v
 
 | Resource | URL |
 |---|---|
-| GitHub repository | https://github.com/magedfarag/construction-monitor-demo |
+| GitHub repository | https://github.com/magedfarag/argus-intel |
 | Copernicus CDSE registration | https://dataspace.copernicus.eu |
 | Copernicus STAC API | https://catalogue.dataspace.copernicus.eu/stac/v1 |
 | USGS LandsatLook STAC | https://landsatlook.usgs.gov/stac-server |
@@ -408,8 +408,8 @@ print("HANDOVER.md written")
 
 ```bash
 # Clone and enter directory
-git clone https://github.com/magedfarag/construction-monitor-demo
-cd construction-monitor-demo
+git clone https://github.com/magedfarag/argus-intel
+cd argus-intel
 
 # Create virtual environment
 python -m venv .venv

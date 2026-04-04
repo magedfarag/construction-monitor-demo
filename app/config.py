@@ -343,6 +343,45 @@ class AppSettings(BaseSettings):
     def vessel_data_is_configured(self) -> bool:
         return bool(self.vessel_data_api_key)
 
+    # ── Phase 6 Auth / RBAC ───────────────────────────────────────────────────
+    jwt_secret: str = Field(
+        default="",
+        description=(
+            "Secret for signing HMAC-SHA256 role tokens. "
+            "Defaults to api_key value if unset. "
+            "Set to a strong random value in production (e.g. openssl rand -hex 32)."
+        ),
+    )
+    admin_api_key: str = Field(
+        default="",
+        description="Raw API key granting admin role. Checked after JWT decoding.",
+    )
+    operator_api_key: str = Field(
+        default="",
+        description="Raw API key granting operator role. Checked after JWT decoding.",
+    )
+    analyst_api_key: str = Field(
+        default="",
+        description=(
+            "Raw API key granting analyst role. "
+            "Falls back to api_key if unset (backward compat)."
+        ),
+    )
+
+    # ── Phase 6 Track B: Cost guardrails ──────────────────────────────────────
+    max_briefings_per_hour_per_user: int = Field(
+        default=10,
+        description="Max briefing generations per user per hour (0 = unlimited).",
+    )
+    max_evidence_packs_per_hour_per_user: int = Field(
+        default=20,
+        description="Max evidence pack generations per user per hour (0 = unlimited).",
+    )
+    max_export_size_mb: int = Field(
+        default=50,
+        description="Maximum export payload size in megabytes.",
+    )
+
 
 @dataclass(frozen=True)
 class Sentinel2Config:

@@ -17,6 +17,7 @@ The Celery beat scheduler in `app.workers.tasks` respects a 15-minute cadence.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -309,7 +310,7 @@ class GdeltConnector(BaseConnector):
                 ),
             ),
             provenance=ProvenanceRecord(
-                raw_source_ref=f"gdelt://{event_id}",
+                raw_source_ref=f"gdelt://doc/{hashlib.sha256((url or title).encode()).hexdigest()[:16]}",
                 source_record_id=url or None,
                 source_url=url or None,
             ),

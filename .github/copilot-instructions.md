@@ -1,4 +1,4 @@
-# Construction Activity Monitor Demo — Guidelines
+# ARGUS — Multi-Domain Surveillance Intelligence — Guidelines
 
 ## Architecture
 

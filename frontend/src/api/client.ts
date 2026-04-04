@@ -9,6 +9,8 @@ import type {
   ExportRequest, ExportJob,
   PlaybackQueryRequest, PlaybackQueryResponse,
   ProviderStatus,
+  ChokepointListResponse, ChokepointMetricsResponse,
+  VesselProfile, DarkShipDetectionResponse, IntelBriefing,
 } from './types';
 
 const BASE = '';   // proxy forwards /api -> backend; set full URL when deploying standalone
@@ -27,7 +29,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     'Content-Type': 'application/json',
     ...(init.headers as Record<string, string> ?? {}),
   };
-  if (key) headers['x-api-key'] = key;
+  if (key) headers['Authorization'] = `Bearer ${key}`;
   const res = await fetch(`${BASE}${path}`, { ...init, headers });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
@@ -183,4 +185,37 @@ export const systemApi = {
   }>('/api/health'),
   providers: () => request<{ providers: ProviderStatus[] }>('/api/providers'),
   config: () => request<Record<string, unknown>>('/api/config'),
+};
+
+// ── Maritime Intelligence (P6) ────────────────────────────────────────────────
+export const chokepointsApi = {
+  list: () => request<ChokepointListResponse>('/api/v1/chokepoints'),
+  get: (id: string) => request<ChokepointListResponse['chokepoints'][0]>(`/api/v1/chokepoints/${id}`),
+  metrics: (id: string) => request<ChokepointMetricsResponse>(`/api/v1/chokepoints/${id}/metrics`),
+};
+
+export const vesselsApi = {
+  list: (params?: { sanctions_only?: boolean; dark_risk?: string; vessel_type?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.sanctions_only) q.set('sanctions_only', 'true');
+    if (params?.dark_risk) q.set('dark_risk', params.dark_risk);
+    if (params?.vessel_type) q.set('vessel_type', params.vessel_type);
+    if (params?.limit) q.set('limit', String(params.limit));
+    return request<VesselProfile[]>(`/api/v1/vessels${q.toString() ? '?' + q.toString() : ''}`);
+  },
+  getByMmsi: (mmsi: string) => request<VesselProfile>(`/api/v1/vessels/mmsi/${mmsi}`),
+  getByImo: (imo: string) => request<VesselProfile>(`/api/v1/vessels/imo/${imo}`),
+};
+
+export const darkShipsApi = {
+  list: () => request<DarkShipDetectionResponse>('/api/v1/dark-ships'),
+  detect: (events: CanonicalEvent[]) =>
+    request<DarkShipDetectionResponse>('/api/v1/dark-ships/detect', {
+      method: 'POST',
+      body: JSON.stringify({ events }),
+    }),
+};
+
+export const intelApi = {
+  briefing: () => request<IntelBriefing>('/api/v1/intel/briefing'),
 };

@@ -23,6 +23,19 @@ from src.models.canonical_event import CanonicalEvent, EventType
 
 # ── Policy + stats models ──────────────────────────────────────────────────────
 
+# Retention Policy Definitions — Phase 1 Contract
+#
+# Normalized event retention (EventStore):
+#   - In-memory: no automatic pruning; bounded by process lifetime
+#   - PostgreSQL (when activated): max_age_days=90 for all event types
+#   - Exception: IMAGERY_ACQUISITION scenes kept 365 days
+#
+# Position telemetry retention (TelemetryStore):
+#   - max_age_days=30 (default): discard positions older than 30 days
+#   - max_events_per_entity=10000: cap per vessel/aircraft
+#   - thin_after_age_days=7: downsample to 5-min intervals for events > 7 days old
+#   - These values are frozen for Phase 1; revisit in Phase 6.
+
 
 class RetentionPolicy(BaseModel):
     """Configurable telemetry retention policy (P3-4.1 + P3-4.2)."""
@@ -373,3 +386,21 @@ class TelemetryStore:
             max_lag_seconds=round(lags_sorted[-1], 3),
             sample_count=n,
         )
+
+
+# Module-level singleton — used by pollers and app alike.
+# Cross-process sharing requires PostgreSQL activation (see docs/ARCHITECTURE.md).
+_default_store: "TelemetryStore | None" = None
+
+
+def get_default_telemetry_store() -> "TelemetryStore":
+    """Return the process-wide TelemetryStore singleton.
+
+    In single-process mode (tests, dev) this provides a shared in-memory store.
+    In production the store is backed by PostgreSQL once DATABASE_URL is set;
+    cross-process sharing then happens transparently through the DB layer.
+    """
+    global _default_store
+    if _default_store is None:
+        _default_store = TelemetryStore()
+    return _default_store

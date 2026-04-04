@@ -85,6 +85,9 @@ try:
                     geometry, start_time, end_time, max_results=50
                 )
                 events = connector.normalize_all(raw_articles)
+                # Phase 1 Track B: persist normalised events to EventStore
+                from src.services.event_store import get_default_event_store
+                get_default_event_store().ingest_batch(events)
                 article_count += len(events)
                 health_svc.record_success(
                     connector.connector_id,
@@ -143,6 +146,11 @@ try:
                     continue
                 raw_states = connector.fetch(geometry, start_time, end_time)
                 events = connector.normalize_all(raw_states)
+                # Phase 1 Track B: persist aircraft positions to EventStore and TelemetryStore
+                from src.services.event_store import get_default_event_store
+                from src.services.telemetry_store import get_default_telemetry_store
+                get_default_event_store().ingest_batch(events)
+                get_default_telemetry_store().ingest_batch(events)
                 aircraft_count += len(events)
                 health_svc.record_success(
                     connector.connector_id,
@@ -201,6 +209,11 @@ try:
                 import asyncio
                 raw_msgs = asyncio.run(connector.fetch_async(geometry, max_messages=100))
                 events = connector.normalize_all(raw_msgs)
+                # Phase 1 Track B: persist ship positions to EventStore and TelemetryStore
+                from src.services.event_store import get_default_event_store
+                from src.services.telemetry_store import get_default_telemetry_store
+                get_default_event_store().ingest_batch(events)
+                get_default_telemetry_store().ingest_batch(events)
                 ship_count += len(events)
                 health_svc.record_success(
                     connector.connector_id,
@@ -237,7 +250,8 @@ try:
 
         from app.config import get_settings
         from src.connectors.rapidapi_ais import RapidApiAisConnector
-        from src.services.telemetry_store import TelemetryStore
+        from src.services.event_store import get_default_event_store
+        from src.services.telemetry_store import get_default_telemetry_store
         from src.services.source_health import get_health_service
 
         settings = get_settings()
@@ -254,16 +268,16 @@ try:
             log.debug("poll_rapidapi_ais: RAPID_API_KEY not configured, skipping")
             return {"polled_at": polled_at, "aoi_count": 0, "ship_count": 0, "errors": 0}
 
-        store = TelemetryStore()
+        store = get_default_telemetry_store()
         ship_count = 0
         errors = 0
 
         try:
             records = connector.fetch()
             events = connector.normalize_all(records)
-            for ev in events:
-                store.upsert(ev)
-            ship_count += len(events)
+            # Phase 1 Track B: persist to both EventStore (for replay) and TelemetryStore
+            get_default_event_store().ingest_batch(events)
+            ship_count += store.ingest_batch(events)
             get_health_service().record_success(
                 "rapidapi-ais", "RapidAPI AIS", "rapidapi"
             )
@@ -287,7 +301,8 @@ try:
 
         from app.config import get_settings
         from src.connectors.vessel_data import VesselDataConnector
-        from src.services.telemetry_store import TelemetryStore
+        from src.services.event_store import get_default_event_store
+        from src.services.telemetry_store import get_default_telemetry_store
         from src.services.source_health import get_health_service
 
         settings = get_settings()
@@ -304,16 +319,16 @@ try:
             log.debug("poll_vessel_data: VESSEL_DATA_API_KEY not configured, skipping")
             return {"polled_at": polled_at, "aoi_count": 0, "ship_count": 0, "errors": 0}
 
-        store = TelemetryStore()
+        store = get_default_telemetry_store()
         ship_count = 0
         errors = 0
 
         try:
             records = connector.fetch()
             events = connector.normalize_all(records)
-            for ev in events:
-                store.upsert(ev)
-            ship_count += len(events)
+            # Phase 1 Track B: persist to both EventStore (for replay) and TelemetryStore
+            get_default_event_store().ingest_batch(events)
+            ship_count += store.ingest_batch(events)
             get_health_service().record_success(
                 "vessel-data", "VesselData", "rapidapi"
             )
@@ -339,6 +354,8 @@ try:
         from src.services.source_health import get_health_service
 
         enforced_at = datetime.now(timezone.utc).isoformat()
+        # DEMO-ONLY: operates on the in-memory TelemetryStore singleton; data does not
+        # survive worker restarts — see Phase 1 Track B for PostgreSQL/TimescaleDB persistence
         store = TelemetryStore()        # Uses the module-level in-memory store
         policy = RetentionPolicy()      # Uses defaults (max_age_days=30)
 
@@ -397,6 +414,28 @@ try:
 
         return {"probed_at": probed_at, "results": results}
 
+    @celery_app.task(name="workers.warm_playback_windows", ignore_result=True)
+    def warm_playback_windows() -> None:
+        """Phase 1 Track C: Pre-warm 24h, 7d, and 30d playback window materialization.
+
+        Calls standard_playback_windows() to resolve window bounds, then enqueues
+        a MaterializeRequest for each window via the PlaybackService singleton.
+        Runs every 6 hours via Celery beat.
+        """
+        from src.api.playback import get_playback_service
+        from src.models.playback import MaterializeRequest
+        from src.services.playback_service import standard_playback_windows
+
+        svc = get_playback_service()
+        windows = standard_playback_windows()
+        for name, (start, end) in windows.items():
+            try:
+                req = MaterializeRequest(start_time=start, end_time=end)
+                svc.enqueue_materialize(req)
+                log.info("warm_playback_windows: materialized window '%s'", name)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("warm_playback_windows: window '%s' failed — %s", name, exc)
+
 except (ImportError, Exception) as exc:
     log.warning("Celery tasks not registered: %s", exc)
 
@@ -422,4 +461,7 @@ except (ImportError, Exception) as exc:
         raise RuntimeError("Celery is not configured")
 
     def enforce_telemetry_retention(*args, **kwargs):  # type: ignore[misc]
+        raise RuntimeError("Celery is not configured")
+
+    def warm_playback_windows(*args, **kwargs):  # type: ignore[misc]
         raise RuntimeError("Celery is not configured")

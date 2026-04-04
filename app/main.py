@@ -1,14 +1,14 @@
 from __future__ import annotations
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from app import dependencies
+from app.audit_log import AuditLoggingMiddleware, configure_audit_logger
 from app.cache.client import CacheClient
+from app.performance_budgets import PerformanceBudgetMiddleware
 from app.config import get_settings
 from app.logging_config import configure_logging
 from app.providers.demo import DemoProvider
@@ -17,14 +17,12 @@ from app.resilience.circuit_breaker import CircuitBreaker
 from app.resilience.rate_limiter import limiter, rate_limit_error_handler
 from slowapi.errors import RateLimitExceeded
 
-APP_DIR    = Path(__file__).resolve().parent
-STATIC_DIR = APP_DIR / "static"
-
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     import logging as _log
     settings = get_settings()
     configure_logging(level=settings.log_level, fmt=settings.log_format)
+    configure_audit_logger()
     registry = ProviderRegistry()
     registry.register(DemoProvider())
     if settings.sentinel2_is_configured():
@@ -213,9 +211,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         pass
 
 app = FastAPI(
-    title="Construction Activity Monitor",
+    title="ARGUS — Multi-Domain Surveillance Intelligence",
     version="2.0.0",
-    description="Detects construction activity in satellite imagery.",
+    description="Multi-domain surveillance: ships, aircraft, satellites, events, and signals intelligence.",
     lifespan=lifespan,
 )
 
@@ -233,26 +231,21 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],  # Only necessary methods
     allow_headers=["Content-Type", "Authorization"],  # Explicit header whitelist
 )
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+# Audit logging — must be added AFTER CORS so CORS headers are present on audit path.
+app.add_middleware(AuditLoggingMiddleware)
+# Performance budget enforcement — zero blocking I/O, < 1ms overhead.
+app.add_middleware(PerformanceBudgetMiddleware)
 
 @app.get("/", include_in_schema=False)
-def index() -> Response:
-    response = FileResponse(STATIC_DIR / "index.html")
-    # Inject API key cookie so legacy static frontend authenticates automatically
-    configured_key = get_settings().api_key
-    if configured_key:
-        response.set_cookie(
-            key="api_key",
-            value=configured_key,
-            httponly=True,
-            samesite="strict",
-            path="/",
-        )
-    return response
+def index() -> JSONResponse:
+    return JSONResponse({"service": "ARGUS API", "docs": "/docs", "version": "2.0.0"})
 
-from app.routers import analyze, config_router, credits, health, jobs, providers_router, search, thumbnails
+from app.routers import analyze, config_router, credits, health, health_connectors, jobs, providers_router, search, thumbnails
 from app.routers import ws_jobs
+from app.routers import cache_stats as cache_stats_router_module
 app.include_router(health.router)
+app.include_router(health_connectors.router)
+app.include_router(cache_stats_router_module.router)
 app.include_router(config_router.router)
 app.include_router(providers_router.router)
 app.include_router(credits.router)
@@ -270,6 +263,27 @@ from src.api import imagery as imagery_router_module
 from src.api import playback as playback_router_module
 from src.api import analytics as analytics_router_module
 from src.api import source_health as source_health_router_module
+# ── P6 Maritime Intelligence routes ─────────────────────────────────────────
+from src.api import chokepoints as chokepoints_router_module
+from src.api import vessels as vessels_router_module
+from src.api import dark_ships as dark_ships_router_module
+from src.api import intel as intel_router_module
+# ── Phase 2 Operational Layer routes ────────────────────────────────────────
+from src.api import orbits as orbits_router_module
+from src.api import airspace as airspace_router_module
+from src.api import jamming as jamming_router_module
+from src.api import strike as strike_router_module
+# ── Phase 4 Track B — Camera/Video Abstraction routes ───────────────────────
+from src.api import cameras as cameras_router_module
+from src.api import detections as detections_router_module
+# ── Phase 5 Track A — Saved Investigations ──────────────────────────────────
+from src.api import investigations as investigations_router_module
+# ── Phase 5 Track D — Absence-As-Signal Analytics ───────────────────────────
+from src.api import absence as absence_router_module
+# ── Phase 5 Track B — Evidence Packs ────────────────────────────────────────
+from src.api import evidence_packs as evidence_packs_router_module
+# ── Phase 5 Track C — Agent-Assisted Analyst Workflows ──────────────────────
+from src.api import analyst as analyst_router_module
 app.include_router(aois_router_module.router)
 app.include_router(events_router_module.router)
 app.include_router(exports_router_module.router)
@@ -277,6 +291,20 @@ app.include_router(imagery_router_module.router)
 app.include_router(playback_router_module.router)
 app.include_router(analytics_router_module.router)
 app.include_router(source_health_router_module.router)
+app.include_router(chokepoints_router_module.router)
+app.include_router(vessels_router_module.router)
+app.include_router(dark_ships_router_module.router)
+app.include_router(intel_router_module.router)
+app.include_router(orbits_router_module.router)
+app.include_router(airspace_router_module.router)
+app.include_router(jamming_router_module.router)
+app.include_router(strike_router_module.router)
+app.include_router(cameras_router_module.router)
+app.include_router(detections_router_module.router)
+app.include_router(investigations_router_module.router)
+app.include_router(absence_router_module.router)
+app.include_router(evidence_packs_router_module.router)
+app.include_router(analyst_router_module.router)
 
 # ── Prometheus metrics (P0-5.3) ──────────────────────────────────────────────
 try:

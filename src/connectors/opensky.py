@@ -162,7 +162,7 @@ def _track_segment_from_positions(
             "position_count": len(positions),
         },
         normalization=NormalizationRecord(normalized_by="connector.opensky"),
-        provenance=ProvenanceRecord(raw_source_ref=f"{_API_BASE}/states/all"),
+        provenance=ProvenanceRecord(raw_source_ref=f"opensky://icao24/{entity_id}/track@{first.event_time.isoformat()}"),
         license=_LICENSE,
         correlation_keys=CorrelationKeys(icao24=entity_id),
     )
@@ -343,7 +343,7 @@ class OpenSkyConnector(BaseConnector):
                 attributes=attribs.model_dump(exclude_none=True),
                 normalization=NormalizationRecord(normalized_by="connector.opensky"),
                 provenance=ProvenanceRecord(
-                    raw_source_ref=f"{_API_BASE}/states/all",
+                    raw_source_ref=f"opensky://icao24/{icao24}@{event_time.isoformat()}",
                     source_record_id=icao24,
                 ),
                 license=_LICENSE,

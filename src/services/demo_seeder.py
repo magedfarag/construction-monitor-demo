@@ -47,41 +47,138 @@ def _point(lon: float, lat: float) -> dict:
 
 
 # ── Ship tracks ──────────────────────────────────────────────────────────────
+# Each route is a list of (lon, lat) waypoints that follow real maritime
+# channels in the Strait of Hormuz Traffic Separation Scheme (TSS).
+# Inbound lane (into Persian Gulf): north of Musandam Peninsula, ~26.35–26.55°N
+# Outbound lane (to Gulf of Oman): south of Musandam, ~26.0–26.25°N
+# The Musandam Peninsula tip is at ~56.35°E, 26.32°N — routes stay clear of it.
 
-_SHIPS = [
-    {"mmsi": "211330000", "name": "EVER GRACE", "type": 70, "dest": "Bandar Abbas"},
-    {"mmsi": "477123400", "name": "PACIFIC VOYAGER", "type": 80, "dest": "Fujairah"},
-    {"mmsi": "636017432", "name": "STELLA MARINER", "type": 70, "dest": "Jebel Ali"},
-    {"mmsi": "538006712", "name": "ORIENT PEARL", "type": 80, "dest": "Muscat"},
-    {"mmsi": "249987000", "name": "CASPIAN PRIDE", "type": 70, "dest": "Khor Fakkan"},
-    {"mmsi": "215631000", "name": "GULF BREEZE", "type": 60, "dest": "Dubai"},
-    {"mmsi": "352456000", "name": "HORMUZ CARRIER", "type": 70, "dest": "Abu Dhabi"},
-    {"mmsi": "440123456", "name": "EASTERN STAR", "type": 80, "dest": "Sharjah"},
+_SHIP_ROUTES = [
+    # ── Inbound routes (Gulf of Oman → Persian Gulf, north channel) ──────────
+    {
+        "mmsi": "211330000", "name": "EVER GRACE", "ship_type": 70,
+        "dest": "Bandar Abbas", "speed_kn": 13.5,
+        "route": [
+            (57.15, 25.70), (56.90, 26.00), (56.55, 26.32),
+            (56.15, 26.48), (55.75, 26.55), (55.35, 26.65), (55.05, 26.80),
+        ],
+    },
+    {
+        "mmsi": "636017432", "name": "STELLA MARINER", "ship_type": 70,
+        "dest": "Jebel Ali", "speed_kn": 12.0,
+        "route": [
+            (57.30, 25.52), (57.00, 25.82), (56.65, 26.18),
+            (56.30, 26.40), (55.90, 26.50), (55.50, 26.62), (55.10, 26.83),
+        ],
+    },
+    {
+        "mmsi": "352456000", "name": "HORMUZ CARRIER", "ship_type": 70,
+        "dest": "Abu Dhabi", "speed_kn": 11.5,
+        "route": [
+            (57.05, 26.08), (56.72, 26.28), (56.42, 26.43),
+            (56.05, 26.53), (55.65, 26.60), (55.25, 26.73),
+        ],
+    },
+    # ── Outbound routes (Persian Gulf → Gulf of Oman, south channel) ─────────
+    {
+        "mmsi": "477123400", "name": "PACIFIC VOYAGER", "ship_type": 80,
+        "dest": "Fujairah", "speed_kn": 14.0,
+        "route": [
+            (55.12, 26.70), (55.42, 26.48), (55.78, 26.22),
+            (56.12, 26.02), (56.50, 25.78), (56.88, 25.52), (57.20, 25.28),
+        ],
+    },
+    {
+        "mmsi": "538006712", "name": "ORIENT PEARL", "ship_type": 80,
+        "dest": "Muscat", "speed_kn": 12.5,
+        "route": [
+            (55.02, 26.58), (55.38, 26.36), (55.72, 26.12),
+            (56.08, 25.92), (56.48, 25.68), (56.85, 25.42), (57.18, 25.12),
+        ],
+    },
+    {
+        "mmsi": "440123456", "name": "EASTERN STAR", "ship_type": 80,
+        "dest": "Sharjah", "speed_kn": 10.5,
+        "route": [
+            (55.20, 26.65), (55.52, 26.42), (55.85, 26.18),
+            (56.18, 25.98), (56.55, 25.72), (56.92, 25.48),
+        ],
+    },
+    # ── Iran coast route (Bandar Abbas area, staying near 27°N) ─────────────
+    {
+        "mmsi": "249987000", "name": "CASPIAN PRIDE", "ship_type": 70,
+        "dest": "Khor Fakkan", "speed_kn": 9.0,
+        "route": [
+            (55.28, 27.08), (55.70, 27.02), (56.10, 26.95),
+            (56.52, 26.90), (56.92, 26.82), (57.25, 26.78),
+        ],
+    },
+    # ── Gulf of Oman coastal (Khor Fakkan → north, staying offshore) ─────────
+    {
+        "mmsi": "215631000", "name": "GULF BREEZE", "ship_type": 60,
+        "dest": "Dubai", "speed_kn": 8.5,
+        "route": [
+            (57.28, 25.18), (57.00, 25.22), (56.72, 25.28),
+            (56.48, 25.38), (56.28, 25.55), (56.10, 25.80), (55.88, 26.08),
+        ],
+    },
 ]
 
 
-def _ship_events() -> List[CanonicalEvent]:
-    events: List[CanonicalEvent] = []
+def _interp_route(
+    waypoints: list[tuple[float, float]],
+    n_points: int,
+    rng: random.Random,
+    jitter_lon: float = 0.004,
+    jitter_lat: float = 0.003,
+) -> list[tuple[float, float]]:
+    """Linearly interpolate n_points along a list of (lon, lat) waypoints."""
+    # Build cumulative segment lengths (simple flat-earth approximation)
+    segs: list[float] = [0.0]
+    for i in range(1, len(waypoints)):
+        dx = (waypoints[i][0] - waypoints[i - 1][0]) * math.cos(math.radians(waypoints[i][1]))
+        dy = waypoints[i][1] - waypoints[i - 1][1]
+        segs.append(segs[-1] + math.hypot(dx, dy))
+    total = segs[-1]
+    result: list[tuple[float, float]] = []
+    for k in range(n_points):
+        t = total * k / max(n_points - 1, 1)
+        # Find which segment
+        seg_idx = 0
+        for s in range(1, len(segs)):
+            if segs[s] >= t:
+                seg_idx = s - 1
+                break
+        else:
+            seg_idx = len(waypoints) - 2
+        frac = (t - segs[seg_idx]) / max(segs[seg_idx + 1] - segs[seg_idx], 1e-9)
+        lon = waypoints[seg_idx][0] + frac * (waypoints[seg_idx + 1][0] - waypoints[seg_idx][0])
+        lat = waypoints[seg_idx][1] + frac * (waypoints[seg_idx + 1][1] - waypoints[seg_idx][1])
+        # Small positional noise (stays on-route)
+        lon += rng.gauss(0, jitter_lon)
+        lat += rng.gauss(0, jitter_lat)
+        result.append((lon, lat))
+    return result
+
+
+def _ship_events() -> list[CanonicalEvent]:
+    events: list[CanonicalEvent] = []
     rng = random.Random(42)
+    n_pos = 60       # position reports per vessel
+    window_h = 12    # hours covered
 
-    for ship in _SHIPS:
-        # Each ship: 60 position reports over last 12 hours
-        base_lon = rng.uniform(_LON_MIN + 0.3, _LON_MAX - 0.3)
-        base_lat = rng.uniform(_LAT_MIN + 0.3, _LAT_MAX - 0.3)
-        heading = rng.uniform(30, 330)
-        speed_kn = rng.uniform(8, 16)
-        base_time = _NOW - timedelta(hours=12)
+    for ship in _SHIP_ROUTES:
+        base_time = _NOW - timedelta(hours=window_h)
+        positions = _interp_route(ship["route"], n_pos, rng)
 
-        for i in range(60):
-            dt = base_time + timedelta(minutes=i * 12)
-            # Move ship along heading
-            dx = math.cos(math.radians(heading)) * speed_kn * 0.002 * i
-            dy = math.sin(math.radians(heading)) * speed_kn * 0.001 * i
-            lon = base_lon + dx + rng.gauss(0, 0.005)
-            lat = base_lat + dy + rng.gauss(0, 0.003)
-            lon = max(_LON_MIN, min(_LON_MAX, lon))
-            lat = max(_LAT_MIN, min(_LAT_MAX, lat))
+        # Compute approximate heading (degrees) between consecutive points
+        def _hdg(p0: tuple[float, float], p1: tuple[float, float]) -> float:
+            return (math.degrees(math.atan2(p1[0] - p0[0], p1[1] - p0[1])) + 360) % 360
 
+        speed_kn: float = ship["speed_kn"]
+        for i, (lon, lat) in enumerate(positions):
+            dt = base_time + timedelta(minutes=i * (window_h * 60 // n_pos))
+            hdg = _hdg(positions[i - 1], positions[i]) if i > 0 else _hdg(positions[0], positions[1])
             eid = _eid("ship", ship["mmsi"], dt.isoformat())
             events.append(CanonicalEvent(
                 event_id=eid,
@@ -97,10 +194,10 @@ def _ship_events() -> List[CanonicalEvent]:
                 attributes={
                     "mmsi": ship["mmsi"],
                     "vessel_name": ship["name"],
-                    "ship_type": ship["type"],
-                    "speed_kn": round(speed_kn + rng.gauss(0, 1), 1),
-                    "course_deg": round(heading + rng.gauss(0, 5), 1) % 360,
-                    "heading_deg": round(heading, 1),
+                    "ship_type": ship["ship_type"],
+                    "speed_kn": round(speed_kn + rng.gauss(0, 0.5), 1),
+                    "course_deg": round(hdg + rng.gauss(0, 3), 1) % 360,
+                    "heading_deg": round(hdg, 1),
                     "destination": ship["dest"],
                 },
                 normalization=_NORM,

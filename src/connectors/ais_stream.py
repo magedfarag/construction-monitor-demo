@@ -154,7 +154,7 @@ def _track_segment_from_positions(
             "position_count": len(positions),
         },
         normalization=NormalizationRecord(normalized_by="connector.ais-stream"),
-        provenance=ProvenanceRecord(raw_source_ref="ais://stream.aisstream.io/track"),
+        provenance=ProvenanceRecord(raw_source_ref=f"ais://mmsi/{mmsi}/track@{first.event_time.isoformat()}"),
         license=_LICENSE,
         correlation_keys=CorrelationKeys(mmsi=mmsi),
     )
@@ -351,7 +351,7 @@ class AisStreamConnector(BaseConnector):
                     normalization_warnings=warnings,
                 ),
                 provenance=ProvenanceRecord(
-                    raw_source_ref="ais://stream.aisstream.io/position",
+                    raw_source_ref=f"ais://mmsi/{mmsi}@{event_time.isoformat()}",
                     source_record_id=mmsi,
                 ),
                 license=_LICENSE,

@@ -52,16 +52,17 @@ try:
         task_default_queue="default",
         # P5-2.2: Route tasks to queues by name
         task_routes={
-            "run_analysis_task":            {"queue": "high"},
-            "run_change_detection_task":    {"queue": "high"},
-            "poll_gdelt_context":           {"queue": "default"},
-            "poll_opensky_positions":       {"queue": "default"},
-            "poll_aisstream_positions":     {"queue": "default"},
-            "poll_rapidapi_ais":            {"queue": "default"},
-            "poll_vessel_data":             {"queue": "default"},
-            "enforce_telemetry_retention":  {"queue": "low"},
-            "run_export_task":              {"queue": "low"},
-            "probe_stac_connectors":        {"queue": "default"},
+            "run_analysis_task":                {"queue": "high"},
+            "run_change_detection_task":        {"queue": "high"},
+            "poll_gdelt_context":               {"queue": "default"},
+            "poll_opensky_positions":           {"queue": "default"},
+            "poll_aisstream_positions":         {"queue": "default"},
+            "poll_rapidapi_ais":               {"queue": "default"},
+            "poll_vessel_data":                {"queue": "default"},
+            "enforce_telemetry_retention":      {"queue": "low"},
+            "run_export_task":                  {"queue": "low"},
+            "probe_stac_connectors":            {"queue": "default"},
+            "workers.warm_playback_windows":    {"queue": "default"},
         },
         # P5-2.1: Beat schedules for all polling connectors:
         # P2-1.4 GDELT (15 min), P3-2.5 OpenSky (60 s), P3-1 AIS (30 s), P5-4.4 Retention (1 h)
@@ -99,6 +100,11 @@ try:
             "probe-stac-connectors-every-5min": {
                 "task": "probe_stac_connectors",
                 "schedule": 300.0,  # 5 minutes — lightweight GET to STAC roots
+                "options": {"queue": "default"},
+            },
+            "warm-playback-windows-every-6h": {
+                "task": "workers.warm_playback_windows",
+                "schedule": 21600.0,  # 6 hours — reasonable for 24h/7d/30d windows
                 "options": {"queue": "default"},
             },
         },

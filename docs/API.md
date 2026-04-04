@@ -1,12 +1,281 @@
-# API Reference — Construction Activity Monitor v3.0
+# API Reference — ARGUS Multi-Domain Surveillance Intelligence v6.0
 
 **Base URL**: `http://localhost:8000` (development)  
-**Version**: 3.0.0  
-**Authentication**: Optional API key via Bearer token, query param, or cookie (required if `API_KEY` is set)
+**Version**: 6.0.0  
+**Authentication**: HMAC-SHA256 signed Bearer token or tiered API key (see §Authentication). Demo mode (`APP_MODE=demo`) and unset `API_KEY` bypass all auth checks.
 
 ---
 
-## **Health & Status**
+## Complete Route Table
+
+> Auth legend: **none** = no auth; **analyst** = `require_analyst`; **operator** = `require_operator`; **admin** = `require_admin`
+
+### V1 Core Routes (`app/routers/`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/` | none | Serve `index.html` (legacy static frontend) |
+| GET | `/api/health` | none | Full health check (Redis, providers, circuit breaker) |
+| GET | `/healthz` | none | Liveness probe |
+| GET | `/readyz` | none | Readiness probe |
+| GET | `/api/config` | none | App configuration (mode, bounds, providers, rate limits) |
+| GET | `/api/providers` | none | Provider availability and circuit breaker states |
+| GET | `/api/credits` | none | Credit/quota usage per data source |
+| POST | `/api/analyze` | none | Change detection analysis (sync or async dispatch) |
+| POST | `/api/search` | none | Satellite imagery scene search |
+| GET | `/api/jobs/{job_id}` | none | Async job status + result |
+| DELETE | `/api/jobs/{job_id}` | none | Cancel / delete async job |
+| WS | `/api/jobs/{job_id}/stream` | none | WebSocket live job progress |
+| GET | `/api/thumbnails/{scene_id}` | none | Cached PNG scene crop |
+
+### V1 Connector Health & Metrics (`app/routers/health_connectors.py`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/health/connectors` | none | Per-connector health summary (name, last fetch, error count, status) |
+| GET | `/api/v1/health/metrics` | none | In-process metrics snapshot (counters, histograms, gauges) |
+| GET | `/metrics` | none | Prometheus scrape endpoint (if `prometheus-fastapi-instrumentator` installed) |
+
+### V2 AOIs (`src/api/aois.py` — prefix `/api/v1/aois`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/aois` | none | Create AOI |
+| GET | `/api/v1/aois` | none | List AOIs |
+| GET | `/api/v1/aois/{aoi_id}` | none | Get single AOI |
+| PUT | `/api/v1/aois/{aoi_id}` | none | Update AOI |
+| DELETE | `/api/v1/aois/{aoi_id}` | none | Delete AOI |
+
+### V2 Events (`src/api/events.py` — prefix `/api/v1/events`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/events` | none | Ingest event |
+| GET | `/api/v1/events` | none | Query events |
+| GET | `/api/v1/events/{event_id}` | none | Get event by ID |
+| GET | `/api/v1/events/aoi/{aoi_id}` | none | Events for AOI |
+| GET | `/api/v1/events/type/{event_type}` | none | Events by type |
+| GET | `/api/v1/events/source/{source}` | none | Events by source |
+| GET | `/api/v1/events/range` | none | Events in time window |
+
+### V2 Imagery (`src/api/imagery.py` — prefix `/api/v1/imagery`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/imagery/search` | none | STAC scene search across connectors |
+| GET | `/api/v1/imagery/{scene_id}` | none | Get scene metadata |
+| GET | `/api/v1/imagery/{scene_id}/thumbnail` | none | Scene thumbnail |
+| POST | `/api/v1/imagery/compare` | none | Before/after scene comparison |
+
+### V2 Playback (`src/api/playback.py` — prefix `/api/v1/playback`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/playback/query` | none | Time-window replay query |
+| POST | `/api/v1/playback/compare` | none | Cross-window comparison |
+| GET | `/api/v1/playback/presets` | none | List materialized replay windows |
+| GET | `/api/v1/playback/status` | none | Replay engine status |
+
+### V2 Analytics (`src/api/analytics.py` — prefix `/api/v1/analytics`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/analytics/run` | none | Run change analytics |
+| GET | `/api/v1/analytics/summary` | none | Analytics summary |
+| GET | `/api/v1/analytics/trends` | none | Trend data |
+| GET | `/api/v1/analytics/aoi/{aoi_id}` | none | AOI-scoped analytics |
+| PUT | `/api/v1/analytics/config` | none | Update analytics config |
+| POST | `/api/v1/analytics/refresh` | none | Force refresh |
+| GET | `/api/v1/analytics/sources` | none | Source breakdown |
+
+### V2 Exports (`src/api/exports.py` — prefix `/api/v1/exports`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/exports` | none | Create export job (CSV/Parquet/GeoJSON) |
+| GET | `/api/v1/exports/{export_id}` | none | Export job status + download URL |
+
+### V2 Source Health (`src/api/source_health.py` — prefix `/api/v1/health`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/health/sources` | none | Full source health dashboard |
+| GET | `/api/v1/health/sources/{connector_id}` | none | Single connector health record |
+| GET | `/api/v1/health/alerts` | none | Active SLA breach alerts |
+| GET | `/api/v1/health/history/{connector_id}` | none | Connector health history |
+
+### V2 Orbits (`src/api/orbits.py` — prefix `/api/v1/orbits`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/orbits` | none | List orbit passes |
+| POST | `/api/v1/orbits/predict` | none | Predict passes over geometry |
+| GET | `/api/v1/orbits/passes` | none | Passes in time window |
+| GET | `/api/v1/orbits/active` | none | Currently visible satellites |
+
+### V2 Airspace (`src/api/airspace.py` — prefix `/api/v1/airspace`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/airspace/zones` | none | No-fly zones and restricted airspace |
+| GET | `/api/v1/airspace/violations` | none | Airspace violations |
+| GET | `/api/v1/airspace/notams` | none | Active NOTAMs |
+| GET | `/api/v1/airspace/replay` | none | Airspace replay window |
+
+### V2 Jamming (`src/api/jamming.py` — prefix `/api/v1/jamming`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/jamming` | none | List jamming events |
+| GET | `/api/v1/jamming/active` | none | Currently active jamming signals |
+| POST | `/api/v1/jamming` | none | Ingest jamming event |
+| GET | `/api/v1/jamming/replay` | none | Jamming events in time window |
+
+### V2 Strikes (`src/api/strike.py` — prefix `/api/v1/strikes`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/strikes` | none | List strike events |
+| GET | `/api/v1/strikes/{strike_id}` | none | Get single strike |
+| POST | `/api/v1/strikes/{strike_id}/evidence` | **operator** | Attach evidence to strike |
+| GET | `/api/v1/strikes/replay` | none | Strike events in time window |
+
+### V2 Vessels (`src/api/vessels.py` — prefix `/api/v1/vessels`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/vessels` | none | List vessels |
+| GET | `/api/v1/vessels/mmsi/{mmsi}` | none | Vessel by MMSI |
+| GET | `/api/v1/vessels/imo/{imo}` | none | Vessel by IMO number |
+
+### V2 Chokepoints (`src/api/chokepoints.py` — prefix `/api/v1/chokepoints`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/chokepoints` | none | List all chokepoints |
+| GET | `/api/v1/chokepoints/{chokepoint_id}` | none | Get single chokepoint |
+| GET | `/api/v1/chokepoints/{chokepoint_id}/transits` | none | Transit events for chokepoint |
+
+### V2 Dark Ships (`src/api/dark_ships.py` — prefix `/api/v1/dark-ships`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/dark-ships/scan` | none | Scan for AIS gaps / dark ship events |
+| GET | `/api/v1/dark-ships` | none | List detected dark ship events |
+
+### V2 Intel (`src/api/intel.py` — prefix `/api/v1/intel`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/intel/briefing` | none | Aggregated intelligence briefing |
+
+### V2 Cameras (`src/api/cameras.py` — prefix `/api/v1/cameras`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/cameras` | none | List camera feeds |
+| GET | `/api/v1/cameras/{camera_id}` | none | Get camera metadata |
+| GET | `/api/v1/cameras/{camera_id}/observations` | none | Observations for camera |
+| GET | `/api/v1/cameras/{camera_id}/nearest` | none | Nearest observation to timestamp |
+| GET | `/api/v1/cameras/entity/{entity_id}` | none | Cameras observing entity |
+| POST | `/api/v1/cameras/{camera_id}/observations` | none | Ingest camera observation |
+
+### V2 Detections (`src/api/detections.py` — prefix `/api/v1/detections`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/detections` | none | List detections (filter by AOI, confidence, type) |
+| GET | `/api/v1/detections/{detection_id}` | none | Get detection |
+| POST | `/api/v1/detections` | none | Ingest detection |
+
+### V2 Investigations (`src/api/investigations.py` — prefix `/api/v1/investigations`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/investigations` | **analyst** | List investigations (filter by status) |
+| POST | `/api/v1/investigations` | **operator** | Create investigation |
+| GET | `/api/v1/investigations/{id}` | **analyst** | Get investigation |
+| PUT | `/api/v1/investigations/{id}` | **operator** | Update investigation |
+| DELETE | `/api/v1/investigations/{id}` | **operator** | Delete investigation |
+| POST | `/api/v1/investigations/{id}/evidence` | **operator** | Attach evidence item |
+| POST | `/api/v1/investigations/{id}/aois` | **operator** | Link AOI to investigation |
+| POST | `/api/v1/investigations/{id}/close` | **operator** | Close investigation |
+| POST | `/api/v1/investigations/{id}/reopen` | **operator** | Reopen investigation |
+| GET | `/api/v1/investigations/{id}/timeline` | **analyst** | Investigation event timeline |
+
+### V2 Evidence Packs (`src/api/evidence_packs.py` — prefix `/api/v1/evidence-packs`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/evidence-packs/generate` | **operator** | Generate evidence pack from investigation |
+| GET | `/api/v1/evidence-packs` | **operator** | List evidence packs |
+| POST | `/api/v1/evidence-packs` | **operator** | Create evidence pack |
+| GET | `/api/v1/evidence-packs/{pack_id}` | **operator** | Get evidence pack |
+| DELETE | `/api/v1/evidence-packs/{pack_id}` | **operator** | Delete evidence pack |
+| GET | `/api/v1/evidence-packs/{pack_id}/download` | **operator** | Download rendered pack (ZIP) |
+
+### V2 Analyst Workflows (`src/api/analyst.py` — prefix `/api/v1/analyst`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| POST | `/api/v1/analyst/briefings/from-investigation/{id}` | none | Generate briefing from investigation |
+| POST | `/api/v1/analyst/briefings` | **operator** | Create briefing |
+| POST | `/api/v1/analyst/queries` | **operator** | Save analyst query |
+| POST | `/api/v1/analyst/queries/execute` | none | Execute saved query |
+| GET | `/api/v1/analyst/queries` | **analyst** | List saved queries |
+| GET | `/api/v1/analyst/queries/{query_id}` | **analyst** | Get saved query |
+| DELETE | `/api/v1/analyst/queries/{query_id}` | **operator** | Delete saved query |
+| POST | `/api/v1/analyst/briefings/stream` | **operator** | Stream briefing generation |
+| GET | `/api/v1/analyst/briefings` | **analyst** | List briefings |
+| GET | `/api/v1/analyst/briefings/{briefing_id}` | **analyst** | Get briefing |
+| GET | `/api/v1/analyst/briefings/{briefing_id}/export` | **analyst** | Export briefing |
+
+### V2 Absence Analytics (`src/api/absence.py` — prefix `/api/v1/absence`)
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| GET | `/api/v1/absence/signals` | **analyst** | List absence signals |
+| POST | `/api/v1/absence/signals` | **operator** | Create absence signal |
+| GET | `/api/v1/absence/signals/{signal_id}` | **analyst** | Get absence signal |
+| POST | `/api/v1/absence/signals/{id}/resolve` | **operator** | Resolve signal |
+| POST | `/api/v1/absence/signals/{id}/link-event` | **operator** | Link event to signal |
+| GET | `/api/v1/absence/events` | **analyst** | List absence events |
+| GET | `/api/v1/absence/summary` | **analyst** | Absence summary statistics |
+| POST | `/api/v1/absence/ais-gap-scan` | **operator** | Scan AIS data for gaps |
+
+---
+
+## Authentication
+
+### Demo mode (no credentials)
+
+Set `APP_MODE=demo` or leave `API_KEY` unset. All endpoints respond without auth checks.
+
+### API key authentication
+
+```bash
+# Using Bearer token
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/investigations
+
+# Using header key
+curl -H "X-API-Key: <key>" http://localhost:8000/api/v1/investigations
+
+# Using query parameter
+curl "http://localhost:8000/api/v1/investigations?api_key=<key>"
+```
+
+### Token issuance (production)
+
+```bash
+# Issue a token for an operator
+curl -X POST http://localhost:8000/api/auth/token \
+  -d '{"user_id": "ops-001", "role": "operator"}' \
+  -H "Authorization: Bearer <admin_api_key>"
+```
+
+---
+
+
 
 ### `GET /api/health`
 Check API and dependency health (no auth required).

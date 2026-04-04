@@ -151,3 +151,21 @@ class EventStore:
             if s.last_event_time is None or e.event_time > s.last_event_time:
                 s.last_event_time = e.event_time
         return sorted(summary.values(), key=lambda s: s.event_count, reverse=True)
+
+
+# Module-level singleton — used by pollers and app alike.
+# Cross-process sharing requires PostgreSQL activation (see docs/ARCHITECTURE.md).
+_default_store: "EventStore | None" = None
+
+
+def get_default_event_store() -> "EventStore":
+    """Return the process-wide EventStore singleton.
+
+    In single-process mode (tests, dev) this provides a shared in-memory store.
+    In production the store is backed by PostgreSQL once DATABASE_URL is set;
+    cross-process sharing then happens transparently through the DB layer.
+    """
+    global _default_store
+    if _default_store is None:
+        _default_store = EventStore()
+    return _default_store

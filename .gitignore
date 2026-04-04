@@ -45,9 +45,12 @@ tmp/
 temp/
 
 # Nested repo clone (broken submodule artifact)
-construction-monitor-demo/
+argus-intel/
 
 # Session / orchestration artifacts
 SESSION_SUMMARY.md
 debug_test*.py
 node_modules
+
+# Playwright MCP session artifacts
+.playwright-mcp/

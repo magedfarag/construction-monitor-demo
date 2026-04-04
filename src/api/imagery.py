@@ -274,7 +274,7 @@ def compare_imagery(req: ImageryCompareRequest) -> ImageryCompareResponse:
     # Ensure correct temporal ordering: before must be older than after
     if before_event.event_time >= after_event.event_time:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=(
                 "before_event_id must have an earlier event_time than after_event_id. "
                 f"Got before={before_event.event_time.isoformat()} "

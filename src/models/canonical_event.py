@@ -38,6 +38,17 @@ class EventType(str, Enum):
     COMPLAINT_EVENT = "complaint_event"
     CONTEXTUAL_EVENT = "contextual_event"
     SYSTEM_HEALTH_EVENT = "system_health_event"
+    DARK_SHIP_CANDIDATE = "dark_ship_candidate"
+    SATELLITE_PASS = "satellite_pass"
+    SATELLITE_ORBIT = "satellite_orbit"
+    AIRSPACE_RESTRICTION = "airspace_restriction"
+    NOTAM_EVENT = "notam_event"
+    GPS_JAMMING_EVENT = "gps_jamming_event"
+    STRIKE_EVENT = "strike_event"
+    CAMERA_OBSERVATION = "camera_observation"
+    DETECTION_OVERLAY = "detection_overlay"
+    VIDEO_CLIP_REF = "video_clip_ref"
+    RENDER_MODE_EVENT = "render_mode_event"
 
 
 class SourceType(str, Enum):
@@ -209,7 +220,17 @@ class CanonicalEvent(BaseModel):
     source: str = Field(..., description="Normalised provider/source code, e.g. copernicus-cdse")
     source_type: SourceType
     entity_type: EntityType
-    entity_id: Optional[str] = Field(default=None, description="Source-native entity identifier")
+    entity_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Source-native entity identifier. Semantics by entity_type: "
+            "VESSEL → MMSI (9-digit string, zero-padded); "
+            "AIRCRAFT → ICAO24 hex string; "
+            "IMAGERY_SCENE → catalogue scene_id (e.g. Sentinel-2 SAFE path); "
+            "CONTEXTUAL_EVENT → GDELT event_id when available, else None; "
+            "PERMIT → permit_number from issuing authority."
+        ),
+    )
     event_type: EventType
 
     # Time — all UTC enforced by validator

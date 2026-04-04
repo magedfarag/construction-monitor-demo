@@ -61,6 +61,21 @@ def demo_settings() -> AppSettings:
     return AppSettings(app_mode="demo", redis_url="")
 
 
+@pytest.fixture(autouse=True)
+def _reset_query_cache():
+    """Reset the in-process query cache singleton between every test.
+
+    This prevents cached route responses from leaking across tests that
+    mutate service singletons directly (e.g. absence_service.clear()).
+    Without this fixture the session-scoped app_client shares one cache
+    and cross-test isolation breaks.
+    """
+    from app.cache.query_cache import reset_query_cache
+    reset_query_cache()
+    yield
+    reset_query_cache()
+
+
 @pytest.fixture(scope="session")
 def sentinel2_settings() -> AppSettings:
     """AppSettings with Sentinel-2 credentials configured for testing."""

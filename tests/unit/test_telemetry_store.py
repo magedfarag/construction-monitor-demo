@@ -575,6 +575,46 @@ class TestDuplicateAndLateArrival:
         assert "VESSEL1" not in aircraft
 
 
+# ── Interface contract (Phase 0 Track B) ────────────────────────────────────
+
+
+class TestTelemetryStoreInterfaceContract:
+    """Verify TelemetryStore exposes ingest/ingest_batch and NOT upsert.
+
+    These tests guard against accidental regressions where tasks.py would
+    call a non-existent method.  They are the canonical contract check for
+    Phase 0 Track B.
+    """
+
+    def test_ingest_method_exists(self) -> None:
+        store = TelemetryStore()
+        assert callable(getattr(store, "ingest", None)), \
+            "TelemetryStore must have an ingest() method"
+
+    def test_ingest_batch_method_exists(self) -> None:
+        store = TelemetryStore()
+        assert callable(getattr(store, "ingest_batch", None)), \
+            "TelemetryStore must have an ingest_batch() method"
+
+    def test_upsert_method_does_not_exist(self) -> None:
+        store = TelemetryStore()
+        assert not hasattr(store, "upsert"), \
+            "TelemetryStore must NOT expose upsert(); use ingest() instead"
+
+    def test_ingest_returns_bool(self) -> None:
+        store = TelemetryStore()
+        result = store.ingest(_make_ship("CONTRACT1", 55.3, 25.2))
+        assert isinstance(result, bool), \
+            f"ingest() must return bool, got {type(result).__name__}"
+
+    def test_ingest_batch_returns_int(self) -> None:
+        store = TelemetryStore()
+        ships = [_make_ship(f"CB{i}", 55.0 + i * 0.1, 25.0, offset_minutes=i) for i in range(3)]
+        result = store.ingest_batch(ships)
+        assert isinstance(result, int), \
+            f"ingest_batch() must return int, got {type(result).__name__}"
+
+
 # ── Thread-safety ─────────────────────────────────────────────────────────────
 
 

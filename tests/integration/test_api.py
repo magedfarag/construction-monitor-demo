@@ -66,7 +66,9 @@ def test_jobs_without_redis_503(client):
     assert client.get("/api/jobs/test-id").status_code == 503
 
 def test_root_serves_index(client):
-    assert client.get("/").status_code == 200
+    r = client.get("/")
+    assert r.status_code == 200
+    assert r.json()["service"] == "ARGUS API"
 
 
 # ── V2 Export API (P1-5) ──────────────────────────────────────────────────────

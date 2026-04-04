@@ -65,6 +65,7 @@ export interface EventSearchRequest {
   end_time: string;
   source_types?: SourceType[];
   event_types?: EventType[];
+  viewport_bbox?: [number, number, number, number]; // [west, south, east, north] EPSG:4326
   limit?: number;
 }
 
@@ -146,6 +147,7 @@ export interface PlaybackQueryRequest {
   end_time: string;
   source_types?: SourceType[];
   include_late_arrivals?: boolean;
+  viewport_bbox?: [number, number, number, number]; // [west, south, east, north] EPSG:4326
   limit?: number;
 }
 
@@ -211,4 +213,119 @@ export interface UsagePeriod {
   request_count: number;
   error_count: number;
   is_paid: boolean;
+}
+
+// ── Maritime Intelligence (P6) ────────────────────────────────────────────────
+
+export type ThreatLabel = 'LOW' | 'MODERATE' | 'ELEVATED' | 'HIGH' | 'CRITICAL';
+
+export interface ChokepointMetric {
+  date: string;
+  daily_flow_mbbl: number;
+  vessel_count: number;
+  threat_level: number;
+}
+
+export interface Chokepoint {
+  id: string;
+  name: string;
+  controlling_nation: string;
+  geometry: GeoJsonGeometry;
+  centroid: { lon: number; lat: number };
+  daily_flow_mbbl: number;
+  vessel_count_24h: number;
+  threat_level: number;
+  threat_label: ThreatLabel;
+  trend: '+' | '-' | '=';
+  description: string;
+}
+
+export interface ChokepointListResponse {
+  chokepoints: Chokepoint[];
+}
+
+export interface ChokepointMetricsResponse {
+  chokepoint_id: string;
+  name: string;
+  metrics: ChokepointMetric[];
+}
+
+export type SanctionsStatus =
+  | 'clean'
+  | 'OFAC-SDN'
+  | 'UN-sanctioned'
+  | 'EU-sanctioned'
+  | 'shadow-fleet'
+  | 'watch-list';
+
+export interface VesselProfile {
+  imo: string;
+  mmsi: string;
+  name: string;
+  flag: string;
+  flag_emoji: string;
+  vessel_type: string;
+  gross_tonnage: number;
+  year_built: number;
+  owner: string;
+  operator: string;
+  sanctions_status: SanctionsStatus;
+  sanctions_detail?: string;
+  dark_ship_risk: string;
+  last_known_port: string;
+  notes?: string;
+}
+
+export interface DarkShipCandidate {
+  mmsi: string;
+  vessel_name: string;
+  gap_start: string;
+  gap_end: string;
+  gap_hours: number;
+  last_known_lon: number;
+  last_known_lat: number;
+  reappear_lon?: number;
+  reappear_lat?: number;
+  position_jump_km?: number;
+  sanctions_flag: boolean;
+  dark_ship_risk: string;
+  confidence: number;
+  event_id: string;
+}
+
+export interface DarkShipDetectionResponse {
+  candidates: DarkShipCandidate[];
+  total: number;
+  events_analysed: number;
+}
+
+export interface VesselAlert {
+  mmsi: string;
+  vessel_name: string;
+  sanctions_status: string;
+  alert_type: 'dark_ship' | 'sanctions_entry' | 'position_jump';
+  detail: string;
+  confidence: number;
+}
+
+export interface IntelBriefing {
+  briefing_id: string;
+  timestamp: string;
+  classification: string;
+  risk_level: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
+  risk_color: string;
+  executive_summary: string;
+  key_findings: string[];
+  vessel_alerts: VesselAlert[];
+  chokepoint_status: Array<{
+    id: string;
+    name: string;
+    threat_level: number;
+    threat_label: string;
+    daily_flow_mbbl: number;
+    trend: string;
+  }>;
+  dark_ship_count: number;
+  sanctioned_vessel_count: number;
+  active_vessel_count: number;
 }
