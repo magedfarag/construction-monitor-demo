@@ -62,8 +62,10 @@ try:
 
         from src.connectors.gdelt import GdeltConnector, DEFAULT_CONSTRUCTION_THEMES
         from src.services.aoi_store import AoiStore
+        from src.services.source_health import get_health_service
 
         polled_at = datetime.now(timezone.utc).isoformat()
+        health_svc = get_health_service()
         aoi_store = AoiStore()
         connector = GdeltConnector(default_themes=DEFAULT_CONSTRUCTION_THEMES)
 
@@ -84,6 +86,11 @@ try:
                 )
                 events = connector.normalize_all(raw_articles)
                 article_count += len(events)
+                health_svc.record_success(
+                    connector.connector_id,
+                    connector.display_name,
+                    connector.source_type,
+                )
                 log.info(
                     "poll_gdelt_context: AOI %s → %d events",
                     aoi.get("id", "unknown"),
@@ -92,6 +99,7 @@ try:
             except Exception as exc:  # noqa: BLE001
                 log.warning("poll_gdelt_context: AOI poll failed — %s", exc)
                 errors.append(str(exc))
+                health_svc.record_error(connector.connector_id, str(exc))
 
         return {
             "polled_at": polled_at,
@@ -113,8 +121,10 @@ try:
 
         from src.connectors.opensky import OpenSkyConnector
         from src.services.aoi_store import AoiStore
+        from src.services.source_health import get_health_service
 
         polled_at = datetime.now(timezone.utc).isoformat()
+        health_svc = get_health_service()
         connector = OpenSkyConnector(
             username=os.getenv("OPENSKY_USERNAME", ""),
             password=os.getenv("OPENSKY_PASSWORD", ""),
@@ -134,6 +144,11 @@ try:
                 raw_states = connector.fetch(geometry, start_time, end_time)
                 events = connector.normalize_all(raw_states)
                 aircraft_count += len(events)
+                health_svc.record_success(
+                    connector.connector_id,
+                    connector.display_name,
+                    connector.source_type,
+                )
                 log.info(
                     "poll_opensky_positions: AOI %s → %d aircraft",
                     aoi.get("id", "unknown"),
@@ -142,6 +157,7 @@ try:
             except Exception as exc:  # noqa: BLE001
                 log.warning("poll_opensky_positions: AOI poll failed — %s", exc)
                 errors.append(str(exc))
+                health_svc.record_error(connector.connector_id, str(exc))
 
         return {
             "polled_at": polled_at,
@@ -343,6 +359,44 @@ try:
             get_health_service().record_error("telemetry-retention", str(exc))
             return {"enforced_at": enforced_at, "error": str(exc)}
 
+    @celery_app.task(name="probe_stac_connectors")
+    def probe_stac_connectors() -> Dict[str, Any]:
+        """Lightweight STAC catalog health probe.
+
+        Hits the /collections endpoint of each imagery connector to verify
+        reachability.  Records health on SourceHealthService so the dashboard
+        shows fresh/stale instead of 'unknown'.
+        """
+        from datetime import datetime, timezone
+
+        import httpx
+
+        from src.services.source_health import get_health_service
+
+        health_svc = get_health_service()
+        probed_at = datetime.now(timezone.utc).isoformat()
+        results: Dict[str, str] = {}
+
+        # Lightweight probe targets: connector_id -> STAC root URL
+        targets = {
+            "earth-search": "https://earth-search.aws.element84.com/v1",
+            "planetary-computer": "https://planetarycomputer.microsoft.com/api/stac/v1",
+            "usgs-landsat": "https://landsatlook.usgs.gov/stac-server",
+        }
+
+        for cid, url in targets.items():
+            try:
+                resp = httpx.get(f"{url}/", timeout=10.0)
+                resp.raise_for_status()
+                health_svc.record_success(cid)
+                results[cid] = "ok"
+            except Exception as exc:  # noqa: BLE001
+                health_svc.record_error(cid, str(exc))
+                results[cid] = f"error: {exc}"
+                log.warning("probe_stac_connectors: %s — %s", cid, exc)
+
+        return {"probed_at": probed_at, "results": results}
+
 except (ImportError, Exception) as exc:
     log.warning("Celery tasks not registered: %s", exc)
 
@@ -362,6 +416,9 @@ except (ImportError, Exception) as exc:
         raise RuntimeError("Celery is not configured")
 
     def poll_vessel_data(*args, **kwargs):  # type: ignore[misc]
+        raise RuntimeError("Celery is not configured")
+
+    def probe_stac_connectors(*args, **kwargs):  # type: ignore[misc]
         raise RuntimeError("Celery is not configured")
 
     def enforce_telemetry_retention(*args, **kwargs):  # type: ignore[misc]

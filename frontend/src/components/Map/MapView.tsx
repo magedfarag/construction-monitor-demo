@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 // P3-3.1: deck.gl TripsLayer overlay for maritime/aviation tracks
@@ -283,10 +283,22 @@ export function MapView({
     overlay.setProps({ layers });
   }, [trips, currentTime, trailLength, showShipsLayer, showAircraftLayer]);
 
-  // Draw interaction handler
+  // ── Draw interaction handler with live preview ───────────────────────────
+  const [drawCoords, setDrawCoords] = useState<[number, number][]>([]);
+  const mouseCoordRef = useRef<[number, number] | null>(null);
+
+  // Reset draw state when mode changes
+  useEffect(() => {
+    setDrawCoords([]);
+    drawCoordsRef.current = [];
+    mouseCoordRef.current = null;
+  }, [drawMode]);
+
   const handleMapClick = useCallback((e: maplibregl.MapMouseEvent) => {
     if (drawMode === "none") return;
-    drawCoordsRef.current.push([e.lngLat.lng, e.lngLat.lat]);
+    const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat];
+    drawCoordsRef.current.push(pt);
+    setDrawCoords([...drawCoordsRef.current]);
     if (drawMode === "bbox" && drawCoordsRef.current.length === 2) {
       const [[x1, y1], [x2, y2]] = drawCoordsRef.current;
       const polygon: GeoJSON.Geometry = {
@@ -295,6 +307,7 @@ export function MapView({
       };
       onAoiDraw?.(polygon);
       drawCoordsRef.current = [];
+      setDrawCoords([]);
     } else if (drawMode === "polygon" && drawCoordsRef.current.length >= 3) {
       // Double-click closes polygon
     }
@@ -306,8 +319,33 @@ export function MapView({
       const polygon: GeoJSON.Geometry = { type: "Polygon", coordinates: [coords] };
       onAoiDraw?.(polygon);
       drawCoordsRef.current = [];
+      setDrawCoords([]);
     }
   }, [drawMode, onAoiDraw]);
+
+  // Live preview: update draw-preview GeoJSON source on mouse move
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
+      if (drawMode === "none") return;
+      mouseCoordRef.current = [e.lngLat.lng, e.lngLat.lat];
+      updateDrawPreview(map, drawCoordsRef.current, mouseCoordRef.current, drawMode);
+    };
+    map.on("mousemove", handleMouseMove);
+    return () => { map.off("mousemove", handleMouseMove); };
+  }, [drawMode]);
+
+  // Update preview when drawCoords change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    if (drawMode === "none" || drawCoords.length === 0) {
+      clearDrawPreview(map);
+      return;
+    }
+    updateDrawPreview(map, drawCoords, mouseCoordRef.current, drawMode);
+  }, [drawCoords, drawMode]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -323,4 +361,94 @@ export function MapView({
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
     </div>
   );
+}
+
+// ── Draw preview helpers ──────────────────────────────────────────────────
+const DRAW_SOURCE = "draw-preview";
+const DRAW_FILL_LAYER = "draw-preview-fill";
+const DRAW_LINE_LAYER = "draw-preview-line";
+const DRAW_VERTEX_LAYER = "draw-preview-vertices";
+
+function ensureDrawLayers(map: MaplibreMap) {
+  if (!map.getSource(DRAW_SOURCE)) {
+    map.addSource(DRAW_SOURCE, {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: DRAW_FILL_LAYER,
+      type: "fill",
+      source: DRAW_SOURCE,
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: { "fill-color": "#1e6fce", "fill-opacity": 0.15 },
+    });
+    map.addLayer({
+      id: DRAW_LINE_LAYER,
+      type: "line",
+      source: DRAW_SOURCE,
+      paint: { "line-color": "#1e6fce", "line-width": 2, "line-dasharray": [3, 2] },
+    });
+    map.addLayer({
+      id: DRAW_VERTEX_LAYER,
+      type: "circle",
+      source: DRAW_SOURCE,
+      filter: ["==", ["geometry-type"], "Point"],
+      paint: {
+        "circle-radius": 5,
+        "circle-color": "#1e6fce",
+        "circle-stroke-color": "#fff",
+        "circle-stroke-width": 2,
+      },
+    });
+  }
+}
+
+function updateDrawPreview(
+  map: MaplibreMap,
+  coords: [number, number][],
+  mouse: [number, number] | null,
+  mode: "polygon" | "bbox",
+) {
+  if (!map.isStyleLoaded()) return;
+  ensureDrawLayers(map);
+  const src = map.getSource(DRAW_SOURCE) as maplibregl.GeoJSONSource;
+  if (!src) return;
+
+  const features: GeoJSON.Feature[] = [];
+
+  // Vertex markers
+  for (const c of coords) {
+    features.push({ type: "Feature", geometry: { type: "Point", coordinates: c }, properties: {} });
+  }
+
+  if (mode === "bbox" && coords.length === 1 && mouse) {
+    const [x1, y1] = coords[0];
+    const [x2, y2] = mouse;
+    features.push({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [[[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]]] },
+      properties: {},
+    });
+  } else if (mode === "polygon" && coords.length >= 2) {
+    const ring = mouse ? [...coords, mouse, coords[0]] : [...coords, coords[0]];
+    features.push({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [ring] },
+      properties: {},
+    });
+  } else if (mode === "polygon" && coords.length === 1 && mouse) {
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: [coords[0], mouse] },
+      properties: {},
+    });
+  }
+
+  src.setData({ type: "FeatureCollection", features });
+}
+
+function clearDrawPreview(map: MaplibreMap) {
+  if (!map.isStyleLoaded()) return;
+  const src = map.getSource(DRAW_SOURCE) as maplibregl.GeoJSONSource | undefined;
+  if (src) src.setData({ type: "FeatureCollection", features: [] });
 }

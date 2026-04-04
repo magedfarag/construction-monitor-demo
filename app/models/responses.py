@@ -72,6 +72,26 @@ class HealthResponse(BaseModel):
     celery_worker: str
     providers: Dict[str, str]
     version: str = "2.0.0"
+    circuit_breakers: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Per-provider circuit breaker state (closed/open/half_open)",
+    )
+    job_manager: str = Field(
+        default="unknown",
+        description="Job persistence backend in use (redis+postgresql / redis / memory)",
+    )
+    cache_stats: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Cache hit/miss ratio and backend type",
+    )
+    database: str = Field(
+        default="not_configured",
+        description="PostgreSQL connectivity status",
+    )
+    object_storage: str = Field(
+        default="not_configured",
+        description="S3/MinIO connectivity status",
+    )
 
 
 class ConfigResponse(BaseModel):

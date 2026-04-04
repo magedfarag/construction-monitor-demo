@@ -33,6 +33,12 @@ interface InfraHealth {
   redis: string;
   celery_worker: string;
   providers: Record<string, string>;
+  version?: string;
+  circuit_breakers: Record<string, string>;
+  job_manager: string;
+  cache_stats: { hits: number; misses: number; hit_rate: number; backend: string };
+  database: string;
+  object_storage: string;
 }
 
 // ── Shape of /api/providers ──────────────────────────────────────────────────
@@ -51,7 +57,7 @@ function toLevel(value: string): StatusLevel {
   if (!value) return "unknown";
   const v = value.toLowerCase();
   if (v === "ok" || v === "alive" || v === "true" || v === "available") return "ok";
-  if (v === "unavailable" || v === "unreachable" || v === "false") return "error";
+  if (v.startsWith("unavailable") || v === "unreachable" || v === "false") return "error";
   if (v === "no_workers" || v === "not_configured") return "warn";
   return "unknown";
 }
@@ -61,6 +67,21 @@ function freshnessLevel(status: string): StatusLevel {
   if (status === "stale") return "warn";
   if (status === "critical") return "error";
   return "unknown";
+}
+
+function cbLevel(state: string): StatusLevel {
+  if (state === "closed") return "ok";
+  if (state === "half_open") return "warn";
+  if (state === "open") return "error";
+  return "unknown";
+}
+
+function depLevel(value: string): StatusLevel {
+  if (!value) return "unknown";
+  if (value === "ok") return "ok";
+  if (value === "not_configured") return "unknown";
+  if (value.startsWith("error") || value === "unreachable" || value === "check_failed") return "error";
+  return "warn";
 }
 
 const LEVEL_COLOR: Record<StatusLevel, string> = {
@@ -251,11 +272,14 @@ export function SystemHealthPage() {
     const activeAlerts = alerts.filter((a) => !a.resolved);
     const hasCritical =
       activeAlerts.some((a) => a.severity === "critical") ||
-      redisLevel === "error";
+      redisLevel === "error" ||
+      (infra && depLevel(infra.database) === "error") ||
+      (infra && Object.values(infra.circuit_breakers).some((s) => s === "open"));
     const hasWarn =
       activeAlerts.some((a) => a.severity === "warning") ||
       redisLevel === "warn" ||
       (infra && toLevel(infra.celery_worker) === "warn") ||
+      (infra && Object.values(infra.circuit_breakers).some((s) => s === "half_open")) ||
       (connectors?.connectors.some((c) => !c.is_healthy) ?? false);
     if (hasCritical) return "error";
     if (hasWarn) return "warn";
@@ -313,7 +337,7 @@ export function SystemHealthPage() {
             label="Redis / Cache"
             level={infra ? toLevel(infra.redis) : "unknown"}
             badge={infra?.redis ?? "—"}
-            sub="job queue + cache"
+            sub={infra?.cache_stats ? `${(infra.cache_stats.hit_rate * 100).toFixed(0)}% hit rate` : ""}
           />
           <Row
             label="Celery Worker"
@@ -322,16 +346,28 @@ export function SystemHealthPage() {
             sub="async task queue"
           />
           <Row
+            label="PostgreSQL"
+            level={infra ? depLevel(infra.database) : "unknown"}
+            badge={infra?.database ?? "—"}
+            sub="persistent storage"
+          />
+          <Row
+            label="Object Storage"
+            level={infra ? depLevel(infra.object_storage) : "unknown"}
+            badge={infra?.object_storage ?? "—"}
+            sub="S3 / MinIO"
+          />
+          <Row
+            label="Job Manager"
+            level={infra?.job_manager === "memory" ? "warn" : infra?.job_manager ? "ok" : "unknown"}
+            badge={infra?.job_manager ?? "—"}
+            sub="job persistence"
+          />
+          <Row
             label="App Mode"
             level="ok"
             badge={infra?.mode ?? "—"}
             sub="provider behaviour"
-          />
-          <Row
-            label="API Process"
-            level={infra?.status === "ok" ? "ok" : "error"}
-            badge={infra?.status ?? "—"}
-            sub="FastAPI / uvicorn"
           />
         </div>
 
@@ -356,6 +392,23 @@ export function SystemHealthPage() {
           )}
         </div>
       </div>
+
+      {/* ── Circuit Breakers ─────────────────────────────────────── */}
+      {infra && Object.keys(infra.circuit_breakers).length > 0 && (
+        <div className="sh-card" data-testid="sh-circuit-breakers">
+          <SectionTitle>Circuit Breakers</SectionTitle>
+          <div className="sh-cb-grid">
+            {Object.entries(infra.circuit_breakers).map(([name, state]) => (
+              <Row
+                key={name}
+                label={name}
+                level={cbLevel(state)}
+                badge={state}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Data Connectors ──────────────────────────────────────── */}
       <div className="sh-card" data-testid="sh-connectors">

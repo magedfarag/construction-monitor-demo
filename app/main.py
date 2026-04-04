@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app import dependencies
@@ -78,10 +78,11 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         subscription_key=settings.planetary_computer_token,
     ))
     if settings.sentinel2_is_configured():
-        from src.connectors.sentinel2 import CdseSentinel2Connector
+        from src.connectors.sentinel2 import CdseSentinel2Connector, _STAC_URL as _CDSE_STAC_URL, _TOKEN_URL as _CDSE_TOKEN_URL
         v2_registry.register(CdseSentinel2Connector(
-            stac_url=settings.sentinel2_stac_url,
-            token_url=settings.sentinel2_token_url,
+            # Always use the CDSE STAC endpoint — not the V1 provider's Element84 URL.
+            stac_url=_CDSE_STAC_URL,
+            token_url=_CDSE_TOKEN_URL,
             client_id=settings.sentinel2_client_id,
             client_secret=settings.sentinel2_client_secret,
         ))
@@ -112,6 +113,18 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     from src.api.imagery import set_connector_registry, set_imagery_event_store
     set_connector_registry(v2_registry)
 
+    # Pre-register all V2 connectors into the health service so the health
+    # dashboard shows every connector immediately — not only after first poll.
+    from src.api.source_health import get_api_health_service as _get_health_svc
+    _health_svc = _get_health_svc()
+    for _conn in v2_registry.all_connectors(include_disabled=True):
+        _cid = _conn.connector_id
+        _disabled = _cid not in [c.connector_id for c in v2_registry.all_connectors()]
+        if _disabled:
+            _health_svc.record_error(_cid, "Connector disabled at startup", _conn.display_name, _conn.source_type)
+        else:
+            _health_svc._get_or_create(_cid, _conn.display_name, _conn.source_type)
+
     # Shared EventStore for V2 event/playback/compare/analytics routers
     from src.services.event_store import EventStore as V2EventStore
     from src.api import events as _events_router_module
@@ -136,7 +149,56 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         [p.provider_name for p in registry.all_providers()],
         "yes" if settings.redis_available() else "no",
     )
+
+    # ── In-process health prober (runs inside the FastAPI event loop) ────────
+    # SourceHealthService is in-memory, so only probes from this process are
+    # visible to the health dashboard.  Celery tasks update their own copy.
+    import asyncio
+
+    async def _periodic_health_probe() -> None:
+        """Probe STAC catalogs + GDELT + OpenSky every 5 minutes."""
+        import httpx
+
+        _probe_log = _log.getLogger("health_prober")
+        targets = {
+            "earth-search": "https://earth-search.aws.element84.com/v1/",
+            "planetary-computer": "https://planetarycomputer.microsoft.com/api/stac/v1/",
+            "usgs-landsat": "https://landsatlook.usgs.gov/stac-server/",
+            "gdelt-doc": "https://api.gdeltproject.org/api/v2/doc/doc?query=test&mode=artlist&maxrecords=1&format=json",
+            "opensky": "https://opensky-network.org/api/states/all?lamin=0&lamax=1&lomin=0&lomax=1",
+            "ais-stream": "https://aisstream.io/",  # basic liveness probe
+        }
+        while True:
+            _probe_log.info("Running health probes for %d connectors", len(targets))
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                for cid, url in targets.items():
+                    try:
+                        resp = await client.get(url)
+                        # Any HTTP response (even 4xx/5xx) means the service is
+                        # reachable.  Only count connection/timeout failures as
+                        # errors — e.g. GDELT returns 429 when rate-limited but
+                        # the service is alive.
+                        if resp.status_code < 500:
+                            _health_svc.record_success(cid)
+                            _probe_log.debug("probe %s: ok (%d)", cid, resp.status_code)
+                        else:
+                            _health_svc.record_error(cid, f"HTTP {resp.status_code}")
+                            _probe_log.warning("probe %s: HTTP %d", cid, resp.status_code)
+                    except Exception as exc:  # noqa: BLE001
+                        _health_svc.record_error(cid, str(exc))
+                        _probe_log.warning("probe %s: %s", cid, exc)
+            await asyncio.sleep(300)  # 5 minutes
+
+    _probe_task = asyncio.create_task(_periodic_health_probe())
+
     yield
+
+    # Cancel background prober on shutdown
+    _probe_task.cancel()
+    try:
+        await _probe_task
+    except asyncio.CancelledError:
+        pass
 
 app = FastAPI(
     title="Construction Activity Monitor",
@@ -162,8 +224,19 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+def index() -> Response:
+    response = FileResponse(STATIC_DIR / "index.html")
+    # Inject API key cookie so legacy static frontend authenticates automatically
+    configured_key = get_settings().api_key
+    if configured_key:
+        response.set_cookie(
+            key="api_key",
+            value=configured_key,
+            httponly=True,
+            samesite="strict",
+            path="/",
+        )
+    return response
 
 from app.routers import analyze, config_router, credits, health, jobs, providers_router, search, thumbnails
 from app.routers import ws_jobs

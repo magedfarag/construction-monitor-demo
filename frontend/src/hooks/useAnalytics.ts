@@ -20,7 +20,8 @@ export function useCandidates(jobId: string | null) {
 export function useSubmitChangeJob() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (aoiId: string) => analyticsApi.submitJob(aoiId),
+    mutationFn: ({ aoiId, startDate, endDate }: { aoiId: string; startDate: string; endDate: string }) =>
+      analyticsApi.submitJob(aoiId, startDate, endDate),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["analytics"] }),
   });
 }

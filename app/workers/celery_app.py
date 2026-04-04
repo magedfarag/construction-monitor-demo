@@ -61,6 +61,7 @@ try:
             "poll_vessel_data":             {"queue": "default"},
             "enforce_telemetry_retention":  {"queue": "low"},
             "run_export_task":              {"queue": "low"},
+            "probe_stac_connectors":        {"queue": "default"},
         },
         # P5-2.1: Beat schedules for all polling connectors:
         # P2-1.4 GDELT (15 min), P3-2.5 OpenSky (60 s), P3-1 AIS (30 s), P5-4.4 Retention (1 h)
@@ -94,6 +95,11 @@ try:
                 "task": "enforce_telemetry_retention",
                 "schedule": float(settings.retention_enforcement_interval_seconds),
                 "options": {"queue": "low"},
+            },
+            "probe-stac-connectors-every-5min": {
+                "task": "probe_stac_connectors",
+                "schedule": 300.0,  # 5 minutes — lightweight GET to STAC roots
+                "options": {"queue": "default"},
             },
         },
         beat_schedule_filename="celerybeat-schedule",

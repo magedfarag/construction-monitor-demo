@@ -41,21 +41,22 @@ function AppShell() {
     imageryOpacity: 0.1,
   });
 
-  const imagerySearch = useImagerySearch(selectedAoiId ? {
-    aoi_id: selectedAoiId,
-    start_date: startTime.slice(0, 10),
-    end_date: endTime.slice(0, 10),
-    max_cloud_cover: 30,
-  } : null);
-
   // P2-5.2: fetch all AOIs to render on globe
   const aoiQuery = useAois();
   const aois = aoiQuery.data ?? [];
 
+  const selectedAoi = aois.find(a => a.id === selectedAoiId);
+  const imagerySearch = useImagerySearch(selectedAoi ? {
+    geometry: selectedAoi.geometry,
+    start_time: startTime,
+    end_time: endTime,
+    cloud_threshold: 30,
+  } : null);
+
   // P2-1.5/1.6: Fetch GDELT contextual events when layer is enabled
   const gdeltSearch = useEventSearch(
     layers.showGdelt && selectedAoiId
-      ? { aoi_id: selectedAoiId, start_time: startTime, end_time: endTime, source_types: ["context"], limit: 300 }
+      ? { aoi_id: selectedAoiId, start_time: startTime, end_time: endTime, source_types: ["context_feed"], limit: 300 }
       : null
   );
 
@@ -141,7 +142,7 @@ function AppShell() {
               endTime={endTime}
             />
           )}
-          {activePanel === "analytics" && <AnalyticsPanel aoiId={selectedAoiId} />}
+          {activePanel === "analytics" && <AnalyticsPanel aoiId={selectedAoiId} startTime={startTime} endTime={endTime} />}
           {activePanel === "export" && (
             <ExportPanel aoiId={selectedAoiId} startTime={startTime} endTime={endTime} />
           )}
@@ -167,6 +168,27 @@ function AppShell() {
               title="3D globe view"
             >🌐 3D</button>
           </div>
+
+          {/* Map-surface draw tools — always visible in 2D so users can draw AOIs directly */}
+          {viewMode === "2d" && (
+            <div className="map-draw-tools">
+              <button
+                className={`btn btn-xs ${drawMode === "bbox" ? "btn-active" : ""}`}
+                onClick={() => setDrawMode(drawMode === "bbox" ? "none" : "bbox")}
+                title="Draw bounding box — click 2 opposite corners on the map"
+              >⬜ BBox</button>
+              <button
+                className={`btn btn-xs ${drawMode === "polygon" ? "btn-active" : ""}`}
+                onClick={() => setDrawMode(drawMode === "polygon" ? "none" : "polygon")}
+                title="Draw polygon — click vertices, double-click to close"
+              >⬡ Polygon</button>
+              {drawMode !== "none" && (
+                <span className="draw-hint">
+                  {drawMode === "bbox" ? "Click 2 corners on the map" : "Click vertices, double-click to finish"}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* P2-3.3: imagery opacity slider shown in 2D mode */}
           {viewMode === "2d" && layers.showImagery && (

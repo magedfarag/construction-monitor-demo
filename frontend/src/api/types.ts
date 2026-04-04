@@ -21,13 +21,28 @@ export interface CreateAoiRequest {
 }
 
 // ── Events ───────────────────────────────────────────────────────────────────
-export type SourceType = 'imagery' | 'telemetry' | 'context' | 'permit';
+export type SourceType =
+  | 'imagery_catalog'
+  | 'telemetry'
+  | 'registry'
+  | 'public_record'
+  | 'context_feed'
+  | 'derived';
+
 export type EventType =
   | 'imagery_acquisition'
+  | 'imagery_detection'
+  | 'change_detection'
   | 'ship_position'
+  | 'ship_track_segment'
   | 'aircraft_position'
+  | 'aircraft_track_segment'
+  | 'permit_event'
+  | 'inspection_event'
+  | 'project_event'
+  | 'complaint_event'
   | 'contextual_event'
-  | 'permit';
+  | 'system_health_event';
 
 export interface CanonicalEvent {
   event_id: string;
@@ -61,12 +76,12 @@ export interface TimelineBucket {
 
 // ── Imagery ──────────────────────────────────────────────────────────────────
 export interface ImagerySearchRequest {
-  aoi_id?: string;
-  geometry?: GeoJsonGeometry;
-  start_date: string;
-  end_date: string;
-  max_cloud_cover?: number;
-  collections?: string[];
+  geometry: GeoJsonGeometry;
+  start_time: string;
+  end_time: string;
+  cloud_threshold?: number;
+  max_results?: number;
+  connectors?: string[];
 }
 
 export interface ImageryItem {

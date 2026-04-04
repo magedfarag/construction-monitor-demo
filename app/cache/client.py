@@ -92,10 +92,20 @@ class CacheClient:
         }
 
     def is_healthy(self) -> bool:
+        """Return True only when the Redis backend is reachable.
+
+        An in-memory fallback is a degraded state — the caller (health endpoint)
+        should report Redis as unavailable so operators know persistence is lost.
+        """
         try:
             if self._redis:
                 self._redis.ping()
                 return True
-            return self._memory is not None
         except Exception:  # noqa: BLE001
-            return False
+            pass
+        return False
+
+    @property
+    def backend(self) -> str:
+        """Return 'redis' or 'memory' — used by health endpoint for detail."""
+        return "redis" if self._redis else "memory"

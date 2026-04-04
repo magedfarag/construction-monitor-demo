@@ -39,7 +39,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 // ── AOIs ────────────────────────────────────────────────────────────────────
 export const aoisApi = {
-  list: () => request<Aoi[]>('/api/v1/aois'),
+  list: async (): Promise<Aoi[]> => {
+    const res = await request<{ items: Aoi[] }>('/api/v1/aois');
+    return res.items;
+  },
   get: (id: string) => request<Aoi>(`/api/v1/aois/${id}`),
   create: (body: CreateAoiRequest) =>
     request<Aoi>('/api/v1/aois', { method: 'POST', body: JSON.stringify(body) }),
@@ -51,11 +54,35 @@ export const aoisApi = {
 
 // ── Events ───────────────────────────────────────────────────────────────────
 export const eventsApi = {
-  search: (body: EventSearchRequest) =>
-    request<CanonicalEvent[]>('/api/v1/events/search', { method: 'POST', body: JSON.stringify(body) }),
+  search: async (body: EventSearchRequest): Promise<CanonicalEvent[]> => {
+    const res = await request<{ events: CanonicalEvent[] }>('/api/v1/events/search', { method: 'POST', body: JSON.stringify(body) });
+    return res.events;
+  },
   get: (id: string) => request<CanonicalEvent>(`/api/v1/events/${id}`),
-  timeline: (params: Record<string, string>) =>
-    request<TimelineBucket[]>(`/api/v1/events/timeline?${new URLSearchParams(params)}`),
+  timeline: async (params: Record<string, string>): Promise<TimelineBucket[]> => {
+    // Backend returns { buckets: [{ bucket_start, bucket_end, count, by_type }] }
+    // Frontend expects [{ time, count, source }] — one row per source per bucket.
+    interface BackendBucket {
+      bucket_start: string;
+      bucket_end: string;
+      count: number;
+      by_type: Record<string, number>;
+    }
+    const res = await request<{ buckets: BackendBucket[] }>(`/api/v1/events/timeline?${new URLSearchParams(params)}`);
+    const flat: TimelineBucket[] = [];
+    for (const b of res.buckets) {
+      const entries = Object.entries(b.by_type);
+      if (entries.length === 0) {
+        // No breakdown — emit a single row if count > 0
+        if (b.count > 0) flat.push({ time: b.bucket_start, count: b.count, source: 'unknown' });
+      } else {
+        for (const [src, cnt] of entries) {
+          if (cnt > 0) flat.push({ time: b.bucket_start, count: cnt, source: src });
+        }
+      }
+    }
+    return flat;
+  },
   sources: () => request<string[]>('/api/v1/events/sources'),
 };
 
@@ -68,9 +95,13 @@ export const imageryApi = {
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 export const analyticsApi = {
-  submitJob: (aoiId: string) =>
+  submitJob: (aoiId: string, startDate?: string, endDate?: string) =>
     request<ChangeDetectionJob>('/api/v1/analytics/change-detection', {
-      method: 'POST', body: JSON.stringify({ aoi_id: aoiId }),
+      method: 'POST', body: JSON.stringify({
+        aoi_id: aoiId,
+        start_date: startDate ?? new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10),
+        end_date: endDate ?? new Date().toISOString().slice(0, 10),
+      }),
     }),
   getJob: (jobId: string) =>
     request<ChangeDetectionJob>(`/api/v1/analytics/change-detection/${jobId}`),
@@ -120,6 +151,11 @@ export const systemApi = {
     celery_worker: string;
     providers: Record<string, string>;
     version?: string;
+    circuit_breakers: Record<string, string>;
+    job_manager: string;
+    cache_stats: { hits: number; misses: number; hit_rate: number; backend: string };
+    database: string;
+    object_storage: string;
   }>('/api/health'),
   providers: () => request<{ providers: ProviderStatus[] }>('/api/providers'),
   config: () => request<Record<string, unknown>>('/api/config'),

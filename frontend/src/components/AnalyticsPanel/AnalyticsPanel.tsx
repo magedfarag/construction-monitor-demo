@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useSubmitChangeJob, useReviewCandidate, useCandidates } from "../../hooks/useAnalytics";
 import type { ChangeCandidate, ReviewDecision } from "../../api/types";
 
-interface Props { aoiId: string | null }
+interface Props { aoiId: string | null; startTime: string; endTime: string }
 
-export function AnalyticsPanel({ aoiId }: Props) {
+export function AnalyticsPanel({ aoiId, startTime, endTime }: Props) {
   const [jobId, setJobId] = useState<string | null>(null);
   const submitJob = useSubmitChangeJob();
   const { data: candidates = [] } = useCandidates(jobId);
@@ -12,7 +12,7 @@ export function AnalyticsPanel({ aoiId }: Props) {
 
   function handleSubmit() {
     if (!aoiId) return;
-    submitJob.mutate(aoiId, {
+    submitJob.mutate({ aoiId, startDate: startTime.slice(0, 10), endDate: endTime.slice(0, 10) }, {
       onSuccess: job => setJobId(job.job_id),
     });
   }
