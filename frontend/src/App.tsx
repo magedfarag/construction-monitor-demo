@@ -11,6 +11,7 @@ import { PlaybackPanel } from "./components/PlaybackPanel/PlaybackPanel";
 import { AnalyticsPanel } from "./components/AnalyticsPanel/AnalyticsPanel";
 import { ExportPanel } from "./components/ExportPanel/ExportPanel";
 import { ImageryComparePanel } from "./components/ImageryComparePanel/ImageryComparePanel";
+import { SystemHealthPage } from "./components/HealthDashboard/SystemHealthPage";
 import { useImagerySearch } from "./hooks/useImagery";
 import { useEventSearch } from "./hooks/useEvents";
 import { useTracks } from "./hooks/useTracks";
@@ -81,7 +82,7 @@ function AppShell() {
     { key: "aoi", label: "AOIs" }, { key: "layers", label: "Layers" },
     { key: "search", label: "Events" }, { key: "playback", label: "Playback" },
     { key: "analytics", label: "Analytics" }, { key: "export", label: "Export" },
-    { key: "compare", label: "Compare" },
+    { key: "compare", label: "Compare" }, { key: "health", label: "Health" },
   ];
 
   return (
@@ -149,8 +150,11 @@ function AppShell() {
             <ImageryComparePanel items={imagerySearch.data ?? []} />
           )}
         </div>
-        <div className="map-area">
-          {/* P2-5.3: 2D/3D view-mode toggle */}
+        <div className={`map-area${activePanel === "health" ? " map-area--health" : ""}`}>
+          {/* Health monitoring full-canvas page */}
+          {activePanel === "health" && <SystemHealthPage />}
+          {activePanel !== "health" && (
+            <>
           <div className="view-mode-toggle">
             <button
               className={`btn btn-xs ${viewMode === "2d" ? "btn-active" : ""}`}
@@ -208,6 +212,8 @@ function AppShell() {
               showEventLayer={layers.showEvents}
               showGdeltLayer={layers.showGdelt}
             />
+          )}
+            </>
           )}
         </div>
       </div>

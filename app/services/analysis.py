@@ -197,7 +197,7 @@ class AnalysisService:
             return self._demo, True, []
 
         # Try requested provider first, then fall through priority chain
-        provider = self._registry.select_provider(requested)
+        provider = self._registry.select_provider(requested, mode=mode)
         if provider and provider.provider_name != "demo":
             return provider, False, []
 
@@ -205,7 +205,7 @@ class AnalysisService:
         for name in priority:
             if name == "demo":
                 continue
-            alt = self._registry.select_provider(name)
+            alt = self._registry.select_provider(name, mode=mode)
             if alt and alt.provider_name != "demo":
                 return alt, False, [
                     f"Requested provider '{requested}' unavailable; "

@@ -112,6 +112,15 @@ export const healthApi = {
 // ── System ───────────────────────────────────────────────────────────────────
 export const systemApi = {
   health: () => request<{ status: string }>('/healthz'),
+  fullHealth: () => request<{
+    status: string;
+    mode: string;
+    demo_available: boolean;
+    redis: string;
+    celery_worker: string;
+    providers: Record<string, string>;
+    version?: string;
+  }>('/api/health'),
   providers: () => request<{ providers: ProviderStatus[] }>('/api/providers'),
   config: () => request<Record<string, unknown>>('/api/config'),
 };

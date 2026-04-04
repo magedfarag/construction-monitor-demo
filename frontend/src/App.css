@@ -49,6 +49,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 
 /* ── Map area ────────────────────────────────────────────────────────────── */
 .map-area { flex: 1; position: relative; }
+.map-area--health { display: flex; flex-direction: column; overflow: hidden; }
 
 /* ── Timeline bar ────────────────────────────────────────────────────────── */
 .timeline-bar { height: 180px; background: var(--bg-secondary); border-top: 1px solid var(--border); flex-shrink: 0; overflow: hidden; }
