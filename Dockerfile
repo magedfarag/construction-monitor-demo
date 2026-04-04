@@ -15,8 +15,10 @@ RUN apt-get update -qq && \
 FROM python:3.12-slim AS runtime
 
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends libgdal32 && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends libgdal35 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* || \
+    (apt-get install -y --no-install-recommends libgdal-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*)
 
 COPY --from=builder /install /usr/local
 

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { MapView } from "./components/Map/MapView";
+import { GlobeView } from "./components/GlobeView/GlobeView";
 import { AoiPanel } from "./components/AoiPanel/AoiPanel";
 import { LayerPanel } from "./components/LayerPanel/LayerPanel";
 import { TimelinePanel } from "./components/TimelinePanel/TimelinePanel";
@@ -9,9 +10,11 @@ import { SearchPanel } from "./components/SearchPanel/SearchPanel";
 import { PlaybackPanel } from "./components/PlaybackPanel/PlaybackPanel";
 import { AnalyticsPanel } from "./components/AnalyticsPanel/AnalyticsPanel";
 import { ExportPanel } from "./components/ExportPanel/ExportPanel";
+import { ImageryComparePanel } from "./components/ImageryComparePanel/ImageryComparePanel";
 import { useImagerySearch } from "./hooks/useImagery";
 import { useEventSearch } from "./hooks/useEvents";
 import { useTracks } from "./hooks/useTracks";
+import { useAois } from "./hooks/useAois";
 import { subDays } from "date-fns";
 import type { CanonicalEvent } from "./api/types";
 import "./App.css";
@@ -27,10 +30,14 @@ function AppShell() {
   const [endTime, setEndTime] = useState<string>(new Date().toISOString());
   const [selectedEvent, setSelectedEvent] = useState<CanonicalEvent | null>(null);
   const [activePanel, setActivePanel] = useState<string>("aoi");
+  // P2-5.3: 2D/3D view-mode toggle
+  const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [layers, setLayers] = useState({
     showAois: true, showImagery: true, showEvents: true,
     showGdelt: false, showShips: false, showAircraft: false,
     trackDensity: 1.0,
+    // P2-3.3: imagery footprint opacity
+    imageryOpacity: 0.1,
   });
 
   const imagerySearch = useImagerySearch(selectedAoiId ? {
@@ -39,6 +46,10 @@ function AppShell() {
     end_date: endTime.slice(0, 10),
     max_cloud_cover: 30,
   } : null);
+
+  // P2-5.2: fetch all AOIs to render on globe
+  const aoiQuery = useAois();
+  const aois = aoiQuery.data ?? [];
 
   // P2-1.5/1.6: Fetch GDELT contextual events when layer is enabled
   const gdeltSearch = useEventSearch(
@@ -70,6 +81,7 @@ function AppShell() {
     { key: "aoi", label: "AOIs" }, { key: "layers", label: "Layers" },
     { key: "search", label: "Events" }, { key: "playback", label: "Playback" },
     { key: "analytics", label: "Analytics" }, { key: "export", label: "Export" },
+    { key: "compare", label: "Compare" },
   ];
 
   return (
@@ -132,26 +144,71 @@ function AppShell() {
           {activePanel === "export" && (
             <ExportPanel aoiId={selectedAoiId} startTime={startTime} endTime={endTime} />
           )}
+          {/* P2-3.2: before/after imagery compare panel */}
+          {activePanel === "compare" && (
+            <ImageryComparePanel items={imagerySearch.data ?? []} />
+          )}
         </div>
         <div className="map-area">
-          <MapView
-            aois={[]}
-            imageryItems={imagerySearch.data ?? []}
-            events={[]}
-            drawMode={drawMode}
-            selectedAoiId={selectedAoiId}
-            onAoiClick={setSelectedAoiId}
-            onAoiDraw={geom => { setPendingGeometry(geom); setDrawMode("none"); }}
-            onEventClick={setSelectedEvent}
-            showImageryLayer={layers.showImagery}
-            showEventLayer={layers.showEvents}
-            gdeltEvents={gdeltSearch.data ?? []}
-            showGdeltLayer={layers.showGdelt}
-            trips={visibleTracks}
-            currentTime={tracksCurrentTime}
-            showShipsLayer={layers.showShips}
-            showAircraftLayer={layers.showAircraft}
-          />
+          {/* P2-5.3: 2D/3D view-mode toggle */}
+          <div className="view-mode-toggle">
+            <button
+              className={`btn btn-xs ${viewMode === "2d" ? "btn-active" : ""}`}
+              onClick={() => setViewMode("2d")}
+              title="2D map view"
+            >2D</button>
+            <button
+              className={`btn btn-xs ${viewMode === "3d" ? "btn-active" : ""}`}
+              onClick={() => setViewMode("3d")}
+              title="3D globe view"
+            >🌐 3D</button>
+          </div>
+
+          {/* P2-3.3: imagery opacity slider shown in 2D mode */}
+          {viewMode === "2d" && layers.showImagery && (
+            <div className="imagery-opacity-ctrl">
+              <label className="label-sm">Imagery opacity</label>
+              <input
+                type="range" min="0" max="1" step="0.05"
+                value={layers.imageryOpacity}
+                onChange={e => setLayers(l => ({ ...l, imageryOpacity: Number(e.target.value) }))}
+                className="opacity-slider"
+                title={`Imagery opacity: ${Math.round(layers.imageryOpacity * 100)}%`}
+              />
+              <span className="label-sm">{Math.round(layers.imageryOpacity * 100)}%</span>
+            </div>
+          )}
+
+          {viewMode === "2d" ? (
+            <MapView
+              aois={[]}
+              imageryItems={imagerySearch.data ?? []}
+              events={[]}
+              drawMode={drawMode}
+              selectedAoiId={selectedAoiId}
+              onAoiClick={setSelectedAoiId}
+              onAoiDraw={geom => { setPendingGeometry(geom); setDrawMode("none"); }}
+              onEventClick={setSelectedEvent}
+              showImageryLayer={layers.showImagery}
+              showEventLayer={layers.showEvents}
+              gdeltEvents={gdeltSearch.data ?? []}
+              showGdeltLayer={layers.showGdelt}
+              imageryOpacity={layers.imageryOpacity}
+              trips={visibleTracks}
+              currentTime={tracksCurrentTime}
+              showShipsLayer={layers.showShips}
+              showAircraftLayer={layers.showAircraft}
+            />
+          ) : (
+            /* P2-5.1/5.2: globe.gl 3D overview */
+            <GlobeView
+              aois={aois}
+              events={gdeltSearch.data ?? []}
+              gdeltEvents={gdeltSearch.data ?? []}
+              showEventLayer={layers.showEvents}
+              showGdeltLayer={layers.showGdelt}
+            />
+          )}
         </div>
       </div>
       <div className="timeline-bar">

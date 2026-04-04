@@ -24,8 +24,8 @@ interface Props {
   showEventLayer: boolean;
   // P2-1.5: GDELT contextual event layer
   gdeltEvents?: CanonicalEvent[];
-  showGdeltLayer?: boolean;
-  // P3-3.2/3.3: deck.gl TripsLayer for maritime / aviation tracks
+  showGdeltLayer?: boolean;  // P2-3.3: imagery footprint opacity slider
+  imageryOpacity?: number;  // 0–1, default 0.1  // P3-3.2/3.3: deck.gl TripsLayer for maritime / aviation tracks
   trips?: Trip[];
   currentTime?: number;     // Unix seconds; defaults to end of time window
   showShipsLayer?: boolean;
@@ -38,6 +38,7 @@ export function MapView({
   selectedAoiId, onAoiClick, onEventClick,
   showImageryLayer, showEventLayer,
   gdeltEvents = [], showGdeltLayer = false,
+  imageryOpacity = 0.1,
   trips = [], currentTime, showShipsLayer = false, showAircraftLayer = false,
   trailLength = 300,
 }: Props) {
@@ -115,7 +116,7 @@ export function MapView({
     }
   }, [aois, selectedAoiId, onAoiClick]);
 
-  // Update imagery footprints layer (P1-3.9)
+  // Update imagery footprints layer (P1-3.9, P2-3.3 opacity)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
@@ -128,13 +129,19 @@ export function MapView({
         properties: { id: item.item_id, collection: item.collection, cloud_cover: item.cloud_cover },
       })) : [],
     };
-    if (src) { src.setData(fc); } else {
+    if (src) {
+      src.setData(fc);
+      // P2-3.3: live opacity update without recreating layers
+      if (map.getLayer("imagery-fill")) {
+        map.setPaintProperty("imagery-fill", "fill-opacity", showImageryLayer ? imageryOpacity : 0);
+      }
+    } else {
       map.addSource("imagery", { type: "geojson", data: fc });
       map.addLayer({
         id: "imagery-fill",
         type: "fill",
         source: "imagery",
-        paint: { "fill-color": "#4caf50", "fill-opacity": 0.1 },
+        paint: { "fill-color": "#4caf50", "fill-opacity": showImageryLayer ? imageryOpacity : 0 },
       });
       map.addLayer({
         id: "imagery-line",
@@ -143,7 +150,7 @@ export function MapView({
         paint: { "line-color": "#4caf50", "line-width": 1, "line-dasharray": [2, 2] },
       });
     }
-  }, [imageryItems, showImageryLayer]);
+  }, [imageryItems, showImageryLayer, imageryOpacity]);
 
   // Update event markers layer (P1-4.6)
   useEffect(() => {
@@ -312,6 +319,8 @@ export function MapView({
   }, [drawMode, handleMapClick, handleDblClick]);
 
   return (
-    <div ref={containerRef} style={{ width: "100%", height: "100%" }} data-testid="map-container" />
+    <div style={{ width: "100%", height: "100%", position: "relative" }} data-testid="map-container">
+      <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+    </div>
   );
 }

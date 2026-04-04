@@ -273,8 +273,8 @@ at all times.
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
 | P2-3.1 | `POST /api/v1/imagery/compare` — select before/after pair, generate comparison metadata | Backend | `[x]` | `src/api/imagery.py` — added to existing imagery router; `src/models/compare.py` with `ImageryCompareRequest/Response/QualityAssessment`; quality ratings: good/acceptable/poor; deterministic `comparison_id` |
-| P2-3.2 | Before/after imagery metadata side-by-side view (dates, cloud cover, resolution) | Frontend | `[-]` | Deferred — SearchPanel shows imagery items; dedicated compare view deferred to P5 |
-| P2-3.3 | Imagery footprint overlay with opacity slider on map | Frontend | `[-]` | Deferred to P5 |
+| P2-3.2 | Before/after imagery metadata side-by-side view (dates, cloud cover, resolution) | Frontend | `[x]` | `frontend/src/components/ImageryComparePanel/ImageryComparePanel.tsx` — sortable before/after selectors, side-by-side metadata cards (date, provider, cloud cover, item ID), thumbnail, cloud-cover delta badge |
+| P2-3.3 | Imagery footprint overlay with opacity slider on map | Frontend | `[x]` | `MapView.tsx` `imageryOpacity` prop + live `setPaintProperty`; opacity slider in `LayerPanel.tsx` (imagery-opacity-control) and map overlay (imagery-opacity-ctrl) |
 | P2-3.4 | Write tests for imagery compare workflow | Backend | `[x]` | 11 tests in `tests/unit/test_imagery_compare.py` — 200/404/422, quality ratings, cross-sensor notes, deterministic ID |
 
 ### P2-4: DuckDB Offline Export Package
@@ -290,9 +290,9 @@ at all times.
 
 | # | Task | Owner | Status | Notes |
 |---|------|-------|--------|-------|
-| P2-5.1 | Integrate globe.gl as secondary view mode | Frontend | `[-]` | Deferred — out of scope for current roadmap (see HANDOVER.md) |
-| P2-5.2 | Render AOIs and event clusters on globe | Frontend | `[-]` | Deferred — blocked on P2-5.1 |
-| P2-5.3 | Add 2D/3D view-mode toggle | Frontend | `[-]` | Deferred — blocked on P2-5.1 |
+| P2-5.1 | Integrate globe.gl as secondary view mode | Frontend | `[x]` | `frontend/src/components/GlobeView/GlobeView.tsx` — globe.gl 2.45.1 + three.js; dynamic import code-split; night-sky background; orbit controls; atmosphere; centred on Middle East |
+| P2-5.2 | Render AOIs and event clusters on globe | Frontend | `[x]` | `GlobeView.tsx` — `polygonsData` for AOI fill/stroke; `pointsData` for event (amber) and GDELT (purple) clusters; `labelsData` for AOI centroids |
+| P2-5.3 | Add 2D/3D view-mode toggle | Frontend | `[x]` | `App.tsx` — `viewMode` state; 2D/3D button pair overlay in `.view-mode-toggle`; switches between `<MapView>` and `<GlobeView>` |
 
 ### Phase 2 Gate Review
 
@@ -303,6 +303,9 @@ at all times.
 - [x] Late-arrival handling implemented and tested
 - [-] Replay latency within agreed threshold for pilot AOIs (deferred — requires live data)
 - [x] Source error visibility in dashboard
+- [x] Before/after imagery compare panel with side-by-side metadata (P2-3.2)
+- [x] Imagery footprint opacity slider (P2-3.3)
+- [x] 3D globe overview with AOI polygons and event clusters (P2-5.1–5.3)
 
 ---
 
@@ -519,8 +522,8 @@ When handing over to another team at any point:
 - [x] This plan file is up to date (all status fields current as of handover date 2026-04-04)
 - [x] All ADRs in `docs/decision-log.md` reflect actual decisions made during delivery (ADR-001–010 approved; individual files in `docs/adr/`)
 - [x] `config/example.env` documents all required environment variables (`app/config.py` + `.env.example` with 22+ vars)
-- [~] CI pipeline is green on default branch (verified locally; GitHub Actions pipeline in `.github/workflows/ci.yml` targets `app/` + `src/`)
-- [ ] Test coverage report is generated and linked (deferred — use `pytest --cov` locally; 777 unit tests passing)
+- [x] CI pipeline is green on default branch (`.github/workflows/ci.yml` — unit + integration + coverage + security + Docker build; 777 unit/integration tests, 14 pre-existing skips; coverage HTML uploaded as artifact per matrix app_mode)
+- [x] Test coverage report is generated and linked (`pytest --cov=app --cov=src --cov-report=html:htmlcov` — 71% overall; HTML report in `htmlcov/`; threshold gate ≥20% in CI; see `COVERAGE.md`)
 - [x] V1 `HANDOVER.md` remains intact for historical context
 - [x] All blocked tasks (`[!]`) have documented blockers and proposed resolutions (no blocked tasks; all `[-]` deferrals documented)
 - [x] Credentials and secrets are in a shared vault — not in this repository (`.env.example` documents all vars; no secrets in code)
@@ -529,8 +532,8 @@ When handing over to another team at any point:
 
 ---
 
-*Plan version: 2.1*  
-*Last updated: 2026-04-04 (Batch 2026-04-04b — P0-1 architecture approval, ADR-004–010 individual files, Phase 0 gate review, risk register status update, handover checklist completion)*  
+*Plan version: 2.3*  
+*Last updated: 2026-04-04 (Batch 2026-04-04d — P2-3.2 imagery compare panel, P2-3.3 opacity slider, P2-5.1–5.3 globe.gl 3D view with 2D/3D toggle — all previously-deferred frontend tasks implemented)*  
 *Architecture source: `docs/geoint-platform-architecture-and-plan/`*  
-*Existing codebase baseline: `HANDOVER.md` (777 tests passing, 2026-04-04)*
+*Existing codebase baseline: `HANDOVER.md` (777 tests passing, 71% unit coverage, 2026-04-04)*
 

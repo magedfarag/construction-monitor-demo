@@ -7,6 +7,8 @@ interface LayerState {
   showAircraft: boolean;
   /** P3-3.6: fraction of tracks to render (1.0 = all, 0.1 = 10%). */
   trackDensity: number;
+  /** P2-3.3: imagery footprint fill opacity (0–1). */
+  imageryOpacity: number;
 }
 
 interface Props {
@@ -54,6 +56,24 @@ export function LayerPanel({ layers, onChange }: Props) {
             onChange={e => onChange({ ...layers, trackDensity: parseFloat(e.target.value) })}
             className="density-slider"
             data-testid="density-slider"
+          />
+        </div>
+      )}
+      {/* P2-3.3: Imagery footprint opacity — shown when imagery layer is on */}
+      {layers.showImagery && (
+        <div className="density-control" data-testid="imagery-opacity-control">
+          <label className="density-label">
+            Imagery opacity: {Math.round(layers.imageryOpacity * 100)}%
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={layers.imageryOpacity}
+            onChange={e => onChange({ ...layers, imageryOpacity: parseFloat(e.target.value) })}
+            className="density-slider"
+            data-testid="imagery-opacity-slider"
           />
         </div>
       )}

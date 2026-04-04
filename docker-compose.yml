@@ -12,16 +12,14 @@ services:
   api:
     build: .
     ports: ["8000:8000"]
+    env_file: .env
     environment:
       REDIS_URL: "redis://redis:6379/0"
-      APP_MODE: "auto"
-      LOG_LEVEL: "INFO"
-      LOG_FORMAT: "json"
-      # Set these to enable live Sentinel-2 searches:
-      # SENTINEL2_CLIENT_ID: ""
-      # SENTINEL2_CLIENT_SECRET: ""
+      OBJECT_STORAGE_ENDPOINT: "http://minio:9000"
     depends_on:
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     volumes:
       - .:/app:ro
@@ -31,11 +29,14 @@ services:
     command: >
       celery -A backend.app.workers.celery_app.celery_app worker
       --loglevel=info --pool=solo --concurrency=2
+    env_file: .env
     environment:
       REDIS_URL: "redis://redis:6379/0"
-      APP_MODE: "auto"
+      OBJECT_STORAGE_ENDPOINT: "http://minio:9000"
     depends_on:
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
 
   # P0-4.5: MinIO object storage — bucket structure: raw/, exports/, thumbnails/, artifacts/

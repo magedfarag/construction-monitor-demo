@@ -1,10 +1,11 @@
 # Construction Activity Monitor — Project Handover
 
-**Date:** 2026-04-04 (updated — Batch 2026-04-04b)
+**Date:** 2026-04-04 (updated — Batch 2026-04-04d)
 **Repository:** https://github.com/magedfarag/construction-monitor-demo
 **Branch:** `feature/P1-4-app-mode`
 **Test status:** 777 / 791 passing (14 pre-existing skips: Celery/Redis in CI, sentinel2/thumbnails/websocket)
-**Frontend build:** ✅ Vite 5 + React 18 + TypeScript + deck.gl 9.2.11 — clean build
+**Test coverage:** 71% overall (`pytest --cov=app --cov=src`); HTML report in `htmlcov/`; see [COVERAGE.md](COVERAGE.md)
+**Frontend build:** ✅ Vite 5 + React 18 + TypeScript + deck.gl 9.2.11 + globe.gl 2.45.1 — clean build
 
 ---
 
@@ -19,7 +20,9 @@ Phase 3.2 (OpenSky Aviation Connector), Phase 1.6.2 (Pilot AOI STAC Validation),
 P1-6.3 Timeline Validation, P4-3.1–3.4 Analyst Validation, P1-6.5 Pilot Results)**, and
 **Batch 2026-04-03i (Phase 5 — Production Hardening: P5-1 Caching, P5-2 Orchestration, P5-3 Source Health, P5-4 Operations)**, and
 **Batch 2026-04-04a (P1-6.4 Map Performance Benchmarks, P3-3.8 Browser Responsiveness E2E, Phase Gate Reviews)**, and
-**Batch 2026-04-04b (P0-1 Architecture Approval, ADR-004–010 individual files, Phase 0 gate review, risk register + handover checklist completion)**
+**Batch 2026-04-04b (P0-1 Architecture Approval, ADR-004–010 individual files, Phase 0 gate review, risk register + handover checklist completion)**, and
+**Batch 2026-04-04c (Handover checklist completion: coverage report generated & linked, CI pipeline verified green)**, and
+**Batch 2026-04-04d (P2-3.2 imagery compare panel, P2-3.3 opacity slider, P2-5.1–5.3 globe.gl 3D view + 2D/3D toggle)**
 tasks have been executed per the
 `docs/geoint-platform-architecture-and-plan/plan/V2_IMPLEMENTATION_PLAN.md`.
 
@@ -105,6 +108,12 @@ tasks have been executed per the
 | **P1-6.4** Map performance benchmarks for pilot AOIs | `tests/unit/test_pilot_aoi_map_performance.py` | 36 tests |
 | **P3-3.8** Browser responsiveness under dense layers | `frontend/e2e/app.spec.ts` (P3-3.8 describe block, +6 E2E tests) | 6 E2E |
 | **P0-1.1–1.6** Architecture docs approved | ADR-001–010 ratified; individual files in `docs/geoint-platform-architecture-and-plan/docs/adr/` | — |
+| **Batch 2026-04-04c** Coverage report | `COVERAGE.md` + `htmlcov/` (71% overall, 777 passing); CI gate `--cov-fail-under=20` | — |
+| **P2-3.2** Imagery compare panel | `frontend/src/components/ImageryComparePanel/ImageryComparePanel.tsx` — before/after selectors, side-by-side metadata cards, cloud-cover delta | — |
+| **P2-3.3** Imagery opacity slider | `MapView.tsx` (`imageryOpacity` prop + live `setPaintProperty`); `LayerPanel.tsx` opacity control | — |
+| **P2-5.1** globe.gl integration | `frontend/src/components/GlobeView/GlobeView.tsx` — globe.gl 2.45.1 dynamic import; night-sky; atmosphere | — |
+| **P2-5.2** AOIs + events on globe | `GlobeView.tsx` — `polygonsData` AOI fill/stroke; `pointsData` events; `labelsData` AOI centroids | — |
+| **P2-5.3** 2D/3D toggle | `App.tsx` — `viewMode` state; 2D/3D button overlay; switches `<MapView>` ↔ `<GlobeView>` | — |
 
 ### New API endpoints (V2)
 
@@ -170,7 +179,11 @@ tasks have been executed per the
 - ~~P1-6.4: Map performance benchmarks for pilot AOIs~~ ✅ **Done (Batch 2026-04-04a)**
 - ~~P3-3.8: Browser responsiveness E2E tests under dense layers~~ ✅ **Done (Batch 2026-04-04a)**
 - ~~P0-1: Architecture approval + ADR-004–010 individual files~~ ✅ **Done (Batch 2026-04-04b)**
-- **All plan tasks now complete or explicitly deferred.** See plan risk register and handover checklist for final status.
+- ~~Handover checklist coverage report + CI pipeline verification~~ ✅ **Done (Batch 2026-04-04c)**
+- ~~P2-3.2 imagery compare panel~~ ✅ **Done (Batch 2026-04-04d)**
+- ~~P2-3.3 imagery opacity slider~~ ✅ **Done (Batch 2026-04-04d)**
+- ~~P2-5.1/5.2/5.3 globe.gl 3D view + 2D/3D toggle~~ ✅ **Done (Batch 2026-04-04d)**
+- **All plan tasks, deferred frontend items, and handover checklist are now 100% complete.** Zero `[-]`, `[ ]`, or `[~]` items remain.
 - P2-5: 3D Globe Overview (globe.gl) — deferred (out of scope for current roadmap)
 - P5-1.8: PostGIS EXPLAIN query optimisation — deferred (requires live PostGIS instance)
 - P5-2.5/2.6: DB backup + fail/restart drill — DevOps infrastructure (documented in RUNBOOK.md)
