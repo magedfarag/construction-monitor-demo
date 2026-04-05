@@ -200,9 +200,14 @@ def stac_item_to_canonical_event(
         or assets.get("overview", {}).get("href")
     )
 
+    _sensor_raw = props.get("instrument") or props.get("instruments")
+    _sensor: str | None = (
+        ", ".join(_sensor_raw) if isinstance(_sensor_raw, list) else _sensor_raw
+    )
+
     attrs = ImageryAttributes(
         platform=_detect_platform(item),
-        sensor=props.get("instrument") or props.get("instruments"),
+        sensor=_sensor,
         gsd_m=_detect_gsd(item),
         cloud_cover_pct=cloud_cover_pct,
         off_nadir_angle=props.get("view:off_nadir") or props.get("off_nadir"),

@@ -9,7 +9,7 @@ interface LegendItem {
 }
 
 const LEGEND_ITEMS: LegendItem[] = [
-  { key: "ships",    label: "Ships",        color: "#00e5ff", shape: "arrow",  description: "AIS vessel positions and track trails. Click an arrow on the map for heading, speed, and last-seen time." },
+  { key: "ships",    label: "Ships",        color: "#14ba8c", shape: "arrow",  description: "AIS vessel positions and track trails. Click an arrow on the map for heading, speed, and last-seen time." },
   { key: "aircraft", label: "Aircraft",     color: "#ff5722", shape: "arrow",  description: "ADS-B aircraft positions and track trails. Click an arrow for flight details and speed." },
   { key: "events",   label: "Intel Events", color: "#f59e0b", shape: "circle", description: "Canonical intelligence events (permits, inspections, detections). Click a marker for event details." },
   { key: "gdelt",    label: "GDELT Events", color: "#c084fc", shape: "circle", description: "Open-source news and contextual events from GDELT. Click for source and confidence." },

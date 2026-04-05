@@ -67,7 +67,7 @@ function ObservationRow({ obs, isNearest }: { obs: CameraObservation; isNearest?
   );
 }
 
-function ClipPlayer({ clip, cameraId, isNearest, onJump }: { clip: MediaClipRef; cameraId: string; isNearest?: boolean; onJump?: () => void }) {
+function ClipPlayer({ clip, isNearest, onJump }: { clip: MediaClipRef; cameraId: string; isNearest?: boolean; onJump?: () => void }) {
   const [playing, setPlaying] = useState(false);
 
   return (

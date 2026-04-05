@@ -21,7 +21,7 @@ import type { RenderMode } from "../../types/renderModes";
 import { RENDER_MODE_CONFIGS } from "../../types/renderModes";
 
 /** Globe always uses vector tiles — raster styles break the globe projection */
-const GLOBE_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const GLOBE_STYLE_URL = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
 // -- Helper: current position, heading, speed for each entity
 function computeEntityPositions(trips: Trip[], t: number): GeoJSON.FeatureCollection {
@@ -215,6 +215,10 @@ export function GlobeView({
     map.addControl(overlay as unknown as maplibregl.IControl);
     deckRef.current = overlay;
 
+    // Ensure the canvas adapts whenever the container is resized (flex/window resize)
+    const ro = new ResizeObserver(() => map.resize());
+    ro.observe(containerRef.current!);
+
     map.on("load", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any).setProjection({ type: "globe" });
@@ -236,7 +240,7 @@ export function GlobeView({
 
       setStyleLoaded(true);
       // Expose map instance for Playwright demo recording (dev / demo mode only)
-      (window as any).__argusMap = map;
+      (window as Window & { __argusMap?: maplibregl.Map }).__argusMap = map;
 
       // P6-7: God's Eye entry animation — descend from orbit to Hormuz
       if (!godsEyeFiredRef.current) {
@@ -256,9 +260,10 @@ export function GlobeView({
     });
 
     return () => {
+      ro.disconnect();
       setStyleLoaded(false);
       deckRef.current = null;
-      delete (window as any).__argusMap;
+      delete (window as Window & { __argusMap?: maplibregl.Map }).__argusMap;
       map.remove();
       mapRef.current = null;
     };
@@ -367,7 +372,13 @@ export function GlobeView({
           .map(e => ({
             type: "Feature" as const,
             geometry: e.geometry as GeoJSON.Point,
-            properties: {},
+            properties: {
+              id: e.event_id,
+              source: e.source,
+              type: e.event_type,
+              date: e.event_time,
+              confidence: e.confidence ?? 0.5,
+            },
           }))
       : [];
 
@@ -392,7 +403,13 @@ export function GlobeView({
           .map(e => ({
             type: "Feature" as const,
             geometry: e.geometry as GeoJSON.Point,
-            properties: { type: e.event_type },
+            properties: {
+              type: e.event_type,
+              id: e.event_id,
+              source: e.source,
+              date: e.event_time,
+              confidence: e.confidence ?? 0.5,
+            },
           }))
       : [];
 
@@ -430,30 +447,35 @@ export function GlobeView({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layers: any[] = [];
     if (shipTrips.length) {
+      // Ships rendered at sea level — paths sit on the water surface and track with entity icons.
       layers.push(new TripsLayer({
         id: "g-ships-glow", data: shipTrips,
         getPath: d => d.waypoints.map((w: [number, number, number]) => [w[0], w[1]] as [number, number]),
         getTimestamps: d => d.waypoints.map((w: [number, number, number]) => w[2]),
-        getColor: [0, 229, 255] as [number, number, number], opacity: 0.18,
-        widthMinPixels: 14, capRounded: true, jointRounded: true,
+        getColor: [20, 186, 140] as [number, number, number], opacity: 0.18,
+        widthMinPixels: 5, capRounded: true, jointRounded: true,
         trailLength, currentTime: t,
       }));
       layers.push(new TripsLayer({
         id: "g-ships-trips", data: shipTrips,
         getPath: d => d.waypoints.map((w: [number, number, number]) => [w[0], w[1]] as [number, number]),
         getTimestamps: d => d.waypoints.map((w: [number, number, number]) => w[2]),
-        getColor: [0, 229, 255] as [number, number, number], opacity: 0.9,
-        widthMinPixels: 3, capRounded: true, jointRounded: true,
+        getColor: [20, 186, 140] as [number, number, number], opacity: 0.9,
+        widthMinPixels: 2, capRounded: true, jointRounded: true,
         trailLength, currentTime: t,
       }));
     }
     if (aircraftTrips.length) {
+      // Aircraft trails rendered at the same 2D ground coordinates as the MapLibre
+      // icon layer (which has no z-elevation).  This keeps the trail head visually
+      // locked to the directional icon at every pitch / zoom level.
+      // Visual separation from ship tracks comes from colour (orange vs teal).
       layers.push(new TripsLayer({
         id: "g-aircraft-glow", data: aircraftTrips,
         getPath: d => d.waypoints.map((w: [number, number, number]) => [w[0], w[1]] as [number, number]),
         getTimestamps: d => d.waypoints.map((w: [number, number, number]) => w[2]),
         getColor: [255, 100, 50] as [number, number, number], opacity: 0.18,
-        widthMinPixels: 14, capRounded: true, jointRounded: true,
+        widthMinPixels: 5, capRounded: true, jointRounded: true,
         trailLength, currentTime: t,
       }));
       layers.push(new TripsLayer({
@@ -461,7 +483,7 @@ export function GlobeView({
         getPath: d => d.waypoints.map((w: [number, number, number]) => [w[0], w[1]] as [number, number]),
         getTimestamps: d => d.waypoints.map((w: [number, number, number]) => w[2]),
         getColor: [255, 100, 50] as [number, number, number], opacity: 0.9,
-        widthMinPixels: 3, capRounded: true, jointRounded: true,
+        widthMinPixels: 2, capRounded: true, jointRounded: true,
         trailLength, currentTime: t,
       }));
     }
@@ -479,8 +501,8 @@ export function GlobeView({
     );
     const data = computeEntityPositions(active, t);
 
-    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(0, 229, 255));
-    if (!map.hasImage("aircraft-arrow")) map.addImage("aircraft-arrow", makeArrowImageData(255, 87, 34));
+    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(255, 255, 255));
+    if (!map.hasImage("aircraft-arrow")) map.addImage("aircraft-arrow", makeArrowImageData(255, 220, 50));
 
     const src = map.getSource("g-entity-positions") as maplibregl.GeoJSONSource | undefined;
     if (src) {
@@ -550,25 +572,88 @@ export function GlobeView({
         ))
         .addTo(map);
     };
+    const handleEventClick = (e: maplibregl.MapLayerMouseEvent) => {
+      const feat = e.features?.[0];
+      if (!feat || feat.geometry.type !== "Point") return;
+      const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
+      const p = feat.properties as Record<string, unknown>;
+      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+        .setLngLat([lng, lat])
+        .setHTML(`<div class="entity-popup"><div class="entity-popup-header">⚡ INTEL EVENT</div><div class="entity-popup-id">${String(p.label ?? "")}</div></div>`)
+        .addTo(map);
+    };
+    const handleGdeltClick = (e: maplibregl.MapLayerMouseEvent) => {
+      const feat = e.features?.[0];
+      if (!feat || feat.geometry.type !== "Point") return;
+      const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
+      const p = feat.properties as Record<string, unknown>;
+      const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
+      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+        .setLngLat([lng, lat])
+        .setHTML(`<div class="entity-popup"><div class="entity-popup-header">\uD83D\uDCC4 GDELT EVENT</div><div class="entity-popup-id">${String(p.id ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span><span class="ep-label">Confidence</span><span class="ep-val">${conf}</span></div></div>`)
+        .addTo(map);
+    };
+    const handleSignalClick = (e: maplibregl.MapLayerMouseEvent) => {
+      const feat = e.features?.[0];
+      if (!feat || feat.geometry.type !== "Point") return;
+      const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
+      const p = feat.properties as Record<string, unknown>;
+      const label = String(p.type ?? "").replace(/_/g, " ").toUpperCase();
+      const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
+      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+        .setLngLat([lng, lat])
+        .setHTML(`<div class="entity-popup"><div class="entity-popup-header">\u26a1 ${label}</div><div class="entity-popup-id">${String(p.id ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span><span class="ep-label">Confidence</span><span class="ep-val">${conf}</span></div></div>`)
+        .addTo(map);
+    };
+    const handleDarkShipClick = (e: maplibregl.MapLayerMouseEvent) => {
+      const feat = e.features?.[0];
+      if (!feat || feat.geometry.type !== "Point") return;
+      const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
+      const p = feat.properties as Record<string, unknown>;
+      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+        .setLngLat([lng, lat])
+        .setHTML(`<div class="entity-popup entity-popup-ship"><div class="entity-popup-header">\uD83D\uDD26 DARK SHIP</div><div class="entity-popup-id">${String(p.label ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Confidence</span><span class="ep-val">${String(p.conf ?? "\u2014")}%</span></div></div>`)
+        .addTo(map);
+    };
     const cursorOn  = () => { map.getCanvas().style.cursor = "pointer"; };
     const cursorOff = () => { map.getCanvas().style.cursor = ""; };
     map.on("click",      "g-entity-ships",    handleEntityClick);
     map.on("click",      "g-entity-aircraft", handleEntityClick);
+    map.on("click",      "g-events",          handleEventClick);
+    map.on("click",      "g-gdelt",           handleGdeltClick);
+    map.on("click",      "g-signals",         handleSignalClick);
+    map.on("click",      "g-dark-ships",      handleDarkShipClick);
     map.on("mouseenter", "g-entity-ships",    cursorOn);
     map.on("mouseleave", "g-entity-ships",    cursorOff);
     map.on("mouseenter", "g-entity-aircraft", cursorOn);
     map.on("mouseleave", "g-entity-aircraft", cursorOff);
     map.on("mouseenter", "g-events",          cursorOn);
     map.on("mouseleave", "g-events",          cursorOff);
+    map.on("mouseenter", "g-gdelt",           cursorOn);
+    map.on("mouseleave", "g-gdelt",           cursorOff);
+    map.on("mouseenter", "g-signals",         cursorOn);
+    map.on("mouseleave", "g-signals",         cursorOff);
+    map.on("mouseenter", "g-dark-ships",      cursorOn);
+    map.on("mouseleave", "g-dark-ships",      cursorOff);
     return () => {
       map.off("click",      "g-entity-ships",    handleEntityClick);
       map.off("click",      "g-entity-aircraft", handleEntityClick);
+      map.off("click",      "g-events",          handleEventClick);
+      map.off("click",      "g-gdelt",           handleGdeltClick);
+      map.off("click",      "g-signals",         handleSignalClick);
+      map.off("click",      "g-dark-ships",      handleDarkShipClick);
       map.off("mouseenter", "g-entity-ships",    cursorOn);
       map.off("mouseleave", "g-entity-ships",    cursorOff);
       map.off("mouseenter", "g-entity-aircraft", cursorOn);
       map.off("mouseleave", "g-entity-aircraft", cursorOff);
       map.off("mouseenter", "g-events",          cursorOn);
       map.off("mouseleave", "g-events",          cursorOff);
+      map.off("mouseenter", "g-gdelt",           cursorOn);
+      map.off("mouseleave", "g-gdelt",           cursorOff);
+      map.off("mouseenter", "g-signals",         cursorOn);
+      map.off("mouseleave", "g-signals",         cursorOff);
+      map.off("mouseenter", "g-dark-ships",      cursorOn);
+      map.off("mouseleave", "g-dark-ships",      cursorOff);
     };
   }, [styleLoaded]);
 
@@ -663,7 +748,7 @@ export function GlobeView({
           id: "globe-orbit-passes",
           data: passesWithFootprints,
           getPath: p => (p.footprint_geojson as GeoJSON.Polygon).coordinates[0] as [number, number][],
-          getColor: [0, 255, 136, 200] as [number, number, number, number],
+          getColor: [100, 180, 255, 200] as [number, number, number, number],
           getWidth: 2,
           widthMinPixels: 1,
         })]
@@ -731,8 +816,7 @@ export function GlobeView({
           id: "buildings-3d-tiles",
           data: tile3dUrl,
           opacity: 0.8,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onTilesetLoad: (_tileset: any) => {
+          onTilesetLoad: () => {
             // deck.gl Tile3DLayer handles camera automatically
           },
         })]
@@ -760,17 +844,15 @@ export function GlobeView({
     map.addLayer({
       id: "globe-strikes-circle", type: "circle", source: "globe-strikes",
       paint: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         "circle-color": ["match", ["get", "strike_type"],
           "airstrike", "#ff2200", "artillery", "#ff8800", "missile", "#ff0044", "drone", "#ff6600", "#ff9900",
-        ] as any,
+        ] as unknown as string,
         // Double radius for selected strike; otherwise zoom-interpolated normal size.
         // ["zoom"] must be the top-level interpolate input — cannot nest inside ["*"].
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         "circle-radius": ["interpolate", ["linear"], ["zoom"],
           1, ["case", ["==", ["get", "selected"], 1], 6, 3],
           6, ["case", ["==", ["get", "selected"], 1], ["*", ["get", "confidence"], 24], ["*", ["get", "confidence"], 12]],
-        ] as any,
+        ] as unknown as number,
         "circle-opacity": 0.85,
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 1,

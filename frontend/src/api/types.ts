@@ -43,6 +43,7 @@ export type EventType =
   | 'complaint_event'
   | 'contextual_event'
   | 'system_health_event'
+  | 'dark_ship_candidate'
   | 'seismic_event'
   | 'natural_hazard_event'
   | 'weather_observation'

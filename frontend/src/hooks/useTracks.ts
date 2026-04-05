@@ -22,12 +22,15 @@ export function useTracks(
   return useQuery<Trip[]>({
     queryKey: ["tracks", aoiId, startTime, endTime],
     queryFn: async () => {
+      // limit: 1500 ensures aircraft events (6h window, ~240 events) are not
+      // truncated behind the ship events (30h window, ~990 events) when sorted
+      // by event_time.  Both sets together are ~1230 events.
       const response = await playbackApi.query({
         ...(aoiId ? { aoi_id: aoiId } : {}),
         start_time: startTime,
         end_time: endTime,
         source_types: ["telemetry"],
-        limit: 500,
+        limit: 1500,
       });
 
       const entityMap = new Map<

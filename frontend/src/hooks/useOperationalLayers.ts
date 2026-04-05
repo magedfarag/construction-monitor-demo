@@ -238,7 +238,7 @@ export function useAllSatellitePasses(
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [orbits, lon, lat, horizonHours]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [orbits, lon, lat, horizonHours]);
 
   return { passes, loading, error };
 }

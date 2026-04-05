@@ -39,7 +39,7 @@ def detect(req: DetectRequest) -> DarkShipDetectionResponse:
 
 _DEMO_CANDIDATES: list[DarkShipCandidate] = [
     DarkShipCandidate(
-        mmsi="9169501", vessel_name="WISDOM",
+        mmsi="422110600", vessel_name="WISDOM",
         gap_start="2026-03-10T04:22:00+00:00",
         gap_end="2026-03-12T09:15:00+00:00",
         gap_hours=52.9,
@@ -51,7 +51,7 @@ _DEMO_CANDIDATES: list[DarkShipCandidate] = [
         event_id="dark-demo-001",
     ),
     DarkShipCandidate(
-        mmsi="9154671", vessel_name="HORSE",
+        mmsi="422110800", vessel_name="HORSE",
         gap_start="2026-03-18T22:00:00+00:00",
         gap_end="2026-03-21T06:40:00+00:00",
         gap_hours=56.7,
@@ -63,7 +63,7 @@ _DEMO_CANDIDATES: list[DarkShipCandidate] = [
         event_id="dark-demo-002",
     ),
     DarkShipCandidate(
-        mmsi="9219208", vessel_name="SEA ROSE",
+        mmsi="422110900", vessel_name="SEA ROSE",
         gap_start="2026-03-25T11:10:00+00:00",
         gap_end="2026-03-26T21:55:00+00:00",
         gap_hours=34.7,

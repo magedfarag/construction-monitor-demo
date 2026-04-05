@@ -200,9 +200,15 @@ export function MapView({
     map.addControl(new maplibregl.ScaleControl(), "bottom-left");
 
     // P3-3.1: attach deck.gl overlay for TripsLayer
-    const overlay = new MapboxOverlay({ layers: [] });
+    // interleaved: true renders within MapLibre's GL context so trails don't float above the basemap
+    const overlay = new MapboxOverlay({ layers: [], interleaved: true });
     map.addControl(overlay as unknown as maplibregl.IControl);
     deckOverlayRef.current = overlay;
+
+    // Ensure the canvas adapts whenever the container is resized (flex/window resize)
+    const container = containerRef.current!;
+    const ro = new ResizeObserver(() => mapRef.current?.resize());
+    ro.observe(container);
 
     // Signal that all base layers are ready, so data-dependent effects can add sources
     map.on("load", () => setStyleLoaded(true));
@@ -210,15 +216,18 @@ export function MapView({
     // P3-3.7: hide trip layers at low zoom; preserve orbit/jamming layers
     map.on("zoom", () => {
       if (overlay && map.getZoom() < TRACKS_MIN_ZOOM) {
-        const nonTripLayers = deckLayersRef.current.filter(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const nonTripLayers = (deckLayersRef.current as any[]).filter(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (l: any) => !String(l.id ?? "").startsWith("ships-") && !String(l.id ?? "").startsWith("aircraft-"),
         );
-        overlay.setProps({ layers: nonTripLayers });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        overlay.setProps({ layers: nonTripLayers as any });
       }
     });
 
     return () => {
+      ro.disconnect();
       setStyleLoaded(false);
       try { map.removeControl(overlay as unknown as maplibregl.IControl); } catch { /* ignore */ }
       deckOverlayRef.current = null;
@@ -591,7 +600,7 @@ export function MapView({
           data: shipTrips,
           getPath: (d: Trip) => d.waypoints.map(w => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map(w => w[2]),
-          getColor: [0, 229, 255] as [number, number, number],
+          getColor: [20, 186, 140] as [number, number, number],
           opacity: 0.12,
           widthMinPixels: 6, capRounded: true, jointRounded: true,
           trailLength: tl, currentTime: t,
@@ -602,7 +611,7 @@ export function MapView({
           data: shipTrips,
           getPath: (d: Trip) => d.waypoints.map(w => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map(w => w[2]),
-          getColor: [0, 229, 255] as [number, number, number],
+          getColor: [20, 186, 140] as [number, number, number],
           opacity: 0.85,
           widthMinPixels: 2, capRounded: true, jointRounded: true,
           trailLength: tl, currentTime: t,
@@ -648,7 +657,8 @@ export function MapView({
           }
           return [[0, 0], [180, 0]] as [number, number][];
         },
-        getColor: [0, 255, 136] as [number, number, number],
+        // Sky-blue orbit paths — clearly distinct from teal ship trails and orange aircraft trails
+        getColor: [100, 180, 255] as [number, number, number],
         getWidth: 2,
         widthUnits: "pixels",
         capRounded: true,
@@ -897,8 +907,9 @@ export function MapView({
     const data = computeEntityPositions(active, t);
 
     // Register arrow images (idempotent — no-op if already added)
-    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(0, 229, 255));
-    if (!map.hasImage("aircraft-arrow")) map.addImage("aircraft-arrow", makeArrowImageData(255, 87, 34));
+    // White ship arrows stand out clearly from the teal trail; yellow aircraft from the orange trail
+    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(255, 255, 255));
+    if (!map.hasImage("aircraft-arrow")) map.addImage("aircraft-arrow", makeArrowImageData(255, 220, 50));
 
     const src = map.getSource("entity-positions") as maplibregl.GeoJSONSource | undefined;
     if (src) {
@@ -1093,7 +1104,7 @@ export function MapView({
       return;
     }
     updateDrawPreview(map, drawCoords, mouseCoordRef.current, drawMode);
-  }, [drawCoords, drawMode]);
+  }, [drawCoords, drawMode, styleLoaded]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1108,7 +1119,13 @@ export function MapView({
     <div style={{ width: "100%", height: "100%", position: "relative" }} data-testid="map-container">
       <div
         ref={containerRef}
-        style={{ width: "100%", height: "100%", filter: RENDER_MODE_CONFIGS[renderMode].cssFilter }}
+        style={{
+          width: "100%", height: "100%",
+          // Use light-basemap filter when baseStyle is not explicitly dark/satellite.
+          filter: (baseStyle === "dark" || baseStyle === "satellite")
+            ? RENDER_MODE_CONFIGS[renderMode].cssFilter
+            : (RENDER_MODE_CONFIGS[renderMode].cssFilterLight ?? RENDER_MODE_CONFIGS[renderMode].cssFilter),
+        }}
       />
       {renderMode !== "day" && RENDER_MODE_CONFIGS[renderMode].tintColor != null && (
         <div

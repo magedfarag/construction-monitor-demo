@@ -111,6 +111,17 @@ def _canonical_to_summary(event: Any, connector_id: str) -> ImageryItemSummary:
     ),
 )
 def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:
+    # ── Demo path: serve from seeded EventStore ───────────────────────────────
+    # When the shared EventStore is populated (demo mode), return its curated
+    # imagery events instead of hitting live STAC catalogs.  This eliminates
+    # network latency, avoids credential requirements, and guarantees the UI
+    # always has data to render.
+    if _imagery_event_store is not None:
+        demo_items = _search_demo_imagery(request)
+        if demo_items is not None:
+            return demo_items
+
+    # ── Live catalog path ─────────────────────────────────────────────────────
     registry = get_connector_registry()
     connectors = registry.connectors_by_source_type("imagery_catalog")
 
@@ -177,6 +188,57 @@ def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:
     return ImagerySearchResponse(
         total_items=len(all_items),
         items=all_items,
+        connector_summaries=summaries,
+        search_time_ms=round(elapsed_ms, 1),
+    )
+
+
+def _search_demo_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse | None:
+    """Return imagery from the seeded EventStore, or None to fall through."""
+    from src.models.canonical_event import EventType, SourceType
+    from src.models.event_search import EventSearchRequest
+
+    store = _imagery_event_store
+    if store is None:
+        return None
+
+    result = store.search(EventSearchRequest(
+        start_time=request.start_time,
+        end_time=request.end_time,
+        event_types=[EventType.IMAGERY_ACQUISITION],
+        source_types=[SourceType.IMAGERY_CATALOG],
+        page=1,
+        page_size=request.max_results,
+    ))
+
+    if not result.events:
+        return None
+
+    t_start = time.perf_counter()
+    items: list[ImageryItemSummary] = []
+    by_source: dict[str, int] = {}
+
+    for event in result.events:
+        attrs = event.attributes or {}
+        cloud = attrs.get("cloud_cover_pct")
+        if cloud is not None and cloud > request.cloud_threshold:
+            continue
+        items.append(_canonical_to_summary(event, event.source))
+        by_source[event.source] = by_source.get(event.source, 0) + 1
+
+    items.sort(key=lambda x: x.event_time, reverse=True)
+    elapsed_ms = (time.perf_counter() - t_start) * 1000.0
+
+    summaries = [
+        ConnectorResultSummary(
+            connector_id=src, display_name=src, item_count=count,
+        )
+        for src, count in by_source.items()
+    ]
+
+    return ImagerySearchResponse(
+        total_items=len(items),
+        items=items,
         connector_summaries=summaries,
         search_time_ms=round(elapsed_ms, 1),
     )

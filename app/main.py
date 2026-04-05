@@ -279,10 +279,28 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             "noaa-swpc": "https://services.swpc.noaa.gov/products/alerts.json",
             "openaq": "https://api.openaq.org/v3/locations?limit=1",
         }
+        _source_types: dict[str, str] = {
+            "earth-search": "imagery_catalog",
+            "planetary-computer": "imagery_catalog",
+            "cdse-sentinel2": "imagery_catalog",
+            "usgs-landsat": "imagery_catalog",
+            "gdelt-doc": "context_feed",
+            "opensky": "telemetry",
+            "ais-stream": "telemetry",
+            "usgs-earthquake": "public_record",
+            "nasa-eonet": "context_feed",
+            "open-meteo": "context_feed",
+            "nga-msi": "public_record",
+            "osm-military": "public_record",
+            "nasa-firms": "public_record",
+            "noaa-swpc": "public_record",
+            "openaq": "public_record",
+        }
         while True:
             _probe_log.info("Running health probes for %d connectors", len(targets))
             async with httpx.AsyncClient(timeout=15.0) as client:
                 for cid, url in targets.items():
+                    stype = _source_types.get(cid, "unknown")
                     try:
                         resp = await client.get(url)
                         # Any HTTP response (even 4xx/5xx) means the service is
@@ -290,13 +308,13 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
                         # errors — e.g. GDELT returns 429 when rate-limited but
                         # the service is alive.
                         if resp.status_code < 500:
-                            _health_svc.record_success(cid)
+                            _health_svc.record_success(cid, source_type=stype)
                             _probe_log.debug("probe %s: ok (%d)", cid, resp.status_code)
                         else:
-                            _health_svc.record_error(cid, f"HTTP {resp.status_code}")
+                            _health_svc.record_error(cid, f"HTTP {resp.status_code}", source_type=stype)
                             _probe_log.warning("probe %s: HTTP %d", cid, resp.status_code)
                     except Exception as exc:  # noqa: BLE001
-                        _health_svc.record_error(cid, str(exc))
+                        _health_svc.record_error(cid, str(exc), source_type=stype)
                         _probe_log.warning("probe %s: %s", cid, exc)
             await asyncio.sleep(300)  # 5 minutes
 

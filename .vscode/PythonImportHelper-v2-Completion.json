@@ -1,5 +1,57 @@
 [
     {
+        "label": "sys",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "sys",
+        "description": "sys",
+        "detail": "sys",
+        "documentation": {}
+    },
+    {
+        "label": "json",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "json",
+        "description": "json",
+        "detail": "json",
+        "documentation": {}
+    },
+    {
+        "label": "argparse",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "argparse",
+        "description": "argparse",
+        "detail": "argparse",
+        "documentation": {}
+    },
+    {
+        "label": "pformat",
+        "importPath": "pprint",
+        "description": "pprint",
+        "isExtraImport": true,
+        "detail": "pprint",
+        "documentation": {}
+    },
+    {
+        "label": "jmespath",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "jmespath",
+        "description": "jmespath",
+        "detail": "jmespath",
+        "documentation": {}
+    },
+    {
+        "label": "exceptions",
+        "importPath": "jmespath",
+        "description": "jmespath",
+        "isExtraImport": true,
+        "detail": "jmespath",
+        "documentation": {}
+    },
+    {
         "label": "annotations",
         "importPath": "__future__",
         "description": "__future__",
@@ -1801,15 +1853,6 @@
         "description": "src.storage.models",
         "isExtraImport": true,
         "detail": "src.storage.models",
-        "documentation": {}
-    },
-    {
-        "label": "json",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "json",
-        "description": "json",
-        "detail": "json",
         "documentation": {}
     },
     {
@@ -9269,15 +9312,6 @@
         "description": "fastapi.security",
         "isExtraImport": true,
         "detail": "fastapi.security",
-        "documentation": {}
-    },
-    {
-        "label": "sys",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "sys",
-        "description": "sys",
-        "detail": "sys",
         "documentation": {}
     },
     {
@@ -17604,6 +17638,15 @@
         "documentation": {}
     },
     {
+        "label": "main",
+        "kind": 2,
+        "importPath": ".venv.Scripts.jp",
+        "description": ".venv.Scripts.jp",
+        "peekOfCode": "def main():\n    parser = argparse.ArgumentParser()\n    parser.add_argument('expression')\n    parser.add_argument('-f', '--filename',\n                        help=('The filename containing the input data.  '\n                              'If a filename is not given then data is '\n                              'read from stdin.'))\n    parser.add_argument('--ast', action='store_true',\n                        help=('Pretty print the AST, do not search the data.'))\n    args = parser.parse_args()",
+        "detail": ".venv.Scripts.jp",
+        "documentation": {}
+    },
+    {
         "label": "upgrade",
         "kind": 2,
         "importPath": "alembic.versions.0001_initial_schema",
@@ -20002,7 +20045,7 @@
         "kind": 2,
         "importPath": "src.api.dark_ships",
         "description": "src.api.dark_ships",
-        "peekOfCode": "def detect(req: DetectRequest) -> DarkShipDetectionResponse:\n    if not req.events:\n        raise HTTPException(status_code=422, detail=\"events list must not be empty\")\n    return detect_dark_ships(req.events)\n# ── Curated demo endpoint ─────────────────────────────────────────────────────\n# Returns a deterministic list of dark-ship candidates seeded from demo data.\n# This guarantees the UI has data without needing a live AIS feed.\n_DEMO_CANDIDATES: list[DarkShipCandidate] = [\n    DarkShipCandidate(\n        mmsi=\"9169501\", vessel_name=\"WISDOM\",",
+        "peekOfCode": "def detect(req: DetectRequest) -> DarkShipDetectionResponse:\n    if not req.events:\n        raise HTTPException(status_code=422, detail=\"events list must not be empty\")\n    return detect_dark_ships(req.events)\n# ── Curated demo endpoint ─────────────────────────────────────────────────────\n# Returns a deterministic list of dark-ship candidates seeded from demo data.\n# This guarantees the UI has data without needing a live AIS feed.\n_DEMO_CANDIDATES: list[DarkShipCandidate] = [\n    DarkShipCandidate(\n        mmsi=\"422110600\", vessel_name=\"WISDOM\",",
         "detail": "src.api.dark_ships",
         "documentation": {}
     },
@@ -20290,7 +20333,7 @@
         "kind": 2,
         "importPath": "src.api.imagery",
         "description": "src.api.imagery",
-        "peekOfCode": "def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:\n    registry = get_connector_registry()\n    connectors = registry.connectors_by_source_type(\"imagery_catalog\")\n    if request.connectors:\n        requested_ids = set(request.connectors)\n        connectors = [c for c in connectors if c.connector_id in requested_ids]\n    if not connectors:\n        # Graceful empty response when no imagery connectors are registered\n        return ImagerySearchResponse(\n            total_items=0,",
+        "peekOfCode": "def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:\n    # ── Demo path: serve from seeded EventStore ───────────────────────────────\n    # When the shared EventStore is populated (demo mode), return its curated\n    # imagery events instead of hitting live STAC catalogs.  This eliminates\n    # network latency, avoids credential requirements, and guarantees the UI\n    # always has data to render.\n    if _imagery_event_store is not None:\n        demo_items = _search_demo_imagery(request)\n        if demo_items is not None:\n            return demo_items",
         "detail": "src.api.imagery",
         "documentation": {}
     },
@@ -23557,7 +23600,7 @@
         "kind": 5,
         "importPath": "src.services.intel_briefing",
         "description": "src.services.intel_briefing",
-        "peekOfCode": "_EXECUTIVE_SUMMARY = (\n    \"THREAT LEVEL: HIGH. Iran's shadow fleet continues to exploit AIS-dark operations to evade \"\n    \"Western sanctions, with three OFAC-linked or shadow-fleet vessels detected dark for combined \"\n    \"144 hours over the assessment period. Bab-el-Mandeb remains CRITICAL due to ongoing Houthi \"\n    \"anti-shipping campaign. Hormuz throughput is stable but IRGC patrol posture suggests \"\n    \"heightened risk of interdiction.\"\n)\ndef generate_briefing() -> IntelBriefing:\n    now = datetime.now(UTC)\n    cps = get_all_chokepoints()",
+        "peekOfCode": "_EXECUTIVE_SUMMARY = (\n    \"THREAT LEVEL: CRITICAL. Iran's IRGC has escalated vessel-seizure operations in the Strait of \"\n    \"Hormuz to a 5-year high, representing the most acute interdiction risk in the assessment period. \"\n    \"Shadow-fleet AIS-dark operations continue with three OFAC-linked vessels dark for a combined \"\n    \"144 hours. Bab-el-Mandeb remains HIGH due to the ongoing Houthi anti-shipping campaign. \"\n    \"Recommend immediate convoy assessment and enhanced AIS monitoring for all Hormuz-transiting vessels.\"\n)\ndef generate_briefing() -> IntelBriefing:\n    now = datetime.now(UTC)\n    cps = get_all_chokepoints()",
         "detail": "src.services.intel_briefing",
         "documentation": {}
     },

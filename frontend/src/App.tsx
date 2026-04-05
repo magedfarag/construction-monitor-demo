@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Fragment } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { MapView } from "./components/Map/MapView";
@@ -34,6 +34,164 @@ import type { CanonicalEvent } from "./api/types";
 import "./App.css";
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
+
+// ── Event detail helpers ─────────────────────────────────────────────────────
+function formatEventType(et: string): string {
+  const labels: Record<string, string> = {
+    ship_position: "Vessel Position",
+    ship_track_segment: "Vessel Track Segment",
+    dark_ship_candidate: "Dark Vessel Alert",
+    aircraft_position: "Aircraft Position",
+    aircraft_track_segment: "Aircraft Track Segment",
+    imagery_acquisition: "Imagery Acquisition",
+    imagery_detection: "Imagery Detection",
+    change_detection: "Change Detection",
+    contextual_event: "News / Context",
+    seismic_event: "Seismic Event",
+    natural_hazard_event: "Natural Hazard",
+    weather_observation: "Weather Observation",
+    conflict_event: "Conflict Incident",
+    maritime_warning: "Maritime Warning",
+    military_site_observation: "Military Site Observation",
+    thermal_anomaly_event: "Thermal Anomaly / Fire",
+    space_weather_event: "Space Weather Alert",
+    air_quality_observation: "Air Quality Reading",
+    permit_event: "Permit",
+    inspection_event: "Inspection",
+    project_event: "Project",
+    complaint_event: "Complaint",
+  };
+  return labels[et] ?? et.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+function eventTypeIcon(et: string): string {
+  const icons: Record<string, string> = {
+    ship_position: "🚢", ship_track_segment: "🚢", dark_ship_candidate: "⚠️",
+    aircraft_position: "✈️", aircraft_track_segment: "✈️",
+    imagery_acquisition: "🛰️", imagery_detection: "🔍", change_detection: "🔄",
+    contextual_event: "📰", seismic_event: "🌍", natural_hazard_event: "⚠️",
+    conflict_event: "⚔️", weather_observation: "🌤️", maritime_warning: "⚓",
+    military_site_observation: "🎯", thermal_anomaly_event: "🔥",
+    space_weather_event: "☀️", air_quality_observation: "💨",
+    permit_event: "📋", inspection_event: "🔎", project_event: "🏗️", complaint_event: "📣",
+  };
+  return icons[et] ?? "📍";
+}
+
+function buildEventRows(evt: CanonicalEvent): Array<[string, string]> {
+  const attrs = (evt.attributes ?? {}) as Record<string, unknown>;
+  const rows: Array<[string, string]> = [];
+  const s = (v: unknown) => String(v ?? "").trim();
+  const n = (v: unknown) => Number(v);
+
+  switch (evt.event_type) {
+    case "ship_position":
+    case "ship_track_segment":
+    case "dark_ship_candidate":
+      if (attrs.vessel_name) rows.push(["Vessel", s(attrs.vessel_name)]);
+      if (attrs.mmsi) rows.push(["MMSI", s(attrs.mmsi)]);
+      if (attrs.nav_status) rows.push(["Nav Status", s(attrs.nav_status)]);
+      if (attrs.speed_kn != null) rows.push(["Speed", `${n(attrs.speed_kn).toFixed(1)} kn`]);
+      if (attrs.course_deg != null) rows.push(["Course", `${n(attrs.course_deg).toFixed(0)}°`]);
+      if (attrs.destination) rows.push(["Destination", s(attrs.destination)]);
+      if (attrs.eta) rows.push(["ETA", s(attrs.eta)]);
+      break;
+    case "aircraft_position":
+    case "aircraft_track_segment":
+      if (attrs.callsign) rows.push(["Callsign", s(attrs.callsign)]);
+      if (attrs.icao24) rows.push(["ICAO24", s(attrs.icao24)]);
+      if (attrs.origin_country) rows.push(["Origin", s(attrs.origin_country)]);
+      if (attrs.baro_altitude_m != null) rows.push(["Altitude", `${Math.round(n(attrs.baro_altitude_m))} m`]);
+      if (attrs.velocity_ms != null) rows.push(["Speed", `${Math.round(n(attrs.velocity_ms) * 1.944)} kn`]);
+      if (attrs.on_ground != null) rows.push(["On Ground", attrs.on_ground ? "Yes" : "No"]);
+      break;
+    case "contextual_event":
+      if (attrs.headline) rows.push(["Headline", s(attrs.headline)]);
+      if (attrs.source_publication) rows.push(["Publication", s(attrs.source_publication)]);
+      if (attrs.tone != null) rows.push(["Sentiment", n(attrs.tone) >= 0 ? `+${n(attrs.tone).toFixed(1)}` : n(attrs.tone).toFixed(1)]);
+      if (attrs.num_mentions != null) rows.push(["Mentions", s(attrs.num_mentions)]);
+      break;
+    case "seismic_event":
+      if (attrs.place) rows.push(["Location", s(attrs.place)]);
+      if (attrs.magnitude != null) rows.push(["Magnitude", `M${n(attrs.magnitude).toFixed(1)} ${s(attrs.magnitude_type)}`]);
+      if (attrs.depth_km != null) rows.push(["Depth", `${n(attrs.depth_km).toFixed(1)} km`]);
+      if (attrs.alert) rows.push(["Alert Level", s(attrs.alert)]);
+      if (attrs.tsunami_flag) rows.push(["Tsunami Warning", "Yes"]);
+      break;
+    case "natural_hazard_event":
+      if (attrs.category_title) rows.push(["Category", s(attrs.category_title)]);
+      if (attrs.status) rows.push(["Status", s(attrs.status)]);
+      break;
+    case "weather_observation":
+      if (attrs.temperature_c != null) rows.push(["Temperature", `${n(attrs.temperature_c).toFixed(1)} °C`]);
+      if (attrs.cloud_cover_pct != null) rows.push(["Cloud Cover", `${n(attrs.cloud_cover_pct).toFixed(0)}%`]);
+      if (attrs.wind_speed_ms != null) rows.push(["Wind Speed", `${n(attrs.wind_speed_ms).toFixed(1)} m/s`]);
+      if (attrs.precipitation_mm != null) rows.push(["Precipitation", `${n(attrs.precipitation_mm).toFixed(1)} mm`]);
+      break;
+    case "conflict_event":
+      if (attrs.country) rows.push(["Country", s(attrs.country)]);
+      if (attrs.location) rows.push(["Location", s(attrs.location)]);
+      if (attrs.disorder_type) rows.push(["Type", s(attrs.disorder_type)]);
+      if (attrs.actor1) rows.push(["Actor 1", s(attrs.actor1)]);
+      if (attrs.actor2) rows.push(["Actor 2", s(attrs.actor2)]);
+      if (attrs.fatalities != null) rows.push(["Fatalities", s(attrs.fatalities)]);
+      if (attrs.notes) rows.push(["Notes", s(attrs.notes).slice(0, 220)]);
+      break;
+    case "maritime_warning":
+      if (attrs.authority) rows.push(["Authority", s(attrs.authority)]);
+      if (attrs.nav_area) rows.push(["Nav Area", s(attrs.nav_area)]);
+      if (attrs.status) rows.push(["Status", s(attrs.status)]);
+      if (attrs.warning_text) rows.push(["Warning", s(attrs.warning_text).slice(0, 300)]);
+      if (attrs.cancel_date) rows.push(["Cancels", s(attrs.cancel_date)]);
+      break;
+    case "military_site_observation":
+      if (attrs.name) rows.push(["Site Name", s(attrs.name)]);
+      if (attrs.military_type) rows.push(["Site Type", s(attrs.military_type)]);
+      if (attrs.operator) rows.push(["Operator", s(attrs.operator)]);
+      break;
+    case "thermal_anomaly_event":
+      if (attrs.satellite) rows.push(["Satellite", s(attrs.satellite)]);
+      if (attrs.instrument) rows.push(["Instrument", s(attrs.instrument)]);
+      if (attrs.frp != null) rows.push(["Fire Radiative Power", `${n(attrs.frp).toFixed(1)} MW`]);
+      if (attrs.brightness != null) rows.push(["Brightness Temp", `${n(attrs.brightness).toFixed(0)} K`]);
+      if (attrs.day_night) rows.push(["Acquisition", attrs.day_night === "D" ? "Daytime" : "Nighttime"]);
+      if (attrs.source_dataset) rows.push(["Dataset", s(attrs.source_dataset)]);
+      break;
+    case "space_weather_event":
+      if (attrs.phenomenon) rows.push(["Phenomenon", s(attrs.phenomenon)]);
+      if (attrs.noaa_scale) rows.push(["NOAA Scale", s(attrs.noaa_scale)]);
+      if (attrs.severity) rows.push(["Severity", s(attrs.severity)]);
+      if (attrs.kp_index != null) rows.push(["Kp Index", s(attrs.kp_index)]);
+      if (attrs.message) rows.push(["Alert", s(attrs.message).slice(0, 250)]);
+      break;
+    case "air_quality_observation":
+      if (attrs.location_name) rows.push(["Station", s(attrs.location_name)]);
+      if (attrs.display_name ?? attrs.parameter) rows.push(["Parameter", s(attrs.display_name ?? attrs.parameter)]);
+      if (attrs.value != null) rows.push(["Reading", s(attrs.unit) ? `${attrs.value} ${s(attrs.unit)}` : s(attrs.value)]);
+      break;
+    case "permit_event":
+    case "inspection_event":
+    case "project_event":
+    case "complaint_event":
+      if (attrs.permit_number) rows.push(["Permit #", s(attrs.permit_number)]);
+      if (attrs.applicant) rows.push(["Applicant", s(attrs.applicant)]);
+      if (attrs.permit_type) rows.push(["Permit Type", s(attrs.permit_type)]);
+      if (attrs.status) rows.push(["Status", s(attrs.status)]);
+      if (attrs.description) rows.push(["Description", s(attrs.description).slice(0, 200)]);
+      if (attrs.authority) rows.push(["Authority", s(attrs.authority)]);
+      break;
+    case "imagery_acquisition":
+    case "imagery_detection":
+    case "change_detection":
+      if (attrs.platform) rows.push(["Platform", s(attrs.platform)]);
+      if (attrs.sensor) rows.push(["Sensor", s(attrs.sensor)]);
+      if (attrs.gsd_m != null) rows.push(["Resolution", `${n(attrs.gsd_m)} m GSD`]);
+      if (attrs.cloud_cover_pct != null) rows.push(["Cloud Cover", `${n(attrs.cloud_cover_pct).toFixed(0)}%`]);
+      if (attrs.processing_level) rows.push(["Processing Level", s(attrs.processing_level)]);
+      break;
+  }
+  return rows.filter(([, v]) => v !== "");
+}
 
 const MAP_STYLE_OPTIONS = [
   { id: "vector",    label: "Vector",    bg: "#0c1a2e" },
@@ -107,11 +265,14 @@ function AppShell() {
   const aois = aoiQuery.data ?? [];
 
   // Auto-select first AOI when available and nothing is selected
+  // Use aoiQuery.data as the dep so the stable query-result reference is tracked,
+  // not the inline `?? []` fallback which creates a new array every render.
   useEffect(() => {
-    if (!selectedAoiId && aois.length > 0) {
-      setSelectedAoiId(aois[0].id);
+    const list = aoiQuery.data;
+    if (!selectedAoiId && list && list.length > 0) {
+      setSelectedAoiId(list[0].id);
     }
-  }, [aois, selectedAoiId]);
+  }, [aoiQuery.data, selectedAoiId, setSelectedAoiId]);
 
   const selectedAoi = aois.find(a => a.id === selectedAoiId);
   const imagerySearch = useImagerySearch(selectedAoi ? {
@@ -493,6 +654,10 @@ function AppShell() {
           startTime={startTime}
           endTime={endTime}
           onRangeChange={(s, e) => { setStartTime(s); setEndTime(e); }}
+          onTimeSeek={isoTime => {
+            setIsAnimating(false);
+            setPlaybackTime(Date.parse(isoTime) / 1000);
+          }}
         />
       </div>
       {/* P6: Vessel profile modal */}
@@ -504,12 +669,29 @@ function AppShell() {
         <div className="event-detail-overlay" onClick={() => setSelectedEvent(null)}>
           <div className="event-detail-card" onClick={e => e.stopPropagation()}>
             <button className="close-btn" onClick={() => setSelectedEvent(null)}>✕</button>
-            <h3>{selectedEvent.event_type.replace(/_/g, " ")}</h3>
+            <div className="event-detail-header">
+              <span className="event-detail-icon">{eventTypeIcon(selectedEvent.event_type)}</span>
+              <h3>{formatEventType(selectedEvent.event_type)}</h3>
+            </div>
             <dl>
-              <dt>Source</dt><dd>{selectedEvent.source}</dd>
-              <dt>Time</dt><dd>{new Date(selectedEvent.event_time).toLocaleString()}</dd>
-              {selectedEvent.confidence != null && <><dt>Confidence</dt><dd>{Math.round(selectedEvent.confidence * 100)}%</dd></>}
-              {selectedEvent.quality_flags.length > 0 && <><dt>Flags</dt><dd>{selectedEvent.quality_flags.join(", ")}</dd></>}
+              <dt>Time</dt>
+              <dd>{new Date(selectedEvent.event_time).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}</dd>
+              {buildEventRows(selectedEvent).map(([label, val]) => (
+                <Fragment key={label}>
+                  <dt>{label}</dt><dd>{val}</dd>
+                </Fragment>
+              ))}
+              {selectedEvent.confidence != null && (
+                <Fragment key="confidence">
+                  <dt>Confidence</dt><dd>{Math.round(selectedEvent.confidence * 100)}%</dd>
+                </Fragment>
+              )}
+              <dt>Collection</dt><dd>{selectedEvent.source}</dd>
+              {selectedEvent.quality_flags.length > 0 && (
+                <Fragment key="flags">
+                  <dt>Alerts</dt><dd className="event-detail-flags">{selectedEvent.quality_flags.join(" · ")}</dd>
+                </Fragment>
+              )}
             </dl>
           </div>
         </div>

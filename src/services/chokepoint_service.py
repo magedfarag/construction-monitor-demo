@@ -48,11 +48,11 @@ _CHOKEPOINTS: list[dict[str, Any]] = [
         "centroid": {"lon": 56.52, "lat": 26.35},
         "geometry": {"type": "Polygon", "coordinates": [[[56.15, 26.00], [56.60, 25.85], [57.05, 25.90],
             [57.30, 26.20], [57.10, 26.75], [56.55, 26.85], [56.10, 26.72], [55.95, 26.40], [56.15, 26.00]]]},
-        "daily_flow_mbbl": 21.0, "vessel_count_24h": 52, "threat_level": 4,
-        "threat_label": "HIGH", "trend": "-",
-        "description": "~21 million barrels/day — ~20% of global petroleum trade. Iran controls the northern "
-                       "shoreline and has repeatedly threatened closure. IRGC fast-attack patrol craft conduct "
-                       "daily operations within the strait.",
+        "daily_flow_mbbl": 21.0, "vessel_count_24h": 52, "threat_level": 5,
+        "threat_label": "CRITICAL", "trend": "-",
+        "description": "~21 million barrels/day — ~20% of global petroleum trade. IRGC vessel-seizure tempo is at "
+                       "a 5-year high; three commercial vessels boarded this week. Iran controls the northern "
+                       "shoreline and IRGC fast-attack craft conduct daily harassment operations.",
     },
     {
         "id": "bab-el-mandeb", "name": "Bab-el-Mandeb",
@@ -60,10 +60,11 @@ _CHOKEPOINTS: list[dict[str, Any]] = [
         "centroid": {"lon": 43.38, "lat": 12.45},
         "geometry": {"type": "Polygon", "coordinates": [[[42.95, 11.90], [43.40, 11.85], [43.80, 12.05],
             [43.90, 12.60], [43.55, 13.00], [43.10, 13.05], [42.85, 12.70], [42.90, 12.20], [42.95, 11.90]]]},
-        "daily_flow_mbbl": 4.8, "vessel_count_24h": 28, "threat_level": 5,
-        "threat_label": "CRITICAL", "trend": "-",
+        "daily_flow_mbbl": 4.8, "vessel_count_24h": 28, "threat_level": 4,
+        "threat_label": "HIGH", "trend": "-",
         "description": "Houthi forces have attacked commercial shipping since Nov 2023, forcing many carriers onto "
-                       "the South Africa Cape route. Major disruption to global container trade and energy flows.",
+                       "the South Africa Cape route. Throughput 18% below 2023 baseline; major disruption to "
+                       "global container trade and energy flows.",
     },
     {
         "id": "suez", "name": "Suez Canal",
