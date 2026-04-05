@@ -35,6 +35,16 @@ import "./App.css";
 
 const qc = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
 
+// Stable module-level constants — defined outside the component so they are never recreated on render.
+const SIGNAL_EVENT_TYPES: import("./api/types").EventType[] = [
+  "seismic_event", "natural_hazard_event", "weather_observation",
+  "conflict_event", "maritime_warning", "military_site_observation",
+  "thermal_anomaly_event", "space_weather_event", "air_quality_observation",
+];
+
+/** Minimum ms between React state updates during track animation (~30 fps). */
+const ANIM_FRAME_MS = 33;
+
 // ── Event detail helpers ─────────────────────────────────────────────────────
 function formatEventType(et: string): string {
   const labels: Record<string, string> = {
@@ -223,9 +233,13 @@ function AppShell() {
   const [playbackTime, setPlaybackTime] = useState<number | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const animRafRef = useRef<number | null>(null);
+  // Tracks last wall-clock time a React state update was issued to throttle to ~30fps.
+  const lastAnimStateRef = useRef<number>(0);
   const ANIM_SPEED_RATIO = 3600; // 1 real second = 1 simulated hour
 
-  // Smooth rAF animation loop — advances simulation time from startTime to endTime
+  // Smooth rAF animation loop — advances simulation time from startTime to endTime.
+  // setPlaybackTime is throttled to ANIM_FRAME_MS (~30fps) to avoid 60fps component
+  // re-renders cascading through the entire AppShell tree.
   useEffect(() => {
     if (!isAnimating) {
       if (animRafRef.current !== null) { cancelAnimationFrame(animRafRef.current); animRafRef.current = null; }
@@ -238,7 +252,11 @@ function AppShell() {
       const elapsed = (now - realStart) / 1000;
       const next = simStart + elapsed * ANIM_SPEED_RATIO;
       if (next >= simEnd) { setPlaybackTime(simEnd); setIsAnimating(false); return; }
-      setPlaybackTime(next);
+      // Only push to React state at ~30fps — rAF keeps running for accurate timing.
+      if (now - lastAnimStateRef.current >= ANIM_FRAME_MS) {
+        lastAnimStateRef.current = now;
+        setPlaybackTime(next);
+      }
       animRafRef.current = requestAnimationFrame(tick);
     }
     animRafRef.current = requestAnimationFrame(tick);
@@ -262,7 +280,8 @@ function AppShell() {
 
   // P2-5.2: fetch all AOIs to render on globe
   const aoiQuery = useAois();
-  const aois = aoiQuery.data ?? [];
+  // useMemo avoids a new [] reference on every render when data is undefined.
+  const aois = useMemo(() => aoiQuery.data ?? [], [aoiQuery.data]);
 
   // Auto-select first AOI when available and nothing is selected
   // Use aoiQuery.data as the dep so the stable query-result reference is tracked,
@@ -289,12 +308,7 @@ function AppShell() {
       : null
   );
 
-  // Fetch all intelligence signal events (seismic, hazard, weather, conflict, etc.) when layer enabled
-  const SIGNAL_EVENT_TYPES: import("./api/types").EventType[] = [
-    "seismic_event", "natural_hazard_event", "weather_observation",
-    "conflict_event", "maritime_warning", "military_site_observation",
-    "thermal_anomaly_event", "space_weather_event", "air_quality_observation",
-  ];
+  // Fetch all intelligence signal events — SIGNAL_EVENT_TYPES is module-level (stable reference).
   const signalsSearch = useEventSearch(
     layers.showSignals && selectedAoiId
       ? { aoi_id: selectedAoiId, start_time: startTime, end_time: endTime, event_types: SIGNAL_EVENT_TYPES, limit: 500 }
@@ -324,7 +338,10 @@ function AppShell() {
     return { lon: 0, lat: 0 };
   }, [selectedAoi]);
 
-  const passesQuery = useAllSatellitePasses(orbitsQuery.orbits ?? [], aoiCenter.lon, aoiCenter.lat, 24);
+  // Stable array reference: prevents useAllSatellitePasses from re-fetching every render
+  // when orbitsQuery.orbits is undefined (inline ?? [] creates a new array each time).
+  const orbits = useMemo(() => orbitsQuery.orbits ?? [], [orbitsQuery.orbits]);
+  const passesQuery = useAllSatellitePasses(orbits, aoiCenter.lon, aoiCenter.lat, 24);
 
   // P3-3.2/3.3: Fetch entity tracks when maritime or aviation layer is enabled
   const tracksQuery = useTracks(
@@ -345,7 +362,27 @@ function AppShell() {
   // currentTime for TripsLayer — driven by animation or playback, fallback to end of window
   const tracksCurrentTime = playbackTime ?? (Date.parse(endTime) / 1000);
   // trailLength covers the entire selected time range so all tracks are visible
-  const tracksTrailLength = Math.max(300, (Date.parse(endTime) - Date.parse(startTime)) / 1000);
+  const tracksTrailLength = useMemo(
+    () => Math.max(300, (Date.parse(endTime) - Date.parse(startTime)) / 1000),
+    [startTime, endTime],
+  );
+
+  // ── Memoize all layer data arrays ─────────────────────────────────────────
+  // Each `?? []` fallback would create a new array reference on every render,
+  // causing MapView/GlobeView effects (setData, setProps) to run unnecessarily.
+  const gdeltData       = useMemo(() => gdeltSearch.data    ?? [], [gdeltSearch.data]);
+  const imageryData     = useMemo(() => imagerySearch.data  ?? [], [imagerySearch.data]);
+  const orbitPassData   = useMemo(() => passesQuery.passes  ?? [], [passesQuery.passes]);
+  const detectionsData  = useMemo(() => detectionsQuery.detections ?? [], [detectionsQuery.detections]);
+  const signalData      = useMemo(() => signalsSearch.data  ?? [], [signalsSearch.data]);
+  const jammingRaw      = useMemo(() => jammingQuery.events ?? [], [jammingQuery.events]);
+  const strikesRaw      = useMemo(() => strikesQuery.strikes ?? [], [strikesQuery.strikes]);
+  const airspaceRaw     = useMemo(() => airspaceQuery.restrictions ?? [], [airspaceQuery.restrictions]);
+  // Pre-apply timeline filter once per render — avoids calling the filter function twice
+  // (MapView + GlobeView) with a new array result each time.
+  const jammingFiltered   = useMemo(() => filteredJammingEvents(jammingRaw),   [filteredJammingEvents, jammingRaw]);
+  const strikesFiltered   = useMemo(() => filteredStrikes(strikesRaw),         [filteredStrikes, strikesRaw]);
+  const airspaceFiltered  = useMemo(() => filteredAirspaceRestrictions(airspaceRaw), [filteredAirspaceRestrictions, airspaceRaw]);
 
   const [selectedVesselMmsi, setSelectedVesselMmsi] = useState<string | null>(null);
 
@@ -467,7 +504,7 @@ function AppShell() {
           )}
           {/* P2-3.2: before/after imagery compare panel */}
           {activePanel === "compare" && (
-            <ImageryComparePanel items={imagerySearch.data ?? []} />
+            <ImageryComparePanel items={imageryData} />
           )}
           {/* Phase 5: Investigation workflow panel */}
           {activePanel === "investigations" && (
@@ -570,8 +607,8 @@ function AppShell() {
           {viewMode === "2d" ? (
             <MapView
               aois={aois}
-              imageryItems={imagerySearch.data ?? []}
-              events={gdeltSearch.data ?? []}
+              imageryItems={imageryData}
+              events={gdeltData}
               drawMode={drawMode}
               selectedAoiId={selectedAoiId}
               onAoiClick={setSelectedAoiId}
@@ -579,7 +616,7 @@ function AppShell() {
               onEventClick={setSelectedEvent}
               showImageryLayer={layers.showImagery}
               showEventLayer={layers.showEvents}
-              gdeltEvents={gdeltSearch.data ?? []}
+              gdeltEvents={gdeltData}
               showGdeltLayer={layers.showGdelt}
               imageryOpacity={layers.imageryOpacity}
               trips={visibleTracks}
@@ -589,16 +626,16 @@ function AppShell() {
               showAircraftLayer={layers.showAircraft}
               baseStyle={mapSettings.baseStyle}
               showOrbitsLayer={layers.showOrbits}
-              orbitPasses={passesQuery.passes ?? []}
+              orbitPasses={orbitPassData}
               showAirspaceLayer={layers.showAirspace}
-              airspaceRestrictions={filteredAirspaceRestrictions(airspaceQuery.restrictions ?? [])}
+              airspaceRestrictions={airspaceFiltered}
               showJammingLayer={layers.showJamming}
-              jammingEvents={filteredJammingEvents(jammingQuery.events ?? [])}
+              jammingEvents={jammingFiltered}
               showStrikesLayer={layers.showStrikes}
-              strikeEvents={filteredStrikes(strikesQuery.strikes ?? [])}
+              strikeEvents={strikesFiltered}
               showDetectionsLayer={layers.showDetections}
-              detections={detectionsQuery.detections ?? []}
-              signalEvents={signalsSearch.data ?? []}
+              detections={detectionsData}
+              signalEvents={signalData}
               showSignalsLayer={layers.showSignals}
               renderMode={renderMode}
               onStrikeClick={(id) => setSelectedEntityId(id)}
@@ -609,8 +646,8 @@ function AppShell() {
             <>
               <GlobeView
                 aois={aois}
-                events={gdeltSearch.data ?? []}
-                gdeltEvents={gdeltSearch.data ?? []}
+                events={gdeltData}
+                gdeltEvents={gdeltData}
                 trips={visibleTracks}
                 showEventLayer={layers.showEvents}
                 showGdeltLayer={layers.showGdelt}
@@ -619,18 +656,18 @@ function AppShell() {
                 currentTime={tracksCurrentTime}
                 trailLength={tracksTrailLength}
                 showOrbitsLayer={layers.showOrbits}
-                orbitPasses={passesQuery.passes ?? []}
+                orbitPasses={orbitPassData}
                 showAirspaceLayer={layers.showAirspace}
-                airspaceRestrictions={filteredAirspaceRestrictions(airspaceQuery.restrictions ?? [])}
+                airspaceRestrictions={airspaceFiltered}
                 showJammingLayer={layers.showJamming}
-                jammingEvents={filteredJammingEvents(jammingQuery.events ?? [])}
+                jammingEvents={jammingFiltered}
                 showStrikesLayer={layers.showStrikes}
-                strikeEvents={filteredStrikes(strikesQuery.strikes ?? [])}
+                strikeEvents={strikesFiltered}
                 showTerrainLayer={layers.showTerrain}
                 show3dBuildingsLayer={layers.show3dBuildings}
                 showDetectionsLayer={layers.showDetections}
-                detections={detectionsQuery.detections ?? []}
-                signalEvents={signalsSearch.data ?? []}
+                detections={detectionsData}
+                signalEvents={signalData}
                 showSignalsLayer={layers.showSignals}
                 renderMode={renderMode}
                 selectedEntityId={selectedEntityId}
