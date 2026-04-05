@@ -9,13 +9,12 @@ All datetime fields are UTC-aware.  IDs are auto-generated UUIDs.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -23,7 +22,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _require_utc(v: Any) -> Any:
@@ -76,7 +75,7 @@ class TimelineEntry(BaseModel):
     event_id: str
     summary: str
     source: str
-    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
     layer: str = Field(..., description="Operational layer the event belongs to")
 
     @field_validator("timestamp", mode="before")
@@ -90,10 +89,10 @@ class LayerSummaryEntry(BaseModel):
 
     layer_name: str
     event_count: int = Field(ge=0)
-    time_range_start: Optional[datetime] = None
-    time_range_end: Optional[datetime] = None
+    time_range_start: datetime | None = None
+    time_range_end: datetime | None = None
     coverage_description: str
-    sources: List[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
 
     @field_validator("time_range_start", "time_range_end", mode="before")
     @classmethod
@@ -107,9 +106,9 @@ class ProvenanceRecord(BaseModel):
     source_name: str
     source_type: str
     event_count: int = Field(ge=0)
-    license: Optional[str] = None
-    retrieval_timestamp: Optional[datetime] = None
-    notes: Optional[str] = None
+    license: str | None = None
+    retrieval_timestamp: datetime | None = None
+    notes: str | None = None
 
     @field_validator("retrieval_timestamp", mode="before")
     @classmethod
@@ -127,19 +126,19 @@ class EvidencePack(BaseModel):
 
     pack_id: str = Field(default_factory=lambda: str(uuid4()))
     title: str
-    description: Optional[str] = None
-    investigation_id: Optional[str] = None
+    description: str | None = None
+    investigation_id: str | None = None
     created_at: datetime = Field(default_factory=_utc_now)
-    created_by: Optional[str] = None
-    time_window_start: Optional[datetime] = None
-    time_window_end: Optional[datetime] = None
-    sections_included: List[EvidencePackSection] = Field(default_factory=list)
-    timeline: List[TimelineEntry] = Field(default_factory=list)
-    layer_summaries: List[LayerSummaryEntry] = Field(default_factory=list)
-    provenance_records: List[ProvenanceRecord] = Field(default_factory=list)
-    event_ids: List[str] = Field(default_factory=list)
-    evidence_links: List[Dict[str, Any]] = Field(default_factory=list)
-    notes: List[str] = Field(default_factory=list)
+    created_by: str | None = None
+    time_window_start: datetime | None = None
+    time_window_end: datetime | None = None
+    sections_included: list[EvidencePackSection] = Field(default_factory=list)
+    timeline: list[TimelineEntry] = Field(default_factory=list)
+    layer_summaries: list[LayerSummaryEntry] = Field(default_factory=list)
+    provenance_records: list[ProvenanceRecord] = Field(default_factory=list)
+    event_ids: list[str] = Field(default_factory=list)
+    evidence_links: list[dict[str, Any]] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
     total_events: int = Field(default=0, ge=0)
     export_format: EvidencePackFormat = EvidencePackFormat.JSON
 
@@ -158,15 +157,15 @@ class EvidencePackRequest(BaseModel):
     """Payload for generating a new evidence pack."""
 
     title: str
-    description: Optional[str] = None
-    investigation_id: Optional[str] = None
-    created_by: Optional[str] = None
-    time_window_start: Optional[datetime] = None
-    time_window_end: Optional[datetime] = None
-    sections: List[EvidencePackSection] = Field(
+    description: str | None = None
+    investigation_id: str | None = None
+    created_by: str | None = None
+    time_window_start: datetime | None = None
+    time_window_end: datetime | None = None
+    sections: list[EvidencePackSection] = Field(
         default_factory=lambda: list(EvidencePackSection)
     )
-    event_ids: Optional[List[str]] = Field(
+    event_ids: list[str] | None = Field(
         default=None,
         description="Explicit event selection — None means use time window or investigation",
     )

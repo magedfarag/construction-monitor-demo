@@ -15,13 +15,11 @@ GET /api/v1/strikes/summary is not captured by the path parameter route.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.dependencies import UserClaims, require_operator
-
 from src.connectors.strike_connector import StrikeConnector
 from src.models.operational_layers import EvidenceLink, StrikeEvent
 
@@ -29,12 +27,12 @@ router = APIRouter(prefix="/api/v1/strikes", tags=["strikes"])
 
 # ── In-memory stores ──────────────────────────────────────────────────────────
 _connector = StrikeConnector()
-_store: Dict[str, StrikeEvent] = {}
+_store: dict[str, StrikeEvent] = {}
 # Per-strike list of attached evidence links
-_evidence_store: Dict[str, List[EvidenceLink]] = {}
+_evidence_store: dict[str, list[EvidenceLink]] = {}
 
 # Fixed reference "now" for deterministic seeding (project-relative timestamp)
-_REF_NOW = datetime(2026, 4, 4, 0, 0, 0, tzinfo=timezone.utc)
+_REF_NOW = datetime(2026, 4, 4, 0, 0, 0, tzinfo=UTC)
 _WINDOW_DAYS = 30
 
 
@@ -46,7 +44,7 @@ def _seed_store() -> None:
     """
     w1_end = _REF_NOW
     w1_start = _REF_NOW - timedelta(days=_WINDOW_DAYS)
-    events: List[StrikeEvent] = _connector.fetch_strikes(w1_start, w1_end)
+    events: list[StrikeEvent] = _connector.fetch_strikes(w1_start, w1_end)
 
     if len(events) < 5:
         w2_end = w1_start
@@ -66,7 +64,7 @@ _seed_store()
 
 @router.get(
     "",
-    response_model=List[StrikeEvent],
+    response_model=list[StrikeEvent],
     summary="List strike events",
     description=(
         "Returns strike events from the in-memory store.  "
@@ -74,20 +72,20 @@ _seed_store()
     ),
 )
 def list_strikes(
-    start: Optional[datetime] = Query(
+    start: datetime | None = Query(
         default=None, description="Filter events on or after this UTC timestamp"
     ),
-    end: Optional[datetime] = Query(
+    end: datetime | None = Query(
         default=None, description="Filter events on or before this UTC timestamp"
     ),
-    strike_type: Optional[str] = Query(
+    strike_type: str | None = Query(
         default=None,
         description="Filter by strike type: airstrike | artillery | missile | drone | unknown",
     ),
     confidence_min: float = Query(
         default=0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"
     ),
-) -> List[StrikeEvent]:
+) -> list[StrikeEvent]:
     results = list(_store.values())
 
     if start is not None:
@@ -105,16 +103,16 @@ def list_strikes(
 
 @router.get(
     "/summary",
-    response_model=Dict[str, int],
+    response_model=dict[str, int],
     summary="Strike counts by type over the last 30 days",
     description=(
         "Returns a dict mapping each strike_type to the count of events "
         "occurring within the last 30 days (relative to the reference date)."
     ),
 )
-def get_strikes_summary() -> Dict[str, int]:
+def get_strikes_summary() -> dict[str, int]:
     window_start = _REF_NOW - timedelta(days=_WINDOW_DAYS)
-    counts: Dict[str, int] = {}
+    counts: dict[str, int] = {}
     for ev in _store.values():
         if ev.occurred_at >= window_start:
             counts[ev.strike_type] = counts.get(ev.strike_type, 0) + 1

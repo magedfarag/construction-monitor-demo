@@ -14,11 +14,9 @@ list endpoints filters by real-time UTC comparison.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from src.connectors.airspace_connector import (
     AirspaceConnector,
@@ -40,12 +38,12 @@ _connector = AirspaceConnector()
 _connector.connect()
 
 # Restriction store: restriction_id → AirspaceRestriction
-_restriction_store: Dict[str, AirspaceRestriction] = {
+_restriction_store: dict[str, AirspaceRestriction] = {
     r.restriction_id: r for r in _connector.fetch_restrictions()
 }
 
 # NOTAM store: notam_id → NotamEvent
-_notam_store: Dict[str, NotamEvent] = {
+_notam_store: dict[str, NotamEvent] = {
     n.notam_id: n for n in _connector.fetch_notams()
 }
 
@@ -63,20 +61,20 @@ _event_store.ingest_batch(
 class RestrictionListResponse(BaseModel):
     total: int
     active_only: bool
-    restrictions: List[AirspaceRestriction]
+    restrictions: list[AirspaceRestriction]
 
 
 class NotamListResponse(BaseModel):
     total: int
-    icao_filter: Optional[str]
-    notams: List[NotamEvent]
+    icao_filter: str | None
+    notams: list[NotamEvent]
 
 
 # ────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ────────────────────────────────────────────────────────────────────────────
 
-def _parse_bbox(bbox_str: Optional[str]) -> Optional[tuple]:
+def _parse_bbox(bbox_str: str | None) -> tuple | None:
     """Parse a ``lon1,lat1,lon2,lat2`` string into a 4-tuple of floats.
 
     Returns ``None`` if ``bbox_str`` is None or empty.
@@ -105,7 +103,7 @@ def _parse_bbox(bbox_str: Optional[str]) -> Optional[tuple]:
 )
 def list_restrictions(
     active_only: bool = Query(default=True, description="Return only currently active restrictions"),
-    bbox: Optional[str] = Query(
+    bbox: str | None = Query(
         default=None,
         description="Bounding box filter: lon1,lat1,lon2,lat2 (WGS-84 decimal degrees)",
     ),
@@ -121,7 +119,7 @@ def list_restrictions(
         try:
             parsed_bbox = _parse_bbox(bbox)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     candidates = list(_restriction_store.values())
 
@@ -130,7 +128,7 @@ def list_restrictions(
 
     if parsed_bbox is not None:
         min_lon, min_lat, max_lon, max_lat = parsed_bbox
-        filtered: List[AirspaceRestriction] = []
+        filtered: list[AirspaceRestriction] = []
         for r in candidates:
             coords = r.geometry_geojson.get("coordinates", [[]])[0]
             if not coords:
@@ -171,7 +169,7 @@ def get_restriction(restriction_id: str) -> AirspaceRestriction:
     summary="List NOTAMs, optionally filtered by ICAO location code",
 )
 def list_notams(
-    icao: Optional[str] = Query(
+    icao: str | None = Query(
         default=None,
         description="ICAO 4-letter location indicator to filter by (e.g. 'KDCA')",
         min_length=3,

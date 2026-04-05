@@ -10,13 +10,12 @@ POST /api/v1/health/sources/{id}/disable — disable a connector (P5-3.5)
 from __future__ import annotations
 
 import logging
-from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
 
 from src.services.source_health import (
-    HealthDashboardResponse,
     HealthAlert,
+    HealthDashboardResponse,
     SourceHealthRecord,
     SourceHealthService,
     UsagePeriod,
@@ -28,7 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/health", tags=["health-dashboard"])
 
 # ── Module-level service (replaced in tests via set_api_health_service) ────────
-_svc: Optional[SourceHealthService] = None
+_svc: SourceHealthService | None = None
 
 
 def get_api_health_service() -> SourceHealthService:
@@ -72,12 +71,12 @@ def get_connector_health(connector_id: str) -> SourceHealthRecord:
 
 @router.get(
     "/alerts",
-    response_model=List[HealthAlert],
+    response_model=list[HealthAlert],
     summary="Active SLA breach alerts",
 )
 def get_alerts(
     include_resolved: bool = Query(default=False, description="Include resolved alerts"),
-) -> List[HealthAlert]:
+) -> list[HealthAlert]:
     """Return the list of SLA breach alerts.  By default only open (unresolved) alerts."""
     svc = get_api_health_service()
     dashboard = svc.get_dashboard()
@@ -90,9 +89,9 @@ def get_alerts(
 
 @router.get(
     "/usage",
-    response_model=List[UsagePeriod],
+    response_model=list[UsagePeriod],
     summary="Hourly API usage per connector (P5-3.4 cost tracking)",
 )
-def get_usage() -> List[UsagePeriod]:
+def get_usage() -> list[UsagePeriod]:
     """Return per-connector API call counts for the last 60 minutes."""
     return get_api_health_service().get_usage()

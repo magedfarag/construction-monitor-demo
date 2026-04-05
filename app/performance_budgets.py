@@ -13,12 +13,11 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from starlette.types import ASGIApp
 
 from app import metrics
 
@@ -42,7 +41,7 @@ _PATH_BUDGETS: list[tuple[str, float]] = [
 ]
 
 
-def _get_budget(path: str) -> Optional[float]:
+def _get_budget(path: str) -> float | None:
     """Return timing budget in seconds for *path*, or None if unmonitored."""
     for prefix, budget in _PATH_BUDGETS:
         if path.startswith(prefix):

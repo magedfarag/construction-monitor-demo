@@ -11,8 +11,8 @@ Auth: API key + OAuth2 client credentials
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 from app.config import AppSettings
 from app.models.scene import SceneMetadata
@@ -34,12 +34,12 @@ class MaxarProvider(SatelliteProvider):
     def __init__(self, settings: AppSettings) -> None:
         self._settings = settings
 
-    def validate_credentials(self) -> Tuple[bool, str]:
+    def validate_credentials(self) -> tuple[bool, str]:
         if not self._settings.maxar_api_key:
             return False, "MAXAR_API_KEY not set"
         return True, "Maxar API key present (not yet verified)"
 
-    def healthcheck(self) -> Tuple[bool, str]:
+    def healthcheck(self) -> tuple[bool, str]:
         """Lightweight STAC endpoint probe."""
         if not self._settings.maxar_api_key:
             return False, "MAXAR_API_KEY not configured"
@@ -59,12 +59,12 @@ class MaxarProvider(SatelliteProvider):
     @with_retry(max_attempts=3)
     def search_imagery(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_date: str,
         end_date: str,
         cloud_threshold: float = 20.0,
         max_results: int = 10,
-    ) -> List[SceneMetadata]:
+    ) -> list[SceneMetadata]:
         if not self._settings.maxar_api_key:
             raise ProviderUnavailableError("MAXAR_API_KEY not configured")
         try:
@@ -94,7 +94,7 @@ class MaxarProvider(SatelliteProvider):
         except Exception as exc:
             raise ProviderUnavailableError(f"Maxar STAC search failed: {exc}") from exc
 
-    def fetch_scene_metadata(self, scene_id: str) -> Optional[SceneMetadata]:
+    def fetch_scene_metadata(self, scene_id: str) -> SceneMetadata | None:
         if not self._settings.maxar_api_key:
             return None
         try:
@@ -111,7 +111,7 @@ class MaxarProvider(SatelliteProvider):
             log.warning("Maxar fetch_scene_metadata failed: %s", exc)
             return None
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         caps = super().get_capabilities()
         caps.update({
             "supports_cog_streaming": True,
@@ -123,13 +123,13 @@ class MaxarProvider(SatelliteProvider):
         })
         return caps
 
-    def _normalise(self, item: Dict[str, Any]) -> SceneMetadata:
+    def _normalise(self, item: dict[str, Any]) -> SceneMetadata:
         props = item.get("properties", {})
         acquired_raw = props.get("datetime") or props.get("start_datetime", "")
         try:
             acquired_at = datetime.fromisoformat(acquired_raw.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            acquired_at = datetime.now(timezone.utc)
+            acquired_at = datetime.now(UTC)
         cloud_cover = float(props.get("eo:cloud_cover", 0.0))
         raw_assets = item.get("assets", {})
         assets = {k: v.get("href", "") for k, v in raw_assets.items() if v.get("href")}

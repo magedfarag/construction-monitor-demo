@@ -10,8 +10,8 @@ source_type:  ``imagery_catalog``
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -51,7 +51,7 @@ class EarthSearchConnector(BaseConnector):
         self,
         *,
         stac_url: str = _STAC_URL,
-        collections: Optional[List[str]] = None,
+        collections: list[str] | None = None,
         http_timeout: float = 30.0,
     ) -> None:
         self._stac_url = stac_url.rstrip("/")
@@ -68,15 +68,15 @@ class EarthSearchConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         *,
         cloud_threshold: float = 20.0,
         max_results: int = 20,
-        collections: Optional[List[str]] = None,
+        collections: list[str] | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search Earth Search across configured collections for an AOI + time window.
 
         Earth Search does not support the STAC query extension; cloud filtering
@@ -87,7 +87,7 @@ class EarthSearchConnector(BaseConnector):
             f"{start_time.strftime('%Y-%m-%dT%H:%M:%SZ')}/"
             f"{end_time.strftime('%Y-%m-%dT%H:%M:%SZ')}"
         )
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "collections": active_collections,
             "intersects": geometry,
             "datetime": dt_range,
@@ -115,7 +115,7 @@ class EarthSearchConnector(BaseConnector):
         )
         return filtered[:max_results]
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Convert a raw Earth Search STAC item to a CanonicalEvent."""
         collection = raw.get("collection", "")
         source = f"earth-search:{collection}" if collection else "earth-search"
@@ -138,7 +138,7 @@ class EarthSearchConnector(BaseConnector):
                 connector_id=self.connector_id,
                 healthy=True,
                 message="Earth Search reachable",
-                last_successful_poll=datetime.now(timezone.utc),
+                last_successful_poll=datetime.now(UTC),
             )
         except Exception as exc:
             return ConnectorHealthStatus(

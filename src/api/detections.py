@@ -11,8 +11,6 @@ same data without duplication.
 """
 from __future__ import annotations
 
-from typing import Dict, List, Optional
-
 from fastapi import APIRouter, HTTPException, Query
 
 from src.api.cameras import _detection_store
@@ -22,7 +20,7 @@ from src.models.sensor_fusion import DetectionOverlay
 router = APIRouter(prefix="/api/v1/detections", tags=["detections"])
 
 # Per-detection evidence lists (idempotent by evidence_id)
-_detection_evidence: Dict[str, List[EvidenceLink]] = {
+_detection_evidence: dict[str, list[EvidenceLink]] = {
     det_id: [] for det_id in _detection_store
 }
 
@@ -32,7 +30,7 @@ _detection_evidence: Dict[str, List[EvidenceLink]] = {
 
 @router.get(
     "",
-    response_model=List[DetectionOverlay],
+    response_model=list[DetectionOverlay],
     summary="List detection overlays",
     description=(
         "Returns detection overlay events across all cameras.  "
@@ -40,17 +38,17 @@ _detection_evidence: Dict[str, List[EvidenceLink]] = {
     ),
 )
 def list_detections(
-    detection_type: Optional[str] = Query(
+    detection_type: str | None = Query(
         default=None,
         description="vehicle | person | aircraft | vessel | infrastructure | unknown",
     ),
     confidence_min: float = Query(
         default=0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"
     ),
-    observation_id: Optional[str] = Query(
+    observation_id: str | None = Query(
         default=None, description="Filter by parent observation_id"
     ),
-) -> List[DetectionOverlay]:
+) -> list[DetectionOverlay]:
     results = list(_detection_store.values())
     if detection_type is not None:
         results = [d for d in results if d.detection_type == detection_type]

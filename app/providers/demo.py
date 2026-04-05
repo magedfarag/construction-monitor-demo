@@ -7,9 +7,8 @@ and is used as the final fallback when live providers are unavailable.
 from __future__ import annotations
 
 import math
-import uuid
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from app.models.scene import SceneMetadata
 from app.providers.base import SatelliteProvider
@@ -70,7 +69,7 @@ SCENARIOS = [
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
-def _polygon_area_km2(coords: List[List[float]]) -> float:
+def _polygon_area_km2(coords: list[list[float]]) -> float:
     if len(coords) < 4:
         raise ValueError("Polygon must contain at least 4 coordinates")
     lat0 = math.radians(sum(lat for _, lat in coords) / len(coords))
@@ -96,29 +95,28 @@ class DemoProvider(SatelliteProvider):
     display_name  = "Demo (synthetic data)"
     resolution_m  = 10  # representative
 
-    def validate_credentials(self) -> Tuple[bool, str]:
+    def validate_credentials(self) -> tuple[bool, str]:
         return True, "Demo provider requires no credentials"
 
-    def healthcheck(self) -> Tuple[bool, str]:
+    def healthcheck(self) -> tuple[bool, str]:
         return True, "Demo provider is always healthy"
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         caps = super().get_capabilities()
         caps.update({"requires_credentials": False, "is_demo": True})
         return caps
 
     def search_imagery(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_date: str,
         end_date: str,
         cloud_threshold: float = 20.0,
         max_results: int = 10,
-    ) -> List[SceneMetadata]:
+    ) -> list[SceneMetadata]:
         # Demo returns two synthetic scenes flanking the analysis window.
         sd = date.fromisoformat(start_date)
         ed = date.fromisoformat(end_date)
-        mid = sd + timedelta(days=(ed - sd).days // 2)
         return [
             SceneMetadata(
                 scene_id=f"demo-before-{sd.isoformat()}",
@@ -138,12 +136,12 @@ class DemoProvider(SatelliteProvider):
             ),
         ]
 
-    def fetch_scene_metadata(self, scene_id: str) -> Optional[SceneMetadata]:
+    def fetch_scene_metadata(self, scene_id: str) -> SceneMetadata | None:
         return SceneMetadata(
             scene_id=scene_id,
             provider="demo",
             satellite="Sentinel-2 (synthetic)",
-            acquired_at=datetime.now(timezone.utc),
+            acquired_at=datetime.now(UTC),
             cloud_cover=0.0,
             bbox=[-180, -90, 180, 90],
         )
@@ -152,10 +150,10 @@ class DemoProvider(SatelliteProvider):
 
     def generate_changes(
         self,
-        bounds: List[float],
+        bounds: list[float],
         start_date: date,
         end_date: date,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return curated change records for the requested window."""
         min_lng, min_lat, max_lng, max_lat = bounds
         width  = max(max_lng - min_lng, 0.0001)
@@ -173,7 +171,7 @@ class DemoProvider(SatelliteProvider):
             hw = width * 0.09
             hh = height * 0.08
             changes.append({
-                "change_id":    f"{scenario["template_id"]}-{idx + 1}",
+                "change_id":    f"{scenario['template_id']}-{idx + 1}",
                 "detected_at":  datetime.combine(
                     detected_day, datetime.min.time()
                 ).replace(hour=10 + idx * 2, minute=30),
@@ -184,9 +182,9 @@ class DemoProvider(SatelliteProvider):
                 "provider":     "demo",
                 "summary":      scenario["summary"],
                 "rationale":    scenario["rationale"],
-                "before_image": f"{ASSETS_PREFIX}/{scenario["before_image"]}",
-                "after_image":  f"{ASSETS_PREFIX}/{scenario["after_image"]}",
-                "thumbnail":    f"{ASSETS_PREFIX}/{scenario["after_image"]}",
+                "before_image": f"{ASSETS_PREFIX}/{scenario['before_image']}",
+                "after_image":  f"{ASSETS_PREFIX}/{scenario['after_image']}",
+                "thumbnail":    f"{ASSETS_PREFIX}/{scenario['after_image']}",
                 "is_demo":      True,
             })
         return changes

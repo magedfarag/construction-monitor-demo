@@ -9,8 +9,8 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -35,7 +35,7 @@ class FreshnessSLA(BaseModel):
     is_paid: bool = Field(
         default=False, description="Whether the connector incurs API cost.",
     )
-    max_requests_per_hour: Optional[int] = Field(
+    max_requests_per_hour: int | None = Field(
         default=None, description="Hard cap for paid connectors (P5-2.4).",
     )
 
@@ -49,14 +49,14 @@ class SourceHealthRecord(BaseModel):
     display_name: str
     source_type: str
     is_healthy: bool
-    last_successful_poll: Optional[datetime] = None
-    last_error_at: Optional[datetime] = None
-    last_error_message: Optional[str] = None
+    last_successful_poll: datetime | None = None
+    last_error_at: datetime | None = None
+    last_error_message: str | None = None
     consecutive_errors: int = 0
     total_requests: int = 0
     total_errors: int = 0
     freshness_status: str = "unknown"  # fresh | stale | critical | unknown
-    freshness_age_minutes: Optional[float] = None
+    freshness_age_minutes: float | None = None
     requests_last_hour: int = 0
 
 
@@ -69,7 +69,7 @@ class HealthAlert(BaseModel):
     message: str
     triggered_at: datetime
     resolved: bool = False
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
 
 
 class UsagePeriod(BaseModel):
@@ -86,8 +86,8 @@ class UsagePeriod(BaseModel):
 class HealthDashboardResponse(BaseModel):
     """Full health dashboard payload."""
 
-    connectors: List[SourceHealthRecord]
-    alerts: List[HealthAlert]
+    connectors: list[SourceHealthRecord]
+    alerts: list[HealthAlert]
     overall_healthy: bool
     generated_at: datetime
     total_requests_last_hour: int = 0
@@ -108,16 +108,16 @@ class SourceHealthService:
     # Rolling window for per-hour rate tracking
     _HOUR = timedelta(hours=1)
 
-    def __init__(self, sla_config: Optional[List[FreshnessSLA]] = None) -> None:
+    def __init__(self, sla_config: list[FreshnessSLA] | None = None) -> None:
         self._lock = threading.Lock()
         # connector_id -> mutable dict of health fields
-        self._records: Dict[str, Dict[str, Any]] = {}
+        self._records: dict[str, dict[str, Any]] = {}
         # connector_id -> list of request timestamps (within last hour)
-        self._request_log: Dict[str, List[datetime]] = {}
+        self._request_log: dict[str, list[datetime]] = {}
         # alert_id -> HealthAlert
-        self._alerts: Dict[str, HealthAlert] = {}
+        self._alerts: dict[str, HealthAlert] = {}
         # connector_id -> FreshnessSLA
-        self._slas: Dict[str, FreshnessSLA] = {}
+        self._slas: dict[str, FreshnessSLA] = {}
 
         for sla in (sla_config or []):
             self._slas[sla.connector_id] = sla
@@ -131,7 +131,7 @@ class SourceHealthService:
         source_type: str = "unknown",
     ) -> None:
         """Record a successful connector poll / fetch."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         with self._lock:
             rec = self._get_or_create(connector_id, display_name, source_type)
             rec["is_healthy"] = True
@@ -153,7 +153,7 @@ class SourceHealthService:
         source_type: str = "unknown",
     ) -> None:
         """Record a connector failure."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         with self._lock:
             rec = self._get_or_create(connector_id, display_name, source_type)
             rec["is_healthy"] = False
@@ -172,7 +172,7 @@ class SourceHealthService:
 
     def get_dashboard(self) -> HealthDashboardResponse:
         """Return full dashboard snapshot with freshness + SLA evaluation."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         with self._lock:
             records = [self._build_health_record(cid, rec, now) for cid, rec in self._records.items()]
             active_alerts = [a for a in self._alerts.values() if not a.resolved]
@@ -181,10 +181,6 @@ class SourceHealthService:
             active_alerts = [a for a in self._alerts.values() if not a.resolved]
 
         total_req = sum(r.requests_last_hour for r in records)
-        total_err = sum(
-            len([ts for ts in self._request_log.get(r.connector_id, []) if ts >= now - self._HOUR])
-            for r in records
-        )
         return HealthDashboardResponse(
             connectors=records,
             alerts=active_alerts,
@@ -194,11 +190,11 @@ class SourceHealthService:
             total_errors_last_hour=sum(r.total_errors for r in records),
         )
 
-    def get_usage(self) -> List[UsagePeriod]:
+    def get_usage(self) -> list[UsagePeriod]:
         """Return per-connector usage for the last hour."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - self._HOUR
-        result: List[UsagePeriod] = []
+        result: list[UsagePeriod] = []
         with self._lock:
             for cid, timestamps in self._request_log.items():
                 recent = [ts for ts in timestamps if ts >= cutoff]
@@ -217,7 +213,7 @@ class SourceHealthService:
         sla = self._slas.get(connector_id)
         if not sla or not sla.max_requests_per_hour:
             return False
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - self._HOUR
         with self._lock:
             recent = [ts for ts in self._request_log.get(connector_id, []) if ts >= cutoff]
@@ -232,7 +228,7 @@ class SourceHealthService:
 
     def _get_or_create(
         self, connector_id: str, display_name: str, source_type: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if connector_id not in self._records:
             self._records[connector_id] = {
                 "connector_id": connector_id,
@@ -256,11 +252,11 @@ class SourceHealthService:
         self._request_log[connector_id] = [t for t in lst if t >= cutoff]
 
     def _build_health_record(
-        self, connector_id: str, rec: Dict[str, Any], now: datetime
+        self, connector_id: str, rec: dict[str, Any], now: datetime
     ) -> SourceHealthRecord:
         sla = self._slas.get(connector_id)
         freshness_status = "unknown"
-        freshness_age_min: Optional[float] = None
+        freshness_age_min: float | None = None
 
         last_poll = rec.get("last_successful_poll")
         if last_poll:
@@ -313,7 +309,7 @@ class SourceHealthService:
                 continue
             age_min = (now - last_poll).total_seconds() / 60.0
 
-            severity: Optional[str] = None
+            severity: str | None = None
             if age_min >= sla.critical_age_minutes:
                 severity = "critical"
             elif age_min >= sla.max_age_minutes:
@@ -346,7 +342,7 @@ class SourceHealthService:
 
 # ── Module-level singleton ─────────────────────────────────────────────────────
 
-_health_service: Optional[SourceHealthService] = None
+_health_service: SourceHealthService | None = None
 
 
 def get_health_service() -> SourceHealthService:

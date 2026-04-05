@@ -23,8 +23,8 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from src.connectors.base import (
     BaseConnector,
@@ -33,7 +33,6 @@ from src.connectors.base import (
 )
 from src.models.canonical_event import (
     CanonicalEvent,
-    CorrelationKeys,
     EntityType,
     EventType,
     LicenseRecord,
@@ -88,7 +87,7 @@ def _parse_tle_triplet(name: str, line1: str, line2: str) -> SatelliteOrbit:
         orbital_period_minutes = None
 
     # Rough altitude estimate from period via vis-viva
-    altitude_km: Optional[float] = None
+    altitude_km: float | None = None
     if orbital_period_minutes is not None:
         try:
             # Kepler's third law: T^2 ∝ a^3  (Earth GM = 3.986e5 km³/s²)
@@ -109,7 +108,7 @@ def _parse_tle_triplet(name: str, line1: str, line2: str) -> SatelliteOrbit:
         inclination_deg=inclination_deg,
         altitude_km=altitude_km,
         source=_SOURCE,
-        loaded_at=datetime.now(timezone.utc),
+        loaded_at=datetime.now(UTC),
     )
 
 
@@ -121,10 +120,9 @@ def orbit_to_canonical_event(orbit: SatelliteOrbit) -> CanonicalEvent:
     """Convert a ``SatelliteOrbit`` to a ``CanonicalEvent`` for ingest."""
     # Use the sub-satellite point at the equator as a proxy centroid when no
     # true position is available.
-    centroid: Dict[str, Any] = {"type": "Point", "coordinates": [0.0, 0.0]}
-    geometry: Dict[str, Any] = {"type": "Point", "coordinates": [0.0, 0.0]}
+    centroid: dict[str, Any] = {"type": "Point", "coordinates": [0.0, 0.0]}
+    geometry: dict[str, Any] = {"type": "Point", "coordinates": [0.0, 0.0]}
 
-    event_time_str = orbit.loaded_at.isoformat()
     event_id = make_event_id(_SOURCE, orbit.satellite_id, orbit.loaded_at)
 
     return CanonicalEvent(
@@ -165,7 +163,7 @@ def pass_to_canonical_event(sp: SatellitePass) -> CanonicalEvent:
         if coords:
             avg_lon = sum(c[0] for c in coords) / len(coords)
             avg_lat = sum(c[1] for c in coords) / len(coords)
-            centroid: Dict[str, Any] = {"type": "Point", "coordinates": [round(avg_lon, 4), round(avg_lat, 4)]}
+            centroid: dict[str, Any] = {"type": "Point", "coordinates": [round(avg_lon, 4), round(avg_lat, 4)]}
         else:
             centroid = {"type": "Point", "coordinates": [0.0, 0.0]}
     else:
@@ -210,7 +208,7 @@ def pass_to_canonical_event(sp: SatellitePass) -> CanonicalEvent:
 # Footprint helper
 # ────────────────────────────────────────────────────────────────────────────
 
-def _make_footprint(lon: float, lat: float, half_width_deg: float = 1.0) -> Dict[str, Any]:
+def _make_footprint(lon: float, lat: float, half_width_deg: float = 1.0) -> dict[str, Any]:
     """Return a simple square GeoJSON Polygon centred on (lon, lat)."""
     dlon = half_width_deg
     dlat = half_width_deg * 0.75
@@ -240,10 +238,10 @@ class OrbitConnector(BaseConnector):
     source_type: str = "telemetry"
 
     # In-memory TLE catalogue keyed by satellite_id.
-    _orbits: Dict[str, SatelliteOrbit]
+    _orbits: dict[str, SatelliteOrbit]
 
     def __init__(self) -> None:
-        self._orbits: Dict[str, SatelliteOrbit] = {}
+        self._orbits: dict[str, SatelliteOrbit] = {}
         self._connected: bool = False
 
     # ── BaseConnector abstract methods ────────────────────────────────────
@@ -255,11 +253,11 @@ class OrbitConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return raw TLE dicts for all loaded orbits (geometry/time ignored for stub)."""
         return [
             {
@@ -273,14 +271,14 @@ class OrbitConnector(BaseConnector):
             for orb in self._orbits.values()
         ]
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Normalize a raw TLE dict into a CanonicalEvent.
 
         ``raw`` must contain at minimum ``satellite_id`` and ``loaded_at``.
         """
         try:
             satellite_id: str = raw["satellite_id"]
-            loaded_at_raw = raw.get("loaded_at", datetime.now(timezone.utc).isoformat())
+            loaded_at_raw = raw.get("loaded_at", datetime.now(UTC).isoformat())
             if isinstance(loaded_at_raw, str):
                 loaded_at = datetime.fromisoformat(loaded_at_raw.replace("Z", "+00:00"))
             else:
@@ -308,13 +306,13 @@ class OrbitConnector(BaseConnector):
             connector_id=self.connector_id,
             healthy=True,
             message="Stub connector — always healthy",
-            last_successful_poll=datetime.now(timezone.utc),
+            last_successful_poll=datetime.now(UTC),
             error_count=0,
         )
 
     # ── Orbit-specific public API ─────────────────────────────────────────
 
-    def ingest_orbits(self, tle_data: str) -> List[SatelliteOrbit]:
+    def ingest_orbits(self, tle_data: str) -> list[SatelliteOrbit]:
         """Parse newline-separated TLE triplets and return ``SatelliteOrbit`` list.
 
         Expected format (each triplet is three consecutive non-blank lines)::
@@ -327,7 +325,7 @@ class OrbitConnector(BaseConnector):
         triplet at the end of the input is silently discarded.
         """
         lines = [ln for ln in tle_data.splitlines() if ln.strip() and not ln.startswith("#")]
-        orbits: List[SatelliteOrbit] = []
+        orbits: list[SatelliteOrbit] = []
         i = 0
         while i + 2 < len(lines):
             name, line1, line2 = lines[i], lines[i + 1], lines[i + 2]
@@ -352,7 +350,7 @@ class OrbitConnector(BaseConnector):
         lon: float,
         lat: float,
         horizon_hours: int = 24,
-    ) -> List[SatellitePass]:
+    ) -> list[SatellitePass]:
         """Compute deterministic synthetic passes for a satellite above a location.
 
         The algorithm uses the satellite's orbital period to schedule passes at
@@ -387,10 +385,10 @@ class OrbitConnector(BaseConnector):
         )
         phase_offset_min = (phase_seed % int(period_min)) * 1.0
 
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         window_end = now_utc + timedelta(hours=horizon_hours)
 
-        passes: List[SatellitePass] = []
+        passes: list[SatellitePass] = []
         # First AOS is at now + phase_offset, then every period_min
         t = now_utc + timedelta(minutes=phase_offset_min % period_min)
 
@@ -409,7 +407,7 @@ class OrbitConnector(BaseConnector):
                 "LANDSAT": "OLI",
                 "ISS": "optical",
             }
-            sensor_type: Optional[str] = None
+            sensor_type: str | None = None
             for prefix, stype in sensor_map.items():
                 if satellite_id.upper().startswith(prefix):
                     sensor_type = stype

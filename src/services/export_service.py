@@ -17,8 +17,9 @@ import io
 import json
 import logging
 import threading
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from src.models.canonical_event import CanonicalEvent
@@ -52,24 +53,24 @@ class ExportJob:
         self.format = format_
         self.event_count = event_count
         self.status: str = "pending"  # pending | completed | failed
-        self.error: Optional[str] = None
-        self.payload: Optional[bytes] = None  # serialised export content
-        self.created_at: datetime = datetime.now(timezone.utc)
-        self.completed_at: Optional[datetime] = None
+        self.error: str | None = None
+        self.payload: bytes | None = None  # serialised export content
+        self.created_at: datetime = datetime.now(UTC)
+        self.completed_at: datetime | None = None
 
 
 class ExportJobStore:
     """Thread-safe in-memory store for export jobs."""
 
     def __init__(self) -> None:
-        self._jobs: Dict[str, ExportJob] = {}
+        self._jobs: dict[str, ExportJob] = {}
         self._lock = threading.Lock()
 
     def put(self, job: ExportJob) -> None:
         with self._lock:
             self._jobs[job.job_id] = job
 
-    def get(self, job_id: str) -> Optional[ExportJob]:
+    def get(self, job_id: str) -> ExportJob | None:
         with self._lock:
             return self._jobs.get(job_id)
 
@@ -94,7 +95,7 @@ _CSV_COLUMNS = [
 ]
 
 
-def _centroid_coords(event: CanonicalEvent) -> tuple[Optional[float], Optional[float]]:
+def _centroid_coords(event: CanonicalEvent) -> tuple[float | None, float | None]:
     """Extract (lon, lat) from a GeoJSON Point centroid dict."""
     centroid = event.centroid
     if not centroid or centroid.get("type") != "Point":
@@ -112,7 +113,7 @@ def events_to_csv(events: Sequence[CanonicalEvent]) -> bytes:
     writer.writeheader()
     for ev in events:
         lon, lat = _centroid_coords(ev)
-        row: Dict[str, Any] = {
+        row: dict[str, Any] = {
             "event_id": ev.event_id,
             "event_type": ev.event_type.value,
             "source": ev.source,
@@ -131,10 +132,10 @@ def events_to_csv(events: Sequence[CanonicalEvent]) -> bytes:
 
 def events_to_geojson(events: Sequence[CanonicalEvent]) -> bytes:
     """Serialise events to a GeoJSON FeatureCollection byte string."""
-    features: List[Dict[str, Any]] = []
+    features: list[dict[str, Any]] = []
     for ev in events:
         geometry = ev.geometry or ev.centroid
-        props: Dict[str, Any] = {
+        props: dict[str, Any] = {
             "event_id": ev.event_id,
             "event_type": ev.event_type.value,
             "source": ev.source,
@@ -148,7 +149,7 @@ def events_to_geojson(events: Sequence[CanonicalEvent]) -> bytes:
     collection = {
         "type": "FeatureCollection",
         "features": features,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }
     return json.dumps(collection, default=str).encode("utf-8")
 
@@ -199,7 +200,7 @@ class ExportService:
             else:
                 raise ValueError(f"Unsupported export format: {format_!r}")
             job.status = "completed"
-            job.completed_at = datetime.now(timezone.utc)
+            job.completed_at = datetime.now(UTC)
         except Exception as exc:  # noqa: BLE001
             job.status = "failed"
             job.error = str(exc)

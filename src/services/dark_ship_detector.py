@@ -15,8 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -29,7 +28,6 @@ from src.models.canonical_event import (
     NormalizationRecord,
     ProvenanceRecord,
     SourceType,
-    make_event_id,
 )
 from src.services.vessel_registry import get_vessel_by_mmsi
 
@@ -51,9 +49,9 @@ class DarkShipCandidate(BaseModel):
     gap_hours: float
     last_known_lon: float
     last_known_lat: float
-    reappear_lon: Optional[float] = None
-    reappear_lat: Optional[float] = None
-    position_jump_km: Optional[float] = None
+    reappear_lon: float | None = None
+    reappear_lat: float | None = None
+    position_jump_km: float | None = None
     sanctions_flag: bool
     dark_ship_risk: str
     confidence: float
@@ -61,7 +59,7 @@ class DarkShipCandidate(BaseModel):
 
 
 class DarkShipDetectionResponse(BaseModel):
-    candidates: List[DarkShipCandidate]
+    candidates: list[DarkShipCandidate]
     total: int
     events_analysed: int
 
@@ -82,10 +80,10 @@ def _event_id(mmsi: str, gap_start: str) -> str:
     return f"dark-{h}"
 
 
-def detect_dark_ships(events: List[CanonicalEvent]) -> DarkShipDetectionResponse:
+def detect_dark_ships(events: list[CanonicalEvent]) -> DarkShipDetectionResponse:
     """Analyse a list of canonical events and return dark-ship candidates."""
     # Group ship_position events by MMSI
-    by_mmsi: Dict[str, List[CanonicalEvent]] = {}
+    by_mmsi: dict[str, list[CanonicalEvent]] = {}
     for evt in events:
         if evt.event_type != EventType.SHIP_POSITION:
             continue
@@ -95,7 +93,7 @@ def detect_dark_ships(events: List[CanonicalEvent]) -> DarkShipDetectionResponse
         mmsi = str(mmsi)
         by_mmsi.setdefault(mmsi, []).append(evt)
 
-    candidates: List[DarkShipCandidate] = []
+    candidates: list[DarkShipCandidate] = []
 
     for mmsi, posns in by_mmsi.items():
         posns.sort(key=lambda e: e.event_time)
@@ -157,9 +155,9 @@ def detect_dark_ships(events: List[CanonicalEvent]) -> DarkShipDetectionResponse
     )
 
 
-def to_canonical_events(candidates: List[DarkShipCandidate], aoi_ids: List[str]) -> List[CanonicalEvent]:
+def to_canonical_events(candidates: list[DarkShipCandidate], aoi_ids: list[str]) -> list[CanonicalEvent]:
     """Convert DarkShipCandidate list to CanonicalEvent list for storage/search."""
-    result: List[CanonicalEvent] = []
+    result: list[CanonicalEvent] = []
     for c in candidates:
         result.append(CanonicalEvent(
             event_id=c.event_id,

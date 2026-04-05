@@ -24,7 +24,6 @@ import math
 import threading
 import time
 from collections import deque
-from typing import Deque, Dict, Optional, Tuple
 
 from fastapi import Depends, HTTPException, Request, status
 
@@ -32,7 +31,7 @@ from app.dependencies import UserClaims, UserRole, get_current_user
 
 # ── Per-role request limits (requests / minute) ────────────────────────────────
 
-RATE_LIMITS: Dict[str, int] = {
+RATE_LIMITS: dict[str, int] = {
     UserRole.ANALYST.value: 60,
     UserRole.OPERATOR.value: 300,
     UserRole.ADMIN.value: 0,   # 0 = unlimited
@@ -56,15 +55,15 @@ class SlidingWindowRateLimiter:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         # key → deque of monotonic timestamps
-        self._windows: Dict[str, Deque[float]] = {}
+        self._windows: dict[str, deque[float]] = {}
 
-    def _trim(self, dq: Deque[float], now: float) -> None:
+    def _trim(self, dq: deque[float], now: float) -> None:
         """Remove timestamps that have fallen outside the sliding window."""
         cutoff = now - WINDOW_SECONDS
         while dq and dq[0] < cutoff:
             dq.popleft()
 
-    def is_allowed(self, key: str, limit: int) -> Tuple[bool, int]:
+    def is_allowed(self, key: str, limit: int) -> tuple[bool, int]:
         """Check whether the key is within its rate limit.
 
         Returns:

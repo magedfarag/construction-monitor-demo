@@ -15,15 +15,12 @@ Endpoints:
 """
 from __future__ import annotations
 
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.cache.query_cache import get_query_cache
 from app.cost_guardrails import require_briefing_quota
-from app.dependencies import UserClaims, require_analyst, require_operator
+from app.dependencies import UserClaims, require_operator
 from app.rate_limiter import heavy_endpoint_rate_limit
-
 from src.models.analyst_query import (
     AnalystQuery,
     BriefingOutput,
@@ -67,7 +64,7 @@ def _get_briefing_or_404(briefing_id: str) -> BriefingOutput:
 def generate_briefing_from_investigation(
     inv_id: str,
     classification_label: str = Query(default="UNCLASSIFIED"),
-    created_by: Optional[str] = Query(default=None),
+    created_by: str | None = Query(default=None),
     _quota: UserClaims = Depends(require_briefing_quota),
     _rl: None = Depends(heavy_endpoint_rate_limit),
 ) -> BriefingOutput:
@@ -121,10 +118,10 @@ def save_query(
 
 @router.get(
     "/queries",
-    response_model=List[AnalystQuery],
+    response_model=list[AnalystQuery],
     summary="List saved queries",
 )
-def list_queries() -> List[AnalystQuery]:
+def list_queries() -> list[AnalystQuery]:
     return _svc().list_saved_queries()
 
 
@@ -169,12 +166,12 @@ def generate_briefing(
 
 @router.get(
     "/briefings",
-    response_model=List[BriefingOutput],
+    response_model=list[BriefingOutput],
     summary="List briefings",
 )
 def list_briefings(
-    investigation_id: Optional[str] = Query(default=None),
-) -> List[BriefingOutput]:
+    investigation_id: str | None = Query(default=None),
+) -> list[BriefingOutput]:
     cache_key = f"analyst:briefings:list:{investigation_id}"
     qc = get_query_cache()
     cached = qc.get(cache_key)

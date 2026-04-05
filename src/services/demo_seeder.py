@@ -9,22 +9,21 @@ from __future__ import annotations
 import hashlib
 import math
 import random
-from datetime import datetime, timedelta, timezone
-from typing import List
+from datetime import UTC, datetime, timedelta
 
+from src.models.aoi import AOICreate
 from src.models.canonical_event import (
     CanonicalEvent,
     CorrelationKeys,
+    EntityType,
     EventType,
     LicenseRecord,
     NormalizationRecord,
     ProvenanceRecord,
     SourceType,
-    EntityType,
 )
-from src.services.event_store import EventStore
 from src.services.aoi_store import AOIStore
-from src.models.aoi import AOICreate
+from src.services.event_store import EventStore
 
 # AOI: Strait of Hormuz bounding box
 _LON_MIN, _LON_MAX = 54.83, 57.44
@@ -34,7 +33,7 @@ _AOI_ID = "5bc84ca9-a46b-47e9-a735-8fd000fd3123"
 _NORM = NormalizationRecord(normalized_by="demo-seeder")
 _PROV = ProvenanceRecord(raw_source_ref="demo://seeder")
 _LIC = LicenseRecord()
-_NOW = datetime.now(timezone.utc)
+_NOW = datetime.now(UTC)
 
 
 def _eid(prefix: str, *parts: str) -> str:
@@ -220,8 +219,8 @@ _AIRCRAFT = [
 ]
 
 
-def _aircraft_events() -> List[CanonicalEvent]:
-    events: List[CanonicalEvent] = []
+def _aircraft_events() -> list[CanonicalEvent]:
+    events: list[CanonicalEvent] = []
     rng = random.Random(99)
 
     for ac in _AIRCRAFT:
@@ -287,8 +286,8 @@ _GDELT_HEADLINES = [
 ]
 
 
-def _gdelt_events() -> List[CanonicalEvent]:
-    events: List[CanonicalEvent] = []
+def _gdelt_events() -> list[CanonicalEvent]:
+    events: list[CanonicalEvent] = []
     rng = random.Random(77)
 
     for idx, (headline, themes) in enumerate(_GDELT_HEADLINES):
@@ -328,8 +327,8 @@ def _gdelt_events() -> List[CanonicalEvent]:
 
 # ── Imagery acquisition events ───────────────────────────────────────────────
 
-def _imagery_events() -> List[CanonicalEvent]:
-    events: List[CanonicalEvent] = []
+def _imagery_events() -> list[CanonicalEvent]:
+    events: list[CanonicalEvent] = []
     rng = random.Random(55)
 
     platforms = [
@@ -410,17 +409,157 @@ def seed_aoi_store(store: AOIStore) -> str:
     return aoi.id
 
 
+def _signal_events() -> list[CanonicalEvent]:
+    """Synthetic signal-intelligence events covering all 9 new connector types."""
+    rng = random.Random(42)
+    events: list[CanonicalEvent] = []
+
+    def _pt(lon: float, lat: float) -> dict:
+        return {"type": "Point", "coordinates": [round(lon, 5), round(lat, 5)]}
+
+    def _add(
+        prefix: str,
+        index: int,
+        source: str,
+        source_type: SourceType,
+        entity_type: EntityType,
+        event_type: EventType,
+        lon: float,
+        lat: float,
+        days_ago: int,
+        attrs: dict,
+    ) -> None:
+        dt = _NOW - timedelta(days=days_ago, hours=rng.randint(0, 23))
+        eid = _eid(prefix, str(index), source)
+        events.append(CanonicalEvent(
+            event_id=eid,
+            source=source,
+            source_type=source_type,
+            entity_type=entity_type,
+            entity_id=f"{source}/{eid}",
+            event_type=event_type,
+            event_time=dt,
+            geometry=_pt(lon, lat),
+            centroid=_pt(lon, lat),
+            confidence=round(rng.uniform(0.65, 0.98), 2),
+            attributes=attrs,
+            normalization=_NORM,
+            provenance=_PROV,
+            correlation_keys=CorrelationKeys(aoi_ids=[_AOI_ID]),
+            license=_LIC,
+        ))
+
+    # ── SEISMIC_EVENT (usgs-earthquake) ──────────────────────────────────────
+    _seismic = [
+        (56.80, 26.15, 2, {"magnitude": 3.8, "depth_km": 12.4, "magType": "ml"}),
+        (55.50, 25.80, 7, {"magnitude": 4.2, "depth_km": 8.1,  "magType": "mb"}),
+        (57.10, 26.90, 14, {"magnitude": 2.9, "depth_km": 15.0, "magType": "ml"}),
+        (55.20, 26.60, 20, {"magnitude": 3.5, "depth_km": 22.0, "magType": "mb"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_seismic):
+        _add("eq", i, "usgs-earthquake", SourceType.PUBLIC_RECORD,
+             EntityType.SEISMIC_HAZARD, EventType.SEISMIC_EVENT, lon, lat, d, attrs)
+
+    # ── NATURAL_HAZARD_EVENT (nasa-eonet) ─────────────────────────────────────
+    _hazards = [
+        (56.20, 25.50, 3,  {"title": "Sandstorm — Gulf of Oman", "category": "dustHaze", "eonet_id": "EONET_7001"}),
+        (55.80, 27.10, 9,  {"title": "Flash Flood — Muscat region", "category": "floods", "eonet_id": "EONET_7002"}),
+        (56.90, 26.40, 18, {"title": "Cyclone Remnant — Arabian Sea", "category": "severestorms", "eonet_id": "EONET_7003"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_hazards):
+        _add("hz", i, "nasa-eonet", SourceType.PUBLIC_RECORD,
+             EntityType.NATURAL_HAZARD, EventType.NATURAL_HAZARD_EVENT, lon, lat, d, attrs)
+
+    # ── WEATHER_OBSERVATION (open-meteo) ─────────────────────────────────────
+    _weather_pts = [
+        (55.95, 26.35, 0,  {"temperature_c": 38.2, "wind_speed_kmh": 24, "humidity_pct": 55, "condition": "clear"}),
+        (56.50, 25.10, 1,  {"temperature_c": 40.1, "wind_speed_kmh": 18, "humidity_pct": 48, "condition": "hazy"}),
+        (54.95, 26.80, 2,  {"temperature_c": 36.5, "wind_speed_kmh": 32, "humidity_pct": 62, "condition": "dusty"}),
+        (57.30, 25.60, 3,  {"temperature_c": 37.8, "wind_speed_kmh": 15, "humidity_pct": 51, "condition": "clear"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_weather_pts):
+        _add("wx", i, "open-meteo", SourceType.PUBLIC_RECORD,
+             EntityType.SYSTEM, EventType.WEATHER_OBSERVATION, lon, lat, d, attrs)
+
+    # ── CONFLICT_EVENT (acled) ────────────────────────────────────────────────
+    _conflicts = [
+        (56.10, 26.05, 5,  {"event_type": "Protests", "actor1": "Protesters", "fatalities": 0, "notes": "Peaceful demonstration"}),
+        (55.60, 25.40, 11, {"event_type": "Explosions/Remote violence", "actor1": "Armed group", "fatalities": 2, "notes": "IED incident near transport route"}),
+        (57.20, 26.70, 16, {"event_type": "Violence against civilians", "actor1": "Unknown armed actors", "fatalities": 1, "notes": "Incident reported"}),
+        (55.10, 26.20, 22, {"event_type": "Strategic developments", "actor1": "Naval forces", "fatalities": 0, "notes": "Vessel interception reported"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_conflicts):
+        _add("cfl", i, "acled", SourceType.PUBLIC_RECORD,
+             EntityType.CONFLICT_INCIDENT, EventType.CONFLICT_EVENT, lon, lat, d, attrs)
+
+    # ── MARITIME_WARNING (nga-msi) ────────────────────────────────────────────
+    _msi_warnings = [
+        (56.65, 26.55, 4,  {"navarea": "IX", "number": "202/2026", "subtype": "DRIFTING HAZARD", "text": "Drifting container reported in TSS inbound lane"}),
+        (55.75, 25.95, 10, {"navarea": "IX", "number": "185/2026", "subtype": "MILITARY EXERCISE", "text": "Naval exercise zone active 0600-1800 UTC"}),
+        (57.00, 25.20, 17, {"navarea": "IX", "number": "174/2026", "subtype": "SUBMARINE CABLE", "text": "Survey vessel operations — keep clear 500m"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_msi_warnings):
+        _add("msi", i, "nga-msi", SourceType.PUBLIC_RECORD,
+             EntityType.MARITIME_ZONE, EventType.MARITIME_WARNING, lon, lat, d, attrs)
+
+    # ── MILITARY_SITE_OBSERVATION (osm-military) ──────────────────────────────
+    _mil_sites = [
+        (55.48, 25.30, 30, {"osm_id": 123456, "military": "airfield", "name": "Al Minhad AB vicinity"}),
+        (56.15, 27.15, 30, {"osm_id": 234567, "military": "naval_base", "name": "Bandar Abbas naval base"}),
+        (56.78, 26.48, 30, {"osm_id": 345678, "military": "range", "name": "Firing range — Qeshm Island"}),
+        (55.02, 26.95, 30, {"osm_id": 456789, "military": "bunker", "name": "Hardened facility detected"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_mil_sites):
+        _add("mil", i, "osm-military", SourceType.PUBLIC_RECORD,
+             EntityType.MILITARY_INSTALLATION, EventType.MILITARY_SITE_OBSERVATION, lon, lat, d, attrs)
+
+    # ── THERMAL_ANOMALY_EVENT (nasa-firms) ────────────────────────────────────
+    _fires = [
+        (56.35, 25.70, 1,  {"frp_mw": 28.4, "confidence": "high", "satellite": "AQUA", "type": "Presumed Vegetation Fire"}),
+        (55.90, 26.80, 3,  {"frp_mw": 145.2, "confidence": "high", "satellite": "TERRA", "type": "Offshore Platform Flare"}),
+        (57.15, 26.10, 6,  {"frp_mw": 12.1, "confidence": "nominal", "satellite": "AQUA", "type": "Presumed Vegetation Fire"}),
+        (54.92, 25.50, 9,  {"frp_mw": 67.8, "confidence": "high", "satellite": "VIIRS", "type": "Industrial Flare"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_fires):
+        _add("fire", i, "nasa-firms", SourceType.PUBLIC_RECORD,
+             EntityType.THERMAL_ANOMALY, EventType.THERMAL_ANOMALY_EVENT, lon, lat, d, attrs)
+
+    # ── SPACE_WEATHER_EVENT (noaa-swpc) ───────────────────────────────────────
+    # Space weather has no geographic location — use centroid of the AOI
+    _space_wx = [
+        (56.13, 26.15, 4,  {"kp_index": 4, "classification": "G1-Minor", "source": "CME", "description": "Minor geomagnetic storm watch"}),
+        (56.13, 26.15, 12, {"kp_index": 6, "classification": "G2-Moderate", "source": "Solar Flare X1.2", "description": "Moderate geomagnetic storm in progress"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_space_wx):
+        _add("swx", i, "noaa-swpc", SourceType.PUBLIC_RECORD,
+             EntityType.SPACE_WEATHER_PHENOMENON, EventType.SPACE_WEATHER_EVENT, lon, lat, d, attrs)
+
+    # ── AIR_QUALITY_OBSERVATION (openaq) ─────────────────────────────────────
+    _aq = [
+        (55.38, 25.26, 0,  {"pm25_ugm3": 42.1, "pm10_ugm3": 98.0,  "aqi": 115, "city": "Dubai vicinity", "parameter": "pm25"}),
+        (56.27, 27.18, 1,  {"pm25_ugm3": 61.5, "pm10_ugm3": 143.0, "aqi": 152, "city": "Bandar Abbas", "parameter": "pm25"}),
+        (57.10, 25.35, 2,  {"pm25_ugm3": 18.3, "pm10_ugm3": 45.0,  "aqi": 65,  "city": "Muscat coast", "parameter": "pm25"}),
+        (55.52, 26.10, 3,  {"pm25_ugm3": 55.2, "pm10_ugm3": 120.0, "aqi": 141, "city": "Abu Dhabi offshore", "parameter": "pm25"}),
+    ]
+    for i, (lon, lat, d, attrs) in enumerate(_aq):
+        _add("aq", i, "openaq", SourceType.PUBLIC_RECORD,
+             EntityType.AIR_QUALITY_SENSOR, EventType.AIR_QUALITY_OBSERVATION, lon, lat, d, attrs)
+
+    return events
+
+
 def seed_event_store(store: EventStore, aoi_id: str | None = None) -> int:
     """Populate the EventStore with synthetic demo data. Returns event count."""
     if aoi_id:
         global _AOI_ID
         _AOI_ID = aoi_id
 
-    all_events: List[CanonicalEvent] = []
+    all_events: list[CanonicalEvent] = []
     all_events.extend(_ship_events())
     all_events.extend(_aircraft_events())
     all_events.extend(_gdelt_events())
     all_events.extend(_imagery_events())
+    all_events.extend(_signal_events())
 
     store.ingest_batch(all_events)
     return len(all_events)

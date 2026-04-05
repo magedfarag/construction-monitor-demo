@@ -12,8 +12,8 @@ Reference: https://planetarycomputer.microsoft.com/api/stac/v1
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -54,7 +54,7 @@ class PlanetaryComputerConnector(BaseConnector):
         *,
         stac_url: str = _STAC_URL,
         subscription_key: str = "",
-        collections: Optional[List[str]] = None,
+        collections: list[str] | None = None,
         http_timeout: float = 30.0,
     ) -> None:
         self._stac_url = stac_url.rstrip("/")
@@ -62,8 +62,8 @@ class PlanetaryComputerConnector(BaseConnector):
         self._collections = collections or _DEFAULT_COLLECTIONS
         self._http_timeout = http_timeout
 
-    def _request_headers(self) -> Dict[str, str]:
-        headers: Dict[str, str] = {"Content-Type": "application/json"}
+    def _request_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {"Content-Type": "application/json"}
         if self._subscription_key:
             headers["Ocp-Apim-Subscription-Key"] = self._subscription_key
         return headers
@@ -84,22 +84,22 @@ class PlanetaryComputerConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         *,
         cloud_threshold: float = 20.0,
         max_results: int = 20,
-        collections: Optional[List[str]] = None,
+        collections: list[str] | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search Planetary Computer across configured collections for AOI + time window."""
         active_collections = collections or self._collections
         dt_range = (
             f"{start_time.strftime('%Y-%m-%dT%H:%M:%SZ')}/"
             f"{end_time.strftime('%Y-%m-%dT%H:%M:%SZ')}"
         )
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "collections": active_collections,
             "intersects": geometry,
             "datetime": dt_range,
@@ -129,7 +129,7 @@ class PlanetaryComputerConnector(BaseConnector):
         )
         return filtered[:max_results]
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Convert a raw Planetary Computer STAC item to a CanonicalEvent."""
         collection = raw.get("collection", "")
         source = f"planetary-computer:{collection}" if collection else "planetary-computer"
@@ -158,7 +158,7 @@ class PlanetaryComputerConnector(BaseConnector):
                 connector_id=self.connector_id,
                 healthy=True,
                 message="Planetary Computer STAC reachable",
-                last_successful_poll=datetime.now(timezone.utc),
+                last_successful_poll=datetime.now(UTC),
             )
         except Exception as exc:
             return ConnectorHealthStatus(

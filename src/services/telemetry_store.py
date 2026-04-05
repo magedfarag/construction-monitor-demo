@@ -13,13 +13,13 @@ from __future__ import annotations
 
 import statistics
 import threading
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 from src.models.canonical_event import CanonicalEvent, EventType
-
 
 # ── Policy + stats models ──────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ _POSITION_TYPES: frozenset[str] = frozenset({
 })
 
 
-def _lon_lat_from_event(event: CanonicalEvent) -> Tuple[Optional[float], Optional[float]]:
+def _lon_lat_from_event(event: CanonicalEvent) -> tuple[float | None, float | None]:
     """Extract (lon, lat) from a CanonicalEvent's centroid or geometry.
 
     Centroid is always a GeoJSON Point — check it first; fall back to geometry.
@@ -97,7 +97,7 @@ def _lon_lat_from_event(event: CanonicalEvent) -> Tuple[Optional[float], Optiona
     return _extract_point_coords(event.centroid) or _extract_point_coords(event.geometry)
 
 
-def _extract_point_coords(geo: Dict[str, Any]) -> Tuple[Optional[float], Optional[float]]:
+def _extract_point_coords(geo: dict[str, Any]) -> tuple[float | None, float | None]:
     """Return (lon, lat) from a GeoJSON geometry object."""
     gtype = geo.get("type", "")
     coords = geo.get("coordinates", [])
@@ -117,7 +117,7 @@ def _extract_point_coords(geo: Dict[str, Any]) -> Tuple[Optional[float], Optiona
     return None, None
 
 
-def _uniform_subsample(events: List[CanonicalEvent], n: int) -> List[CanonicalEvent]:
+def _uniform_subsample(events: list[CanonicalEvent], n: int) -> list[CanonicalEvent]:
     """Return n uniformly spaced items from events (first + last always included)."""
     total = len(events)
     if total <= n:
@@ -147,8 +147,8 @@ class TelemetryStore:
     """
 
     def __init__(self) -> None:
-        self._by_entity: Dict[str, List[CanonicalEvent]] = {}
-        self._all: List[CanonicalEvent] = []
+        self._by_entity: dict[str, list[CanonicalEvent]] = {}
+        self._all: list[CanonicalEvent] = []
         self._seen_ids: set[str] = set()
         self._lock = threading.Lock()
 
@@ -185,7 +185,7 @@ class TelemetryStore:
         end_time: datetime,
         *,
         max_points: int = 2_000,
-    ) -> List[CanonicalEvent]:
+    ) -> list[CanonicalEvent]:
         """Return positions for a single entity within a time window.
 
         Results are in ascending event_time order.  When the result count
@@ -199,13 +199,13 @@ class TelemetryStore:
 
     def query_viewport(
         self,
-        bbox: Tuple[float, float, float, float],
+        bbox: tuple[float, float, float, float],
         start_time: datetime,
         end_time: datetime,
         *,
-        sources: Optional[List[str]] = None,
+        sources: list[str] | None = None,
         max_events: int = 2_000,
-    ) -> List[CanonicalEvent]:
+    ) -> list[CanonicalEvent]:
         """Return position events whose centroid falls inside a viewport bbox.
 
         ``bbox`` is ``(west, south, east, north)`` in EPSG:4326 decimal degrees.
@@ -216,7 +216,7 @@ class TelemetryStore:
         with self._lock:
             all_events = list(self._all)
 
-        results: List[CanonicalEvent] = []
+        results: list[CanonicalEvent] = []
         for event in all_events:
             if not (start_time <= event.event_time <= end_time):
                 continue
@@ -234,9 +234,9 @@ class TelemetryStore:
     def get_entity_ids(
         self,
         *,
-        source: Optional[str] = None,
-        entity_type: Optional[str] = None,
-    ) -> List[str]:
+        source: str | None = None,
+        entity_type: str | None = None,
+    ) -> list[str]:
         """List all tracked entity identifiers, optionally filtered by source or type."""
         with self._lock:
             snapshot = {eid: (lst[0] if lst else None) for eid, lst in self._by_entity.items()}
@@ -266,7 +266,7 @@ class TelemetryStore:
 
         Returns the total number of pruned events.
         """
-        cutoff = datetime.now(timezone.utc) - timedelta(days=policy.max_age_days)
+        cutoff = datetime.now(UTC) - timedelta(days=policy.max_age_days)
         pruned = 0
 
         with self._lock:
@@ -288,7 +288,7 @@ class TelemetryStore:
 
             # Rebuild derived structures
             kept_ids: set[str] = set()
-            new_all: List[CanonicalEvent] = []
+            new_all: list[CanonicalEvent] = []
             for bucket in self._by_entity.values():
                 for e in bucket:
                     kept_ids.add(e.event_id)
@@ -309,15 +309,15 @@ class TelemetryStore:
 
         Returns the number of thinned events.
         """
-        threshold = datetime.now(timezone.utc) - timedelta(days=policy.thin_after_age_days)
+        threshold = datetime.now(UTC) - timedelta(days=policy.thin_after_age_days)
         interval = timedelta(seconds=policy.thin_interval_seconds)
         thinned = 0
 
         with self._lock:
             for entity_id in list(self._by_entity.keys()):
                 bucket = self._by_entity[entity_id]
-                kept: List[CanonicalEvent] = []
-                last_kept_time: Optional[datetime] = None
+                kept: list[CanonicalEvent] = []
+                last_kept_time: datetime | None = None
 
                 for event in bucket:  # sorted ascending
                     if event.event_time >= threshold:
@@ -338,7 +338,7 @@ class TelemetryStore:
                 self._by_entity[entity_id] = kept
 
             # Rebuild flat list + seen_ids
-            new_all: List[CanonicalEvent] = []
+            new_all: list[CanonicalEvent] = []
             new_ids: set[str] = set()
             for bucket in self._by_entity.values():
                 for e in bucket:
@@ -351,7 +351,7 @@ class TelemetryStore:
 
     # ── Ingest lag statistics (P3-4.3) ────────────────────────────────────────
 
-    def get_ingest_lag_stats(self) -> Optional[IngestLagStats]:
+    def get_ingest_lag_stats(self) -> IngestLagStats | None:
         """Compute ingest lag statistics from stored events.
 
         Lag is measured as ``ingested_at - event_time``.  For new feeds this
@@ -366,7 +366,7 @@ class TelemetryStore:
         if not events:
             return None
 
-        lags: List[float] = []
+        lags: list[float] = []
         for e in events:
             lag = (e.ingested_at - e.event_time).total_seconds()
             if lag >= 0:
@@ -390,10 +390,10 @@ class TelemetryStore:
 
 # Module-level singleton — used by pollers and app alike.
 # Cross-process sharing requires PostgreSQL activation (see docs/ARCHITECTURE.md).
-_default_store: "TelemetryStore | None" = None
+_default_store: TelemetryStore | None = None
 
 
-def get_default_telemetry_store() -> "TelemetryStore":
+def get_default_telemetry_store() -> TelemetryStore:
     """Return the process-wide TelemetryStore singleton.
 
     In single-process mode (tests, dev) this provides a shared in-memory store.

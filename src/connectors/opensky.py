@@ -27,8 +27,8 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -87,10 +87,10 @@ _COL = {
 }
 
 
-def _bbox_from_geojson(geometry: Dict[str, Any]) -> Tuple[float, float, float, float]:
+def _bbox_from_geojson(geometry: dict[str, Any]) -> tuple[float, float, float, float]:
     """Derive (min_lat, min_lon, max_lat, max_lon) from a GeoJSON geometry."""
     gtype = geometry.get("type", "")
-    coords_flat: List[List[float]] = []
+    coords_flat: list[list[float]] = []
     if gtype == "Point":
         coords_flat = [geometry["coordinates"]]
     elif gtype == "Polygon":
@@ -118,9 +118,9 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def _track_segment_from_positions(
-    positions: List[CanonicalEvent],
+    positions: list[CanonicalEvent],
     entity_id: str,
-) -> Optional[CanonicalEvent]:
+) -> CanonicalEvent | None:
     """Aggregate aircraft_position events into an aircraft_track_segment."""
     if len(positions) < 2:
         return None
@@ -219,11 +219,11 @@ class OpenSkyConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch aircraft state vectors for the given AOI bounding box.
 
         Args:
@@ -259,7 +259,7 @@ class OpenSkyConnector(BaseConnector):
                 max_lat,
                 max_lon,
             )
-            fetched_at = datetime.now(timezone.utc).isoformat()
+            fetched_at = datetime.now(UTC).isoformat()
             return [
                 {"_state": sv, "_fetched_at": fetched_at, "_bbox": params}
                 for sv in states
@@ -270,15 +270,15 @@ class OpenSkyConnector(BaseConnector):
             log.warning("OpenSkyConnector.fetch failed: %s", exc)
             return []
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Normalize a single OpenSky state-vector dict → aircraft_position CanonicalEvent.
 
         Raises:
             NormalizationError: If required fields are missing or invalid.
         """
         try:
-            sv: List[Any] = raw["_state"]
-            fetched_at_str: str = raw.get("_fetched_at", datetime.now(timezone.utc).isoformat())
+            sv: list[Any] = raw["_state"]
+            fetched_at_str: str = raw.get("_fetched_at", datetime.now(UTC).isoformat())
             fetched_at = datetime.fromisoformat(fetched_at_str.replace("Z", "+00:00"))
 
             icao24 = str(sv[_COL["icao24"]] or "").strip().lower()
@@ -298,7 +298,7 @@ class OpenSkyConnector(BaseConnector):
             # Timestamp
             time_position = sv[_COL["time_position"]]
             if time_position:
-                event_time = datetime.fromtimestamp(int(time_position), tz=timezone.utc)
+                event_time = datetime.fromtimestamp(int(time_position), tz=UTC)
             else:
                 event_time = fetched_at
 
@@ -354,9 +354,9 @@ class OpenSkyConnector(BaseConnector):
         except Exception as exc:
             raise NormalizationError(f"OpenSky normalization failed: {exc}") from exc
 
-    def normalize_all(self, records: List[Dict[str, Any]]) -> List[CanonicalEvent]:
+    def normalize_all(self, records: list[dict[str, Any]]) -> list[CanonicalEvent]:
         """Normalize a batch of state-vector dicts, skipping failures."""
-        events: List[CanonicalEvent] = []
+        events: list[CanonicalEvent] = []
         for r in records:
             try:
                 events.append(self.normalize(r))
@@ -366,9 +366,9 @@ class OpenSkyConnector(BaseConnector):
 
     def build_track_segments(
         self,
-        events: List[CanonicalEvent],
+        events: list[CanonicalEvent],
         min_positions: int = 2,
-    ) -> List[CanonicalEvent]:
+    ) -> list[CanonicalEvent]:
         """P3-2.4: Group aircraft_position events by icao24 and build track segments.
 
         Args:
@@ -378,14 +378,14 @@ class OpenSkyConnector(BaseConnector):
         Returns:
             List of aircraft_track_segment CanonicalEvents, one per icao24.
         """
-        by_icao: Dict[str, List[CanonicalEvent]] = {}
+        by_icao: dict[str, list[CanonicalEvent]] = {}
         for e in events:
             if e.event_type != EventType.AIRCRAFT_POSITION:
                 continue
             icao = e.attributes.get("icao24", "unknown")
             by_icao.setdefault(icao, []).append(e)
 
-        segments: List[CanonicalEvent] = []
+        segments: list[CanonicalEvent] = []
         for icao, positions in by_icao.items():
             positions.sort(key=lambda e: e.event_time)
             if len(positions) < min_positions:
@@ -415,7 +415,7 @@ class OpenSkyConnector(BaseConnector):
                 connector_id=self.connector_id,
                 healthy=ok,
                 message=f"HTTP {resp.status_code}",
-                last_successful_poll=datetime.now(timezone.utc) if ok else None,
+                last_successful_poll=datetime.now(UTC) if ok else None,
             )
         except Exception as exc:
             return ConnectorHealthStatus(

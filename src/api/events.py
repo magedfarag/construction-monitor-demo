@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import random
 from datetime import datetime
-from typing import Annotated, List, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -89,10 +89,10 @@ def search_events(req: EventSearchRequest, store: EventStoreDep) -> EventSearchR
 
 @router.get(
     "/sources",
-    response_model=List[SourceSummary],
+    response_model=list[SourceSummary],
     summary="List active source families with event counts",
 )
-def list_sources(store: EventStoreDep) -> List[SourceSummary]:
+def list_sources(store: EventStoreDep) -> list[SourceSummary]:
     """Return per-connector event counts and last-seen timestamps for the source catalog panel."""
     return store.active_sources()
 
@@ -106,47 +106,7 @@ def get_timeline(
     store: EventStoreDep,
     start_time: datetime = Query(..., description="Window start (UTC ISO 8601)"),
     end_time: datetime = Query(..., description="Window end (UTC ISO 8601)"),
-    aoi_id: Optional[str] = Query(default=None, description="Filter to AOI correlation key"),
-    bucket_minutes: int = Query(default=60, ge=1, le=1440, description="Bucket width in minutes"),
-) -> TimelineResponse:
-    if end_time <= start_time:
-        raise HTTPException(status_code=422, detail="end_time must be after start_time")
-    return store.timeline(start_time, end_time, aoi_id=aoi_id, bucket_minutes=bucket_minutes)
-
-
-@router.get(
-    "/{event_id}",
-    response_model=CanonicalEvent,
-    summary="Retrieve a single canonical event by ID",
-)
-def get_event(event_id: str, store: EventStoreDep) -> CanonicalEvent:
-    event = store.get(event_id)
-    if not event:
-        raise HTTPException(status_code=404, detail=f"Event not found: {event_id}")
-    return event
-
-
-
-@router.get(
-    "/sources",
-    response_model=List[SourceSummary],
-    summary="List active source families with event counts",
-)
-def list_sources(store: EventStoreDep) -> List[SourceSummary]:
-    """Return per-connector event counts and last-seen timestamps for the source catalog panel."""
-    return store.active_sources()
-
-
-@router.get(
-    "/timeline",
-    response_model=TimelineResponse,
-    summary="Aggregated event counts bucketed by time for the timeline bar chart",
-)
-def get_timeline(
-    store: EventStoreDep,
-    start_time: datetime = Query(..., description="Window start (UTC ISO 8601)"),
-    end_time: datetime = Query(..., description="Window end (UTC ISO 8601)"),
-    aoi_id: Optional[str] = Query(default=None, description="Filter to AOI correlation key"),
+    aoi_id: str | None = Query(default=None, description="Filter to AOI correlation key"),
     bucket_minutes: int = Query(default=60, ge=1, le=1440, description="Bucket width in minutes"),
 ) -> TimelineResponse:
     if end_time <= start_time:

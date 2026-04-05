@@ -7,18 +7,17 @@ status.  FastAPI dependency injection (dependencies.py) exposes it.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 from app.config import AppMode
-from app.providers.base import ProviderUnavailableError, SatelliteProvider
+from app.providers.base import SatelliteProvider
 
 log = logging.getLogger(__name__)
 
 
 class ProviderRegistry:
     def __init__(self) -> None:
-        self._providers: Dict[str, SatelliteProvider] = {}
-        self._availability: Dict[str, Tuple[bool, str]] = {}
+        self._providers: dict[str, SatelliteProvider] = {}
+        self._availability: dict[str, tuple[bool, str]] = {}
 
     def register(self, provider: SatelliteProvider) -> None:
         """Register a provider and check its credentials."""
@@ -29,23 +28,23 @@ class ProviderRegistry:
         level = logging.INFO if ok else logging.WARNING
         log.log(level, "Provider %s: %s — %s", name, "OK" if ok else "unavailable", reason)
 
-    def get(self, name: str) -> Optional[SatelliteProvider]:
+    def get(self, name: str) -> SatelliteProvider | None:
         return self._providers.get(name)
 
     def is_available(self, name: str) -> bool:
         ok, _ = self._availability.get(name, (False, "not registered"))
         return ok
 
-    def get_availability(self, name: str) -> Tuple[bool, str]:
+    def get_availability(self, name: str) -> tuple[bool, str]:
         return self._availability.get(name, (False, "not registered"))
 
-    def all_providers(self) -> List[SatelliteProvider]:
+    def all_providers(self) -> list[SatelliteProvider]:
         return list(self._providers.values())
 
-    def available_providers(self) -> List[SatelliteProvider]:
+    def available_providers(self) -> list[SatelliteProvider]:
         return [p for p in self._providers.values() if self.is_available(p.provider_name)]
 
-    def select_provider(self, name: str, mode: Optional[AppMode] = None) -> Optional[SatelliteProvider]:
+    def select_provider(self, name: str, mode: AppMode | None = None) -> SatelliteProvider | None:
         """Select a provider by name; return None if unavailable.
 
         When *mode* is supplied:
@@ -73,9 +72,9 @@ class ProviderRegistry:
             return p
         return None
 
-    def select_provider_by_mode(self, mode: AppMode) -> Tuple[List[str], str]:
+    def select_provider_by_mode(self, mode: AppMode) -> tuple[list[str], str]:
         """Return (priority_list, description) for providers in given mode.
-        
+
         - DEMO: [demo]
         - STAGING: [sentinel2, landsat, demo]
         - PRODUCTION: [sentinel2, landsat]
@@ -89,9 +88,9 @@ class ProviderRegistry:
         else:
             raise ValueError(f"Unknown AppMode: {mode}")
 
-    def health_all(self) -> Dict[str, Tuple[bool, str]]:
+    def health_all(self) -> dict[str, tuple[bool, str]]:
         """Re-run healthcheck on each provider (live network calls). """
-        results: Dict[str, Tuple[bool, str]] = {}
+        results: dict[str, tuple[bool, str]] = {}
         for name, provider in self._providers.items():
             try:
                 ok, msg = provider.healthcheck()

@@ -11,8 +11,7 @@ always receive fully validated Pydantic models.
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 
 from src.models.investigations import (
     EvidenceLink,
@@ -30,7 +29,7 @@ class InvestigationStore:
     """Thread-safe in-memory CRUD store for Investigation entities."""
 
     def __init__(self) -> None:
-        self._store: Dict[str, Investigation] = {}
+        self._store: dict[str, Investigation] = {}
         self._lock = threading.Lock()
 
     # ── Write ops ─────────────────────────────────────────────────────────────
@@ -49,7 +48,7 @@ class InvestigationStore:
 
     def update(
         self, investigation_id: str, req: InvestigationUpdateRequest
-    ) -> Optional[Investigation]:
+    ) -> Investigation | None:
         """Apply non-None fields from *req* and refresh updated_at."""
         with self._lock:
             existing = self._store.get(investigation_id)
@@ -64,7 +63,7 @@ class InvestigationStore:
                 data["status"] = req.status
             if req.tags is not None:
                 data["tags"] = list(req.tags)
-            data["updated_at"] = datetime.now(timezone.utc)
+            data["updated_at"] = datetime.now(UTC)
             updated = Investigation.model_validate(data)
             self._store[investigation_id] = updated
         return updated
@@ -76,7 +75,7 @@ class InvestigationStore:
 
     def add_note(
         self, investigation_id: str, note: InvestigationNote
-    ) -> Optional[Investigation]:
+    ) -> Investigation | None:
         """Append *note* to the investigation's notes list."""
         with self._lock:
             existing = self._store.get(investigation_id)
@@ -84,14 +83,14 @@ class InvestigationStore:
                 return None
             data = existing.model_dump()
             data["notes"] = data.get("notes", []) + [note.model_dump()]
-            data["updated_at"] = datetime.now(timezone.utc)
+            data["updated_at"] = datetime.now(UTC)
             updated = Investigation.model_validate(data)
             self._store[investigation_id] = updated
         return updated
 
     def add_watchlist_entry(
         self, investigation_id: str, entry: WatchlistEntry
-    ) -> Optional[Investigation]:
+    ) -> Investigation | None:
         """Append *entry* to the investigation's watchlist."""
         with self._lock:
             existing = self._store.get(investigation_id)
@@ -99,14 +98,14 @@ class InvestigationStore:
                 return None
             data = existing.model_dump()
             data["watchlist"] = data.get("watchlist", []) + [entry.model_dump()]
-            data["updated_at"] = datetime.now(timezone.utc)
+            data["updated_at"] = datetime.now(UTC)
             updated = Investigation.model_validate(data)
             self._store[investigation_id] = updated
         return updated
 
     def add_evidence_link(
         self, investigation_id: str, link: EvidenceLink
-    ) -> Optional[Investigation]:
+    ) -> Investigation | None:
         """Idempotently attach an evidence link (keyed by evidence_id)."""
         with self._lock:
             existing = self._store.get(investigation_id)
@@ -119,7 +118,7 @@ class InvestigationStore:
             if link.evidence_id not in existing_ids:
                 links.append(link.model_dump())
                 data["evidence_links"] = links
-                data["updated_at"] = datetime.now(timezone.utc)
+                data["updated_at"] = datetime.now(UTC)
                 updated = Investigation.model_validate(data)
                 self._store[investigation_id] = updated
             else:
@@ -128,7 +127,7 @@ class InvestigationStore:
 
     def add_saved_filter(
         self, investigation_id: str, filt: SavedFilter
-    ) -> Optional[Investigation]:
+    ) -> Investigation | None:
         """Append a saved filter to the investigation."""
         with self._lock:
             existing = self._store.get(investigation_id)
@@ -136,20 +135,20 @@ class InvestigationStore:
                 return None
             data = existing.model_dump()
             data["saved_filters"] = data.get("saved_filters", []) + [filt.model_dump()]
-            data["updated_at"] = datetime.now(timezone.utc)
+            data["updated_at"] = datetime.now(UTC)
             updated = Investigation.model_validate(data)
             self._store[investigation_id] = updated
         return updated
 
     # ── Read ops ──────────────────────────────────────────────────────────────
 
-    def get(self, investigation_id: str) -> Optional[Investigation]:
+    def get(self, investigation_id: str) -> Investigation | None:
         with self._lock:
             return self._store.get(investigation_id)
 
     def list_all(
-        self, status: Optional[InvestigationStatus] = None
-    ) -> List[Investigation]:
+        self, status: InvestigationStatus | None = None
+    ) -> list[Investigation]:
         with self._lock:
             items = list(self._store.values())
         if status is not None:
@@ -166,7 +165,7 @@ class InvestigationStore:
 
 # ── Process-wide singleton ────────────────────────────────────────────────────
 
-_default_store: Optional[InvestigationStore] = None
+_default_store: InvestigationStore | None = None
 _singleton_lock = threading.Lock()
 
 

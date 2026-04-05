@@ -26,6 +26,7 @@ htmlcov/
 .coverage
 coverage.xml
 *.cover
+test-results/
 
 # IDEs
 .vscode/settings.json

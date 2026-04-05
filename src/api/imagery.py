@@ -17,13 +17,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 
 from src.connectors.base import ConnectorUnavailableError
 from src.connectors.registry import ConnectorRegistry
-from src.models.canonical_event import ImageryAttributes
 from src.models.compare import (
     ImageryCompareRequest,
     ImageryCompareResponse,
@@ -47,11 +46,11 @@ router = APIRouter(prefix="/api/v1/imagery", tags=["imagery"])
 # ``set_connector_registry()`` from main.py, enabling test overrides without
 # FastAPI dependency injection complexity.
 
-_connector_registry: Optional[ConnectorRegistry] = None
+_connector_registry: ConnectorRegistry | None = None
 
 # ── Module-level event store for compare endpoint (P2-3) ─────────────────────
 # Shared with events router; populated by set_imagery_event_store() in lifespan.
-_imagery_event_store: Optional[Any] = None
+_imagery_event_store: Any | None = None
 
 
 def set_connector_registry(registry: ConnectorRegistry) -> None:
@@ -127,8 +126,8 @@ def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:
             connector_summaries=[],
         )
 
-    all_items: List[ImageryItemSummary] = []
-    summaries: List[ConnectorResultSummary] = []
+    all_items: list[ImageryItemSummary] = []
+    summaries: list[ConnectorResultSummary] = []
     t_start = time.perf_counter()
 
     for connector in connectors:
@@ -216,7 +215,7 @@ def list_imagery_providers() -> ImageryProvidersResponse:
     registry = get_connector_registry()
     connectors = registry.connectors_by_source_type("imagery_catalog")
 
-    providers: List[ImageryProviderInfo] = []
+    providers: list[ImageryProviderInfo] = []
     for connector in connectors:
         health = connector.health()
         # Introspect connector for collections if attribute exists
@@ -293,7 +292,7 @@ def compare_imagery(req: ImageryCompareRequest) -> ImageryCompareResponse:
     cloud_after = after_summary.cloud_cover_pct
 
     # Quality rating heuristic
-    notes: List[str] = []
+    notes: list[str] = []
     if temporal_gap_days < 7:
         notes.append("Temporal gap <7 days: change detection may be unreliable.")
     if cloud_before is not None and cloud_before > 20:

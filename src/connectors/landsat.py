@@ -10,8 +10,8 @@ source_type:  ``imagery_catalog``
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -65,14 +65,14 @@ class UsgsLandsatConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         *,
         cloud_threshold: float = 20.0,
         max_results: int = 20,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search USGS LandsatLook for scenes intersecting an AOI + time window.
 
         USGS STAC does not support the query extension; cloud filtering is
@@ -82,7 +82,7 @@ class UsgsLandsatConnector(BaseConnector):
             f"{start_time.strftime('%Y-%m-%dT%H:%M:%SZ')}/"
             f"{end_time.strftime('%Y-%m-%dT%H:%M:%SZ')}"
         )
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "collections": [_COLLECTION],
             "intersects": geometry,
             "datetime": dt_range,
@@ -112,7 +112,7 @@ class UsgsLandsatConnector(BaseConnector):
         )
         return filtered[:max_results]
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Convert a raw USGS STAC item to a CanonicalEvent."""
         try:
             return stac_item_to_canonical_event(
@@ -136,7 +136,7 @@ class UsgsLandsatConnector(BaseConnector):
                 connector_id=self.connector_id,
                 healthy=True,
                 message="USGS STAC reachable",
-                last_successful_poll=datetime.now(timezone.utc),
+                last_successful_poll=datetime.now(UTC),
             )
         except Exception as exc:
             return ConnectorHealthStatus(

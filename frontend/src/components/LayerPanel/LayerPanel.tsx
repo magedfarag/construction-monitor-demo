@@ -16,6 +16,7 @@ interface LayerState {
   showTerrain: boolean;
   show3dBuildings: boolean;
   showDetections: boolean;
+  showSignals: boolean;
 }
 
 interface Props {
@@ -37,6 +38,7 @@ const LAYERS: { key: keyof LayerState; label: string; color: string }[] = [
   { key: "showTerrain",       label: "Terrain (DEM)",      color: "#8b7355" },
   { key: "show3dBuildings",   label: "3D Buildings",       color: "#b0c4de" },
   { key: "showDetections",    label: "Detections (AI)",    color: "#ffdd00" },
+  { key: "showSignals",       label: "Intel Signals",       color: "#22d3ee" },
 ];
 
 export function LayerPanel({ layers, onChange }: Props) {

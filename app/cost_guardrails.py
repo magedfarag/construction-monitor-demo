@@ -15,7 +15,6 @@ from __future__ import annotations
 import math
 import threading
 import time
-from typing import Dict, Tuple
 
 from fastapi import Depends, HTTPException, status
 
@@ -26,7 +25,7 @@ from app.dependencies import UserClaims, UserRole, get_current_user
 # key: (user_id, operation) → (count, window_start_monotonic)
 
 _lock = threading.Lock()
-_counters: Dict[Tuple[str, str], Tuple[int, float]] = {}
+_counters: dict[tuple[str, str], tuple[int, float]] = {}
 
 _WINDOW: float = 3600.0  # 1 hour
 

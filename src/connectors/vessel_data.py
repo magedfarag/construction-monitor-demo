@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -55,7 +55,7 @@ _LICENSE = LicenseRecord(
 
 def _bbox_to_center_radius(
     south: float, west: float, north: float, east: float
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Return (center_lat, center_lon, radius_km) for a bounding box."""
     center_lat = (south + north) / 2.0
     center_lon = (west + east) / 2.0
@@ -110,11 +110,11 @@ class VesselDataConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Optional[Dict[str, Any]] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
+        geometry: dict[str, Any] | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch vessels near the centre of the given geometry / default bbox."""
         south, west, north, east = self._resolve_bbox(geometry)
         lat, lon, radius_km = _bbox_to_center_radius(south, west, north, east)
@@ -123,7 +123,7 @@ class VesselDataConnector(BaseConnector):
             "X-RapidAPI-Key": self._api_key,
             "X-RapidAPI-Host": _HOST,
         }
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "latitude": lat,
             "longitude": lon,
             "radius": radius_km,
@@ -151,7 +151,7 @@ class VesselDataConnector(BaseConnector):
         log.warning("vessel-data: unexpected response shape — returning empty list")
         return []
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:  # noqa: PLR0912
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:  # noqa: PLR0912
         """Convert a single vessel record into a ship_position CanonicalEvent."""
         try:
             lat = float(
@@ -179,7 +179,6 @@ class VesselDataConnector(BaseConnector):
         course = float(raw.get("course") or raw.get("cog") or raw.get("COURSE") or heading)
         nav_status = int(raw.get("status") or raw.get("navStatus") or raw.get("STATUS") or 0)
         imo = str(raw.get("imo") or raw.get("IMO") or "")
-        vessel_type = str(raw.get("type") or raw.get("typeName") or raw.get("vessel_type") or "")
         flag = str(raw.get("flag") or raw.get("country") or raw.get("FLAG") or "")
 
         ts_raw = (
@@ -190,13 +189,13 @@ class VesselDataConnector(BaseConnector):
         )
         try:
             if isinstance(ts_raw, (int, float)):
-                event_time = datetime.fromtimestamp(ts_raw, tz=timezone.utc)
+                event_time = datetime.fromtimestamp(ts_raw, tz=UTC)
             elif isinstance(ts_raw, str):
                 event_time = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
             else:
-                event_time = datetime.now(timezone.utc)
+                event_time = datetime.now(UTC)
         except (ValueError, OSError):
-            event_time = datetime.now(timezone.utc)
+            event_time = datetime.now(UTC)
 
         event_id = make_event_id("vessel-data", mmsi or f"{lat},{lon}", event_time.isoformat())
         geometry_out = {"type": "Point", "coordinates": [lon, lat]}
@@ -234,8 +233,8 @@ class VesselDataConnector(BaseConnector):
             correlation_keys=CorrelationKeys(mmsi=mmsi),
         )
 
-    def normalize_all(self, raw_list: List[Dict[str, Any]]) -> List[CanonicalEvent]:
-        events: List[CanonicalEvent] = []
+    def normalize_all(self, raw_list: list[dict[str, Any]]) -> list[CanonicalEvent]:
+        events: list[CanonicalEvent] = []
         for record in raw_list:
             try:
                 events.append(self.normalize(record))
@@ -254,13 +253,13 @@ class VesselDataConnector(BaseConnector):
     # ── helpers ────────────────────────────────────────────────────────────
 
     def _resolve_bbox(
-        self, geometry: Optional[Dict[str, Any]]
-    ) -> Tuple[float, float, float, float]:
+        self, geometry: dict[str, Any] | None
+    ) -> tuple[float, float, float, float]:
         """Return (south, west, north, east) from GeoJSON or default bbox."""
         if not geometry:
             return self._default_bbox
         gtype = geometry.get("type", "")
-        coords_flat: List[List[float]] = []
+        coords_flat: list[list[float]] = []
         if gtype == "Point":
             coords_flat = [geometry["coordinates"]]
         elif gtype == "Polygon":

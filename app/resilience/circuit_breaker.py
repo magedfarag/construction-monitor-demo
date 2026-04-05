@@ -14,7 +14,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class CircuitBreaker:
     ) -> None:
         self._failure_threshold = failure_threshold
         self._recovery_timeout  = recovery_timeout
-        self._states: Dict[str, _ProviderState] = {}
+        self._states: dict[str, _ProviderState] = {}
         self._redis: Any = None
 
         if redis_url:
@@ -77,7 +77,7 @@ class CircuitBreaker:
     def _redis_key(self, provider: str) -> str:
         return f"{_REDIS_KEY_PREFIX}{provider}"
 
-    def _load_from_redis(self, provider: str) -> Optional[Dict[str, Any]]:
+    def _load_from_redis(self, provider: str) -> dict[str, Any] | None:
         """Load state from Redis; return None on miss or error."""
         if not self._redis:
             return None
@@ -156,9 +156,9 @@ class CircuitBreaker:
         self._sync_from_redis(provider, ps)
         return ps.state
 
-    def status_all(self) -> Dict[str, str]:
+    def status_all(self) -> dict[str, str]:
         """Return state of all tracked providers."""
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
         for name, ps in self._states.items():
             self._sync_from_redis(name, ps)
             result[name] = ps.state.value

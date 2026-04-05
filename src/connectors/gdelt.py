@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -57,7 +57,7 @@ _LICENSE = LicenseRecord(
 # Approximate bounding boxes for Middle East / North Africa countries,
 # used to infer a `sourcecountry:` filter from the AOI centroid.
 # Format: (min_lon, min_lat, max_lon, max_lat)
-_COUNTRY_BOUNDS: Dict[str, Tuple[float, float, float, float]] = {
+_COUNTRY_BOUNDS: dict[str, tuple[float, float, float, float]] = {
     "Saudi Arabia": (36.5, 16.3, 55.7, 32.2),
     "UAE": (51.5, 22.6, 56.4, 26.1),
     "Qatar": (50.7, 24.4, 51.7, 26.2),
@@ -83,7 +83,7 @@ DEFAULT_CONSTRUCTION_THEMES = [
 ]
 
 
-def _centroid_from_geometry(geometry: Dict[str, Any]) -> Tuple[float, float]:
+def _centroid_from_geometry(geometry: dict[str, Any]) -> tuple[float, float]:
     """Return (lon, lat) centroid of a GeoJSON geometry.
 
     Supports Point, Polygon, and MultiPolygon.
@@ -110,7 +110,7 @@ def _centroid_from_geometry(geometry: Dict[str, Any]) -> Tuple[float, float]:
     raise NormalizationError(f"Unsupported geometry type for centroid: {geom_type!r}")
 
 
-def _country_from_centroid(lon: float, lat: float) -> Optional[str]:
+def _country_from_centroid(lon: float, lat: float) -> str | None:
     """Return GDELT-recognised country name for a centroid, or None."""
     for country, (min_lon, min_lat, max_lon, max_lat) in _COUNTRY_BOUNDS.items():
         if min_lon <= lon <= max_lon and min_lat <= lat <= max_lat:
@@ -121,7 +121,7 @@ def _country_from_centroid(lon: float, lat: float) -> Optional[str]:
 def _parse_gdelt_datetime(seendate: str) -> datetime:
     """Parse GDELT seendate format `20260403T120000Z` into UTC datetime."""
     try:
-        return datetime.strptime(seendate, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        return datetime.strptime(seendate, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
     except ValueError as exc:
         raise NormalizationError(f"Cannot parse GDELT seendate {seendate!r}: {exc}") from exc
 
@@ -148,7 +148,7 @@ class GdeltConnector(BaseConnector):
         *,
         api_base: str = _API_BASE,
         http_timeout: float = 30.0,
-        default_themes: Optional[List[str]] = None,
+        default_themes: list[str] | None = None,
         default_language: str = "english",
     ) -> None:
         self._api_base = api_base.rstrip("/")
@@ -160,7 +160,7 @@ class GdeltConnector(BaseConnector):
 
     def connect(self) -> None:
         """Verify the GDELT DOC API is reachable with a minimal test request."""
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "query": "test",
             "mode": "artlist",
             "format": "json",
@@ -174,15 +174,15 @@ class GdeltConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         *,
-        themes: Optional[List[str]] = None,
+        themes: list[str] | None = None,
         max_results: int = 50,
-        language: Optional[str] = None,
+        language: str | None = None,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Fetch GDELT articles for an AOI + time window.
 
         Geographic filtering derives a `sourcecountry:` term from the AOI
@@ -201,7 +201,7 @@ class GdeltConnector(BaseConnector):
         Returns:
             List of raw GDELT article dicts (may be empty).
         """
-        query_parts: List[str] = []
+        query_parts: list[str] = []
         aoi_lon, aoi_lat = 0.0, 0.0
 
         try:
@@ -221,7 +221,7 @@ class GdeltConnector(BaseConnector):
         # Ensure we always have a non-empty query string
         query = " ".join(query_parts) if query_parts else "construction urban"
 
-        params: Dict[str, Any] = {
+        params: dict[str, Any] = {
             "query": query,
             "mode": "artlist",
             "format": "json",
@@ -240,7 +240,7 @@ class GdeltConnector(BaseConnector):
         except httpx.HTTPError as exc:
             raise ConnectorUnavailableError(f"GDELT fetch failed: {exc}") from exc
 
-        articles: List[Dict[str, Any]] = resp.json().get("articles") or []
+        articles: list[dict[str, Any]] = resp.json().get("articles") or []
 
         # Enrich with AOI centroid so normalize() can produce a spatial event
         for article in articles:
@@ -249,7 +249,7 @@ class GdeltConnector(BaseConnector):
 
         return articles
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Convert a GDELT article dict to a `contextual_event` CanonicalEvent.
 
         The article's URL is the stable entity identifier.  Geometry uses the
@@ -266,7 +266,7 @@ class GdeltConnector(BaseConnector):
         event_time = (
             _parse_gdelt_datetime(seendate)
             if seendate
-            else datetime.now(timezone.utc)
+            else datetime.now(UTC)
         )
 
         entity_id = (url or title)[:200]
@@ -275,7 +275,7 @@ class GdeltConnector(BaseConnector):
         # Spatial proxy: use AOI centroid injected by fetch()
         lon = float(raw.get("_aoi_lon", 0.0))
         lat = float(raw.get("_aoi_lat", 0.0))
-        quality_flags: List[str] = []
+        quality_flags: list[str] = []
         if lon == 0.0 and lat == 0.0:
             quality_flags.append("geometry-unavailable")
 
@@ -317,9 +317,9 @@ class GdeltConnector(BaseConnector):
             license=_LICENSE,
         )
 
-    def normalize_all(self, raw_records: List[Dict[str, Any]]) -> List[CanonicalEvent]:
+    def normalize_all(self, raw_records: list[dict[str, Any]]) -> list[CanonicalEvent]:
         """Normalize a batch of GDELT articles, skipping any that fail."""
-        events: List[CanonicalEvent] = []
+        events: list[CanonicalEvent] = []
         for raw in raw_records:
             try:
                 events.append(self.normalize(raw))

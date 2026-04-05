@@ -20,20 +20,20 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 # ── Module-level state (replaced in tests via reset_all) ──────────────────────
 
 _lock = threading.Lock()
 
-_counters: Dict[str, float] = {}
-_gauges: Dict[str, float] = {}
-_histograms: Dict[str, List[float]] = {}
+_counters: dict[str, float] = {}
+_gauges: dict[str, float] = {}
+_histograms: dict[str, list[float]] = {}
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
-def _make_key(name: str, labels: Optional[Dict[str, str]] = None) -> str:
+def _make_key(name: str, labels: dict[str, str] | None = None) -> str:
     """Build a unique metric key from name + optional label map."""
     if not labels:
         return name
@@ -47,7 +47,7 @@ def _make_key(name: str, labels: Optional[Dict[str, str]] = None) -> str:
 def increment(
     name: str,
     value: float = 1.0,
-    labels: Optional[Dict[str, str]] = None,
+    labels: dict[str, str] | None = None,
 ) -> None:
     """Increment a named counter by *value* (thread-safe)."""
     key = _make_key(name, labels)
@@ -58,7 +58,7 @@ def increment(
 def set_gauge(
     name: str,
     value: float,
-    labels: Optional[Dict[str, str]] = None,
+    labels: dict[str, str] | None = None,
 ) -> None:
     """Set a named gauge to *value* (thread-safe)."""
     key = _make_key(name, labels)
@@ -69,7 +69,7 @@ def set_gauge(
 def observe(
     name: str,
     value: float,
-    labels: Optional[Dict[str, str]] = None,
+    labels: dict[str, str] | None = None,
 ) -> None:
     """Record a single histogram observation (thread-safe)."""
     key = _make_key(name, labels)
@@ -119,7 +119,7 @@ def increment_evidence_pack_exports(value: float = 1.0) -> None:
 # ── Read / serialise ───────────────────────────────────────────────────────────
 
 
-def _percentile(samples: List[float], pct: float) -> Optional[float]:
+def _percentile(samples: list[float], pct: float) -> float | None:
     """Return the *pct*-th percentile from a list of samples."""
     if not samples:
         return None
@@ -128,7 +128,7 @@ def _percentile(samples: List[float], pct: float) -> Optional[float]:
     return sorted_s[idx]
 
 
-def snapshot() -> Dict[str, Any]:
+def snapshot() -> dict[str, Any]:
     """Return a point-in-time snapshot of all metrics as a JSON-serialisable dict."""
     with _lock:
         counters_copy = dict(_counters)
@@ -151,14 +151,14 @@ def snapshot() -> Dict[str, Any]:
     }
 
 
-def get_counter(name: str, labels: Optional[Dict[str, str]] = None) -> float:
+def get_counter(name: str, labels: dict[str, str] | None = None) -> float:
     """Return the current value of a counter (0.0 if not yet set)."""
     key = _make_key(name, labels)
     with _lock:
         return _counters.get(key, 0.0)
 
 
-def get_gauge(name: str, labels: Optional[Dict[str, str]] = None) -> Optional[float]:
+def get_gauge(name: str, labels: dict[str, str] | None = None) -> float | None:
     """Return the current value of a gauge (None if not yet set)."""
     key = _make_key(name, labels)
     with _lock:

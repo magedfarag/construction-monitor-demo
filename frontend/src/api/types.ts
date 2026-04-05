@@ -42,7 +42,16 @@ export type EventType =
   | 'project_event'
   | 'complaint_event'
   | 'contextual_event'
-  | 'system_health_event';
+  | 'system_health_event'
+  | 'seismic_event'
+  | 'natural_hazard_event'
+  | 'weather_observation'
+  | 'conflict_event'
+  | 'maritime_warning'
+  | 'military_site_observation'
+  | 'thermal_anomaly_event'
+  | 'space_weather_event'
+  | 'air_quality_observation';
 
 export interface CanonicalEvent {
   event_id: string;

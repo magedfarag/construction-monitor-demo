@@ -6,8 +6,6 @@ GET /api/v1/vessels/imo/{imo}   — vessel profile by IMO
 """
 from __future__ import annotations
 
-from typing import List, Optional
-
 from fastapi import APIRouter, HTTPException, Query
 
 from src.services.vessel_registry import (
@@ -20,13 +18,13 @@ from src.services.vessel_registry import (
 router = APIRouter(prefix="/api/v1/vessels", tags=["vessels"])
 
 
-@router.get("", response_model=List[VesselProfile], summary="List vessels")
+@router.get("", response_model=list[VesselProfile], summary="List vessels")
 def list_all_vessels(
     sanctions_only: bool = Query(False, description="Return only sanctioned/shadow-fleet vessels"),
-    dark_risk: Optional[str] = Query(None, description="Filter by dark_ship_risk: critical/high/medium/low"),
-    vessel_type: Optional[str] = Query(None, description="Filter by vessel type (case-insensitive)"),
+    dark_risk: str | None = Query(None, description="Filter by dark_ship_risk: critical/high/medium/low"),
+    vessel_type: str | None = Query(None, description="Filter by vessel type (case-insensitive)"),
     limit: int = Query(100, ge=1, le=500),
-) -> List[VesselProfile]:
+) -> list[VesselProfile]:
     return list_vessels(sanctions_only=sanctions_only, dark_risk=dark_risk, vessel_type=vessel_type, limit=limit)
 
 

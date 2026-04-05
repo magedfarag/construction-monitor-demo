@@ -9,9 +9,8 @@ records that cannot be safely transformed.
 """
 from __future__ import annotations
 
-import math
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
 from src.connectors.base import NormalizationError
 from src.models.canonical_event import (
@@ -27,7 +26,7 @@ from src.models.canonical_event import (
 )
 
 
-def _parse_datetime(raw: Optional[str]) -> datetime:
+def _parse_datetime(raw: str | None) -> datetime:
     """Parse an ISO-8601 string into a UTC-aware datetime.
 
     Raises NormalizationError if the string is missing or unparseable.
@@ -40,7 +39,7 @@ def _parse_datetime(raw: Optional[str]) -> datetime:
         raise NormalizationError(f"Cannot parse datetime {raw!r}: {exc}") from exc
 
 
-def _centroid_from_geometry(geometry: Dict[str, Any]) -> Dict[str, Any]:
+def _centroid_from_geometry(geometry: dict[str, Any]) -> dict[str, Any]:
     """Compute a rough centroid from GeoJSON geometry (flat-earth approximation)."""
     geom_type = geometry.get("type", "")
     coords = geometry.get("coordinates", [])
@@ -72,7 +71,7 @@ def _centroid_from_geometry(geometry: Dict[str, Any]) -> Dict[str, Any]:
     raise NormalizationError(f"Unsupported geometry type for centroid: {geom_type!r}")
 
 
-def _geometry_from_item(item: Dict[str, Any]) -> Dict[str, Any]:
+def _geometry_from_item(item: dict[str, Any]) -> dict[str, Any]:
     """Return geometry from STAC item, falling back to bbox-derived polygon."""
     geometry = item.get("geometry")
     if geometry and geometry.get("type") and geometry.get("coordinates") is not None:
@@ -91,7 +90,7 @@ def _geometry_from_item(item: Dict[str, Any]) -> Dict[str, Any]:
     raise NormalizationError("STAC item has neither geometry nor bbox")
 
 
-def _detect_platform(item: Dict[str, Any]) -> Optional[str]:
+def _detect_platform(item: dict[str, Any]) -> str | None:
     """Extract platform/satellite name from STAC item properties."""
     props = item.get("properties", {})
     # STAC EO extension
@@ -105,7 +104,7 @@ def _detect_platform(item: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _detect_gsd(item: Dict[str, Any]) -> Optional[float]:
+def _detect_gsd(item: dict[str, Any]) -> float | None:
     """Extract ground sample distance from STAC item."""
     props = item.get("properties", {})
     gsd = props.get("gsd")
@@ -125,9 +124,9 @@ def _detect_gsd(item: Dict[str, Any]) -> Optional[float]:
     return None
 
 
-def _build_bands_list(item: Dict[str, Any]) -> List[str]:
+def _build_bands_list(item: dict[str, Any]) -> list[str]:
     """Collect available spectral band keys from assets."""
-    bands: List[str] = []
+    bands: list[str] = []
     for key in item.get("assets", {}):
         if key.upper().startswith("B") or key.lower() in {
             "red", "green", "blue", "nir", "nir08", "swir16", "swir22",
@@ -138,10 +137,10 @@ def _build_bands_list(item: Dict[str, Any]) -> List[str]:
 
 
 def stac_item_to_canonical_event(
-    item: Dict[str, Any],
+    item: dict[str, Any],
     connector_id: str,
     source: str,
-    license_record: Optional[LicenseRecord] = None,
+    license_record: LicenseRecord | None = None,
     raw_source_ref: str = "stac://unknown",
 ) -> CanonicalEvent:
     """Convert a raw STAC item dict into a CanonicalEvent.
@@ -166,8 +165,8 @@ def stac_item_to_canonical_event(
     dt_str = props.get("datetime") or props.get("start_datetime")
     event_time = _parse_datetime(dt_str)
 
-    time_start: Optional[datetime] = None
-    time_end: Optional[datetime] = None
+    time_start: datetime | None = None
+    time_end: datetime | None = None
     if props.get("start_datetime") and props.get("end_datetime"):
         try:
             time_start = _parse_datetime(props["start_datetime"])

@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ SQLALCHEMY_AVAILABLE = False
 
 try:
     from sqlalchemy import Column, DateTime, String, Text, create_engine
-    from sqlalchemy.orm import Session, declarative_base, sessionmaker
+    from sqlalchemy.orm import declarative_base, sessionmaker
 
     SQLALCHEMY_AVAILABLE = True
 except ImportError:
@@ -49,8 +49,8 @@ if SQLALCHEMY_AVAILABLE and Base is not None:
         request_data = Column(Text, nullable=True)
         result       = Column(Text, nullable=True)
         error        = Column(Text, nullable=True)
-        created_at   = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
-        updated_at   = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+        created_at   = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+        updated_at   = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
 
 class PostgresJobStore:
@@ -64,7 +64,7 @@ class PostgresJobStore:
         self._Session = sessionmaker(bind=self._engine)
         log.info("PostgresJobStore connected: %s", database_url.split("@")[-1] if "@" in database_url else "(local)")
 
-    def save(self, data: Dict[str, Any]) -> None:
+    def save(self, data: dict[str, Any]) -> None:
         """Upsert a job record."""
         with self._Session() as session:
             row = session.get(JobRow, data["job_id"])
@@ -75,8 +75,8 @@ class PostgresJobStore:
                     request_data=json.dumps(data.get("request_data"), default=str) if data.get("request_data") else None,
                     result=json.dumps(data.get("result"), default=str) if data.get("result") else None,
                     error=data.get("error"),
-                    created_at=datetime.fromisoformat(data["created_at"]) if isinstance(data.get("created_at"), str) else data.get("created_at", datetime.now(timezone.utc)),
-                    updated_at=datetime.fromisoformat(data["updated_at"]) if isinstance(data.get("updated_at"), str) else data.get("updated_at", datetime.now(timezone.utc)),
+                    created_at=datetime.fromisoformat(data["created_at"]) if isinstance(data.get("created_at"), str) else data.get("created_at", datetime.now(UTC)),
+                    updated_at=datetime.fromisoformat(data["updated_at"]) if isinstance(data.get("updated_at"), str) else data.get("updated_at", datetime.now(UTC)),
                 )
                 session.add(row)
             else:
@@ -87,10 +87,10 @@ class PostgresJobStore:
                     row.error = data["error"]
                 if data.get("request_data") and not row.request_data:
                     row.request_data = json.dumps(data["request_data"], default=str)
-                row.updated_at = datetime.fromisoformat(data["updated_at"]) if isinstance(data.get("updated_at"), str) else datetime.now(timezone.utc)
+                row.updated_at = datetime.fromisoformat(data["updated_at"]) if isinstance(data.get("updated_at"), str) else datetime.now(UTC)
             session.commit()
 
-    def load(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def load(self, job_id: str) -> dict[str, Any] | None:
         """Load a job record by ID; returns None if not found."""
         with self._Session() as session:
             row = session.get(JobRow, job_id)

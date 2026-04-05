@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
+
 import httpx
+
 from app.config import AppSettings
 from app.models.scene import SceneMetadata
 from app.providers.base import ProviderUnavailableError, SatelliteProvider
@@ -20,10 +23,10 @@ class LandsatProvider(SatelliteProvider):
     def __init__(self, settings: AppSettings) -> None:
         self._settings = settings
 
-    def validate_credentials(self) -> Tuple[bool, str]:
+    def validate_credentials(self) -> tuple[bool, str]:
         return True, "Landsat STAC is publicly accessible"
 
-    def healthcheck(self) -> Tuple[bool, str]:
+    def healthcheck(self) -> tuple[bool, str]:
         try:
             resp = httpx.get(f"{self._settings.landsat_stac_url}/collections/{_COLLECTION}", timeout=10.0)
             resp.raise_for_status()
@@ -62,7 +65,7 @@ class LandsatProvider(SatelliteProvider):
         )
         return [self._normalise(item) for item in filtered[:max_results]]
 
-    def fetch_scene_metadata(self, scene_id: str) -> Optional[SceneMetadata]:
+    def fetch_scene_metadata(self, scene_id: str) -> SceneMetadata | None:
         try:
             resp = httpx.get(
                 f"{self._settings.landsat_stac_url}/collections/{_COLLECTION}/items/{scene_id}",
@@ -79,13 +82,13 @@ class LandsatProvider(SatelliteProvider):
         caps.update({"supports_cog_streaming": True, "requires_credentials": False, "collection": _COLLECTION})
         return caps
 
-    def _normalise(self, item: Dict[str, Any]) -> SceneMetadata:
+    def _normalise(self, item: dict[str, Any]) -> SceneMetadata:
         props = item.get("properties", {})
         acquired_raw = props.get("datetime") or props.get("start_datetime", "")
         try:
             acquired_at = datetime.fromisoformat(acquired_raw.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            acquired_at = datetime.now(timezone.utc)
+            acquired_at = datetime.now(UTC)
         cloud_cover = float(props.get("eo:cloud_cover", 0.0))
         raw_assets = item.get("assets", {})
         band_map = {

@@ -12,8 +12,7 @@ All timestamps are stored as TIMESTAMPTZ (UTC-aware).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     BigInteger,
@@ -44,7 +43,7 @@ class Base(DeclarativeBase):
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ── aois ──────────────────────────────────────────────────────────────────────

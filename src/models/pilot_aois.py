@@ -9,12 +9,12 @@ Each AOI is a GeoJSON Polygon (approx. 5×5 km bbox) centred on an active
 construction zone in a Middle East city with known Sentinel-2 coverage.
 """
 from __future__ import annotations
-from typing import Any, Dict, List
 
+from typing import Any
 
 # ── Pilot AOI definitions ────────────────────────────────────────────────────
 
-PILOT_AOIS: List[Dict[str, Any]] = [
+PILOT_AOIS: list[dict[str, Any]] = [
     {
         "id": "pilot-riyadh-neom-northgate",
         "name": "Riyadh — Northern Development Corridor",
@@ -93,7 +93,7 @@ PILOT_AOIS: List[Dict[str, Any]] = [
 ]
 
 
-def get_pilot_aoi(aoi_id: str) -> Dict[str, Any]:
+def get_pilot_aoi(aoi_id: str) -> dict[str, Any]:
     """Return a pilot AOI by id, raising KeyError if not found."""
     for aoi in PILOT_AOIS:
         if aoi["id"] == aoi_id:

@@ -9,9 +9,8 @@ No external LLM calls — all outputs are deterministic from stored data.
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-from uuid import uuid4
+from datetime import datetime
+from typing import Any
 
 from src.models.analyst_query import (
     AnalystQuery,
@@ -24,7 +23,6 @@ from src.models.analyst_query import (
 )
 from src.models.canonical_event import EventType
 from src.services.event_store import get_default_event_store
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Threat indicator event types
@@ -157,8 +155,8 @@ class AnalystQueryService:
     """Thread-safe in-memory analyst query and briefing service."""
 
     def __init__(self) -> None:
-        self._saved_queries: Dict[str, AnalystQuery] = {}
-        self._briefings: Dict[str, BriefingOutput] = {}
+        self._saved_queries: dict[str, AnalystQuery] = {}
+        self._briefings: dict[str, BriefingOutput] = {}
         self._lock = threading.Lock()
 
     # ── Query execution ────────────────────────────────────────────────────────
@@ -196,7 +194,7 @@ class AnalystQueryService:
         limited = matched[: query.limit]
 
         # Collect provenance sources
-        sources_cited: List[str] = sorted(
+        sources_cited: list[str] = sorted(
             {e.provenance.raw_source_ref.split("/")[0] if "/" in e.provenance.raw_source_ref else e.source for e in limited}
         )
         # Also include source field
@@ -205,9 +203,9 @@ class AnalystQueryService:
 
         # Confidence range
         confidences = [e.confidence for e in limited if e.confidence is not None]
-        conf_range: Optional[tuple] = (min(confidences), max(confidences)) if confidences else None
+        conf_range: tuple | None = (min(confidences), max(confidences)) if confidences else None
 
-        event_dicts: List[dict] = []
+        event_dicts: list[dict] = []
         for e in limited:
             d = e.model_dump()
             if not query.include_provenance:
@@ -232,11 +230,11 @@ class AnalystQueryService:
             self._saved_queries[query.query_id] = query
         return query
 
-    def get_saved_query(self, query_id: str) -> Optional[AnalystQuery]:
+    def get_saved_query(self, query_id: str) -> AnalystQuery | None:
         with self._lock:
             return self._saved_queries.get(query_id)
 
-    def list_saved_queries(self) -> List[AnalystQuery]:
+    def list_saved_queries(self) -> list[AnalystQuery]:
         with self._lock:
             return list(self._saved_queries.values())
 
@@ -266,7 +264,7 @@ class AnalystQueryService:
         absence_signals = self._get_absence_signals(t_start, t_end)
 
         # Generate section narratives
-        content: Dict[str, str] = {}
+        content: dict[str, str] = {}
         for section in req.sections:
             content[section.value] = self._generate_section(
                 section, events, absence_signals, time_window_str
@@ -283,7 +281,7 @@ class AnalystQueryService:
         ]
 
         # Data summary
-        by_type: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
         for e in events:
             by_type[e.event_type.value] = by_type.get(e.event_type.value, 0) + 1
         sources_used = sorted({e.source for e in events})
@@ -357,7 +355,7 @@ class AnalystQueryService:
         all_events.sort(key=lambda e: e.event_time, reverse=True)
         return all_events[:100]
 
-    def _get_absence_signals(self, t_start: Optional[datetime], t_end: Optional[datetime]) -> list:
+    def _get_absence_signals(self, t_start: datetime | None, t_end: datetime | None) -> list:
         """Retrieve active absence signals from the absence analytics service."""
         try:
             from src.services.absence_analytics import get_default_absence_service
@@ -393,8 +391,8 @@ class AnalystQueryService:
             )
 
         if section == BriefingSection.ENTITY_ACTIVITY:
-            entity_counts: Dict[str, int] = {}
-            entity_last: Dict[str, datetime] = {}
+            entity_counts: dict[str, int] = {}
+            entity_last: dict[str, datetime] = {}
             for e in events:
                 eid = e.entity_id or "(unknown)"
                 entity_counts[eid] = entity_counts.get(eid, 0) + 1
@@ -459,7 +457,7 @@ class AnalystQueryService:
         if section == BriefingSection.SOURCE_ASSESSMENT:
             if not sources:
                 return "No sources used in this briefing."
-            source_counts: Dict[str, int] = {}
+            source_counts: dict[str, int] = {}
             for e in events:
                 source_counts[e.source] = source_counts.get(e.source, 0) + 1
             lines = []
@@ -472,7 +470,7 @@ class AnalystQueryService:
 
         if section == BriefingSection.RECOMMENDATIONS:
             # Top entity by event count
-            entity_counts_r: Dict[str, int] = {}
+            entity_counts_r: dict[str, int] = {}
             for e in events:
                 eid = e.entity_id or "(unknown)"
                 entity_counts_r[eid] = entity_counts_r.get(eid, 0) + 1
@@ -491,11 +489,11 @@ class AnalystQueryService:
 
     # ── Briefing CRUD ──────────────────────────────────────────────────────────
 
-    def get_briefing(self, briefing_id: str) -> Optional[BriefingOutput]:
+    def get_briefing(self, briefing_id: str) -> BriefingOutput | None:
         with self._lock:
             return self._briefings.get(briefing_id)
 
-    def list_briefings(self, investigation_id: Optional[str] = None) -> List[BriefingOutput]:
+    def list_briefings(self, investigation_id: str | None = None) -> list[BriefingOutput]:
         with self._lock:
             items = list(self._briefings.values())
         if investigation_id is not None:
@@ -538,7 +536,7 @@ class AnalystQueryService:
 # Singleton factory
 # ──────────────────────────────────────────────────────────────────────────────
 
-_default_service: "AnalystQueryService | None" = None
+_default_service: AnalystQueryService | None = None
 _singleton_lock = threading.Lock()
 
 

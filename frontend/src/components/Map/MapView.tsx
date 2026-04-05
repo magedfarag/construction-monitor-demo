@@ -142,6 +142,9 @@ interface Props {
   // Phase 4 Track D — AI detection overlay
   showDetectionsLayer?: boolean;
   detections?: DetectionOverlay[];
+  // Intel signals — seismic, hazard, weather, conflict, maritime warning, military, thermal, space weather, AQ
+  signalEvents?: CanonicalEvent[];
+  showSignalsLayer?: boolean;
   // Phase 4 Track A — render mode
   renderMode?: RenderMode;
   // Phase 4 Track C — entity selection callback
@@ -163,6 +166,7 @@ export function MapView({
   showJammingLayer = false, jammingEvents = [],
   showStrikesLayer = false, strikeEvents = [],
   showDetectionsLayer = false, detections = [],
+  signalEvents = [], showSignalsLayer = false,
   renderMode = "day",
   onStrikeClick,
   centerPoint,
@@ -273,8 +277,21 @@ export function MapView({
         paint: { "line-color": "#1e6fce", "line-width": 2 },
       });
       map.on("click", "aois-fill", (e) => {
-        const id = e.features?.[0]?.properties?.id;
-        if (id) onAoiClick?.(id);
+        const f = e.features?.[0];
+        if (!f) return;
+        const p = f.properties as Record<string, unknown>;
+        if (p.id) onAoiClick?.(String(p.id));
+        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="entity-popup">
+            <div class="entity-popup-header">\uD83D\uDDFA\uFE0F AOI ZONE</div>
+            <div class="entity-popup-id">${String(p.name ?? p.id)}</div>
+            <div class="entity-popup-grid">
+              <span class="ep-label">ID</span><span class="ep-val">${String(p.id)}</span>
+              <span class="ep-label">Status</span><span class="ep-val">${p.selected ? "Selected" : "Inactive"}</span>
+            </div>
+          </div>`)
+          .addTo(map);
       });
     }
   }, [aois, selectedAoiId, onAoiClick, styleLoaded]);
@@ -311,6 +328,22 @@ export function MapView({
         type: "line",
         source: "imagery",
         paint: { "line-color": "#4caf50", "line-width": 1, "line-dasharray": [2, 2] },
+      });
+      map.on("click", "imagery-fill", (e) => {
+        const p = e.features?.[0]?.properties;
+        if (!p) return;
+        const cc = p.cloud_cover != null ? `${Number(p.cloud_cover).toFixed(1)}%` : "\u2014";
+        new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="entity-popup">
+            <div class="entity-popup-header">\uD83D\uDEF0\uFE0F IMAGERY FOOTPRINT</div>
+            <div class="entity-popup-id">${String(p.id ?? "unknown")}</div>
+            <div class="entity-popup-grid">
+              <span class="ep-label">Collection</span><span class="ep-val">${String(p.collection ?? "\u2014")}</span>
+              <span class="ep-label">Cloud cover</span><span class="ep-val">${cc}</span>
+            </div>
+          </div>`)
+          .addTo(map);
       });
     }
   }, [imageryItems, showImageryLayer, imageryOpacity, styleLoaded]);
@@ -397,8 +430,145 @@ export function MapView({
         filter: ["!", ["has", "point_count"]],
         paint: { "circle-radius": 5, "circle-color": "#9c27b0", "circle-stroke-color": "#fff", "circle-stroke-width": 1 },
       });
+      map.on("click", "gdelt-point", (e) => {
+        const p = e.features?.[0]?.properties;
+        if (!p) return;
+        const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
+        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="entity-popup">
+            <div class="entity-popup-header">\uD83D\uDCC4 GDELT EVENT</div>
+            <div class="entity-popup-id">${String(p.id ?? "unknown")}</div>
+            <div class="entity-popup-grid">
+              <span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span>
+              <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>
+            </div>
+          </div>`)
+          .addTo(map);
+      });
+      map.on("click", "gdelt-clusters", (e) => {
+        const p = e.features?.[0]?.properties;
+        if (!p) return;
+        new maplibregl.Popup({ closeButton: true, maxWidth: "200px" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="entity-popup">
+            <div class="entity-popup-header">\uD83D\uDCC4 GDELT CLUSTER</div>
+            <div class="entity-popup-grid">
+              <span class="ep-label">Events</span><span class="ep-val">${String(p.point_count ?? 0)}</span>
+            </div>
+          </div>`)
+          .addTo(map);
+      });
     }
   }, [gdeltEvents, showGdeltLayer, styleLoaded]);
+
+  // Intel signals layer — seismic, hazard, weather, conflict, maritime warning, military, thermal, space weather, AQ
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !styleLoaded) return;
+    const src = map.getSource("signals") as maplibregl.GeoJSONSource | undefined;
+    const fc: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: showSignalsLayer
+        ? signalEvents
+            .filter(e => e.geometry?.type === "Point")
+            .map(evt => ({
+              type: "Feature" as const,
+              geometry: evt.geometry as GeoJSON.Geometry,
+              properties: {
+                id: evt.event_id,
+                source: evt.source,
+                type: evt.event_type,
+                confidence: evt.confidence ?? 0.5,
+              },
+            }))
+        : [],
+    };
+    if (src) {
+      src.setData(fc);
+    } else {
+      map.addSource("signals", { type: "geojson", data: fc, cluster: true, clusterMaxZoom: 12, clusterRadius: 50 });
+      // Cluster bubble
+      map.addLayer({
+        id: "signals-clusters",
+        type: "circle",
+        source: "signals",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-radius": ["step", ["get", "point_count"], 14, 10, 20, 50, 26],
+          "circle-color": ["step", ["get", "point_count"], "#22d3ee", 10, "#0891b2", 50, "#0e7490"],
+          "circle-stroke-color": "#fff",
+          "circle-stroke-width": 1,
+        },
+      });
+      map.addLayer({
+        id: "signals-cluster-count",
+        type: "symbol",
+        source: "signals",
+        filter: ["has", "point_count"],
+        layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11 },
+        paint: { "text-color": "#fff" },
+      });
+      // Individual signal markers — color by event_type
+      map.addLayer({
+        id: "signals-point",
+        type: "circle",
+        source: "signals",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-radius": 7,
+          "circle-stroke-color": "#fff",
+          "circle-stroke-width": 1,
+          "circle-color": [
+            "case",
+            ["==", ["get", "type"], "seismic_event"],            "#ef4444",
+            ["==", ["get", "type"], "natural_hazard_event"],     "#f97316",
+            ["==", ["get", "type"], "weather_observation"],      "#3b82f6",
+            ["==", ["get", "type"], "conflict_event"],           "#dc2626",
+            ["==", ["get", "type"], "maritime_warning"],         "#06b6d4",
+            ["==", ["get", "type"], "military_site_observation"],"#7c3aed",
+            ["==", ["get", "type"], "thermal_anomaly_event"],    "#ea580c",
+            ["==", ["get", "type"], "space_weather_event"],      "#8b5cf6",
+            ["==", ["get", "type"], "air_quality_observation"],  "#22c55e",
+            "#22d3ee",
+          ],
+        },
+      });
+      map.on("click", "signals-point", (e) => {
+        const p = e.features?.[0]?.properties;
+        if (!p) return;
+        const label = String(p.type ?? "").replace(/_/g, " ").toUpperCase();
+        const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
+        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="entity-popup">
+            <div class="entity-popup-header">\u26A1 ${label}</div>
+            <div class="entity-popup-id">${String(p.id ?? "unknown")}</div>
+            <div class="entity-popup-grid">
+              <span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span>
+              <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>
+            </div>
+          </div>`)
+          .addTo(map);
+        // Propagate to event detail panel
+        const evt = signalEvents.find(ev => ev.event_id === String(p.id));
+        if (evt) onEventClick?.(evt);
+      });
+      map.on("click", "signals-clusters", (e) => {
+        const p = e.features?.[0]?.properties;
+        if (!p) return;
+        new maplibregl.Popup({ closeButton: true, maxWidth: "200px" })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="entity-popup">
+            <div class="entity-popup-header">\u26A1 SIGNALS CLUSTER</div>
+            <div class="entity-popup-grid">
+              <span class="ep-label">Signals</span><span class="ep-val">${String(p.point_count ?? 0)}</span>
+            </div>
+          </div>`)
+          .addTo(map);
+      });
+    }
+  }, [signalEvents, showSignalsLayer, onEventClick, styleLoaded]);
 
   // P3-3.2/3.3 + Phase 2: all deck.gl layers (trips, orbits, jamming)
   useEffect(() => {
@@ -415,15 +585,15 @@ export function MapView({
       const shipTrips = trips.filter(tr => tr.entityType === "ship");
       const aircraftTrips = trips.filter(tr => tr.entityType === "aircraft");
       if (showShipsLayer && shipTrips.length > 0) {
-        // Outer glow halo — wide + transparent, creates 3-D neon depth effect
+        // Outer glow halo — subtle depth effect around core trail
         layers.push(new TripsLayer({
           id: "ships-glow",
           data: shipTrips,
           getPath: (d: Trip) => d.waypoints.map(w => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map(w => w[2]),
           getColor: [0, 229, 255] as [number, number, number],
-          opacity: 0.18,
-          widthMinPixels: 14, capRounded: true, jointRounded: true,
+          opacity: 0.12,
+          widthMinPixels: 6, capRounded: true, jointRounded: true,
           trailLength: tl, currentTime: t,
         }));
         // Bright core trail
@@ -433,8 +603,8 @@ export function MapView({
           getPath: (d: Trip) => d.waypoints.map(w => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map(w => w[2]),
           getColor: [0, 229, 255] as [number, number, number],
-          opacity: 0.9,
-          widthMinPixels: 3, capRounded: true, jointRounded: true,
+          opacity: 0.85,
+          widthMinPixels: 2, capRounded: true, jointRounded: true,
           trailLength: tl, currentTime: t,
         }));
       }
@@ -446,8 +616,8 @@ export function MapView({
           getPath: (d: Trip) => d.waypoints.map(w => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map(w => w[2]),
           getColor: [255, 100, 50] as [number, number, number],
-          opacity: 0.18,
-          widthMinPixels: 14, capRounded: true, jointRounded: true,
+          opacity: 0.12,
+          widthMinPixels: 6, capRounded: true, jointRounded: true,
           trailLength: tl, currentTime: t,
         }));
         // Bright core trail
@@ -457,8 +627,8 @@ export function MapView({
           getPath: (d: Trip) => d.waypoints.map(w => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map(w => w[2]),
           getColor: [255, 100, 50] as [number, number, number],
-          opacity: 0.9,
-          widthMinPixels: 3, capRounded: true, jointRounded: true,
+          opacity: 0.85,
+          widthMinPixels: 2, capRounded: true, jointRounded: true,
           trailLength: tl, currentTime: t,
         }));
       }
@@ -812,6 +982,18 @@ export function MapView({
     map.on("mouseleave", "events-circle",   cursorOff);
     map.on("mouseenter", "aois-fill",       cursorOn);
     map.on("mouseleave", "aois-fill",       cursorOff);
+    map.on("mouseenter", "imagery-fill",    cursorOn);
+    map.on("mouseleave", "imagery-fill",    cursorOff);
+    map.on("mouseenter", "gdelt-point",     cursorOn);
+    map.on("mouseleave", "gdelt-point",     cursorOff);
+    map.on("mouseenter", "gdelt-clusters",  cursorOn);
+    map.on("mouseleave", "gdelt-clusters",  cursorOff);
+    map.on("mouseenter", "strikes-circle",  cursorOn);
+    map.on("mouseleave", "strikes-circle",  cursorOff);
+    map.on("mouseenter", "airspace-fill",   cursorOn);
+    map.on("mouseleave", "airspace-fill",   cursorOff);
+    map.on("mouseenter", "detections-circle", cursorOn);
+    map.on("mouseleave", "detections-circle", cursorOff);
     return () => {
       map.off("click",      "entity-ships",    handleEntityClick);
       map.off("click",      "entity-aircraft", handleEntityClick);
@@ -823,6 +1005,18 @@ export function MapView({
       map.off("mouseleave", "events-circle",   cursorOff);
       map.off("mouseenter", "aois-fill",       cursorOn);
       map.off("mouseleave", "aois-fill",       cursorOff);
+      map.off("mouseenter", "imagery-fill",    cursorOn);
+      map.off("mouseleave", "imagery-fill",    cursorOff);
+      map.off("mouseenter", "gdelt-point",     cursorOn);
+      map.off("mouseleave", "gdelt-point",     cursorOff);
+      map.off("mouseenter", "gdelt-clusters",  cursorOn);
+      map.off("mouseleave", "gdelt-clusters",  cursorOff);
+      map.off("mouseenter", "strikes-circle",  cursorOn);
+      map.off("mouseleave", "strikes-circle",  cursorOff);
+      map.off("mouseenter", "airspace-fill",   cursorOn);
+      map.off("mouseleave", "airspace-fill",   cursorOff);
+      map.off("mouseenter", "detections-circle", cursorOn);
+      map.off("mouseleave", "detections-circle", cursorOff);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleLoaded]);
@@ -953,6 +1147,7 @@ export function MapView({
         showJamming={showJammingLayer}
         showStrikes={showStrikesLayer}
         showDetections={showDetectionsLayer}
+        showSignals={showSignalsLayer}
       />
       {coordDisplay && <div className="map-coord-display">{coordDisplay}</div>}
     </div>

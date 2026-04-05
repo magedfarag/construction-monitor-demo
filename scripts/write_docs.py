@@ -383,7 +383,7 @@ python -m pytest tests/ -v
 |---|---|
 | GitHub repository | https://github.com/magedfarag/argus-intel |
 | Copernicus CDSE registration | https://dataspace.copernicus.eu |
-| Copernicus STAC API | https://catalogue.dataspace.copernicus.eu/stac/v1 |
+| Copernicus STAC API | https://stac.dataspace.copernicus.eu/v1 |
 | USGS LandsatLook STAC | https://landsatlook.usgs.gov/stac-server |
 | FastAPI Swagger UI (local) | http://localhost:8000/docs |
 """, encoding="utf-8")
@@ -635,9 +635,9 @@ Tokens are cached with a 30-second buffer before expiry.
 Then `search_imagery()` POSTs to the STAC search endpoint:
 
 ```
-POST https://catalogue.dataspace.copernicus.eu/stac/v1/search
+POST https://stac.dataspace.copernicus.eu/v1/search
   {
-    "collections": ["SENTINEL-2"],
+    "collections": ["sentinel-2-l2a"],
     "intersects": <GeoJSON geometry>,
     "datetime": "2026-02-26T00:00:00Z/2026-03-28T23:59:59Z",
     "limit": 10,

@@ -1,7 +1,10 @@
 from __future__ import annotations
-import hashlib, random
+
+import hashlib
+import random
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 _TODAY = date(2026, 4, 4)
@@ -18,8 +21,8 @@ class Chokepoint(BaseModel):
     id: str
     name: str
     controlling_nation: str
-    geometry: Dict[str, Any]
-    centroid: Dict[str, float]
+    geometry: dict[str, Any]
+    centroid: dict[str, float]
     daily_flow_mbbl: float
     vessel_count_24h: int
     threat_level: int
@@ -29,16 +32,16 @@ class Chokepoint(BaseModel):
 
 
 class ChokepointListResponse(BaseModel):
-    chokepoints: List[Chokepoint]
+    chokepoints: list[Chokepoint]
 
 
 class ChokepointMetricsResponse(BaseModel):
     chokepoint_id: str
     name: str
-    metrics: List[ChokepointMetric]
+    metrics: list[ChokepointMetric]
 
 
-_CHOKEPOINTS: List[Dict[str, Any]] = [
+_CHOKEPOINTS: list[dict[str, Any]] = [
     {
         "id": "hormuz", "name": "Strait of Hormuz",
         "controlling_nation": "Iran / Oman",
@@ -92,8 +95,8 @@ def _rng_for(cid: str, day_offset: int) -> random.Random:
     return random.Random(seed)
 
 
-def _get_metrics_30d(cid: str, base_flow: float, base_vessels: int, base_threat: int) -> List[ChokepointMetric]:
-    metrics: List[ChokepointMetric] = []
+def _get_metrics_30d(cid: str, base_flow: float, base_vessels: int, base_threat: int) -> list[ChokepointMetric]:
+    metrics: list[ChokepointMetric] = []
     for offset in range(29, -1, -1):
         d = _TODAY - timedelta(days=offset)
         rng = _rng_for(cid, offset)
@@ -104,18 +107,18 @@ def _get_metrics_30d(cid: str, base_flow: float, base_vessels: int, base_threat:
     return metrics
 
 
-def get_all_chokepoints() -> List[Chokepoint]:
+def get_all_chokepoints() -> list[Chokepoint]:
     return [Chokepoint(**cp) for cp in _CHOKEPOINTS]
 
 
-def get_chokepoint(cid: str) -> Optional[Chokepoint]:
+def get_chokepoint(cid: str) -> Chokepoint | None:
     for cp in _CHOKEPOINTS:
         if cp["id"] == cid:
             return Chokepoint(**cp)
     return None
 
 
-def get_chokepoint_metrics(cid: str) -> Optional[ChokepointMetricsResponse]:
+def get_chokepoint_metrics(cid: str) -> ChokepointMetricsResponse | None:
     cp = next((c for c in _CHOKEPOINTS if c["id"] == cid), None)
     if not cp:
         return None

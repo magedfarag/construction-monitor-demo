@@ -15,11 +15,10 @@ Pydantic v2 is required.  Validators use ``model_validator(mode='after')``.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, ClassVar, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -50,15 +49,15 @@ class SatelliteOrbit(BaseModel):
     """
 
     satellite_id: str = Field(..., description="Canonical satellite identifier, e.g. 'SENTINEL-2A'")
-    norad_id: Optional[int] = Field(default=None, description="NORAD catalogue number")
-    tle_line1: Optional[str] = Field(default=None, description="First line of two-line element set")
-    tle_line2: Optional[str] = Field(default=None, description="Second line of two-line element set")
-    orbital_period_minutes: Optional[float] = Field(default=None, gt=0.0)
-    inclination_deg: Optional[float] = Field(default=None, ge=0.0, le=180.0)
-    altitude_km: Optional[float] = Field(default=None, gt=0.0)
+    norad_id: int | None = Field(default=None, description="NORAD catalogue number")
+    tle_line1: str | None = Field(default=None, description="First line of two-line element set")
+    tle_line2: str | None = Field(default=None, description="Second line of two-line element set")
+    orbital_period_minutes: float | None = Field(default=None, gt=0.0)
+    inclination_deg: float | None = Field(default=None, ge=0.0, le=180.0)
+    altitude_km: float | None = Field(default=None, gt=0.0)
     source: str = Field(..., description="Data provider, e.g. 'space-track.org'")
     loaded_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="UTC-aware timestamp when this record was loaded",
     )
 
@@ -78,15 +77,15 @@ class SatellitePass(BaseModel):
     """
 
     satellite_id: str = Field(..., description="Canonical satellite identifier")
-    norad_id: Optional[int] = Field(default=None)
+    norad_id: int | None = Field(default=None)
     aos: datetime = Field(..., description="Acquisition-of-signal timestamp (UTC)")
     los: datetime = Field(..., description="Loss-of-signal timestamp (UTC)")
-    max_elevation_deg: Optional[float] = Field(default=None, ge=0.0, le=90.0)
-    footprint_geojson: Optional[Dict[str, Any]] = Field(
+    max_elevation_deg: float | None = Field(default=None, ge=0.0, le=90.0)
+    footprint_geojson: dict[str, Any] | None = Field(
         default=None,
         description="GeoJSON Polygon describing ground track / sensor footprint",
     )
-    sensor_type: Optional[str] = Field(
+    sensor_type: str | None = Field(
         default=None, description="e.g. 'MSI', 'SAR', 'optical'"
     )
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
@@ -99,7 +98,7 @@ class SatellitePass(BaseModel):
 
     @field_validator("footprint_geojson")
     @classmethod
-    def _validate_geojson(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _validate_geojson(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         if v is None:
             return v
         if "type" not in v or "coordinates" not in v:
@@ -129,18 +128,18 @@ class AirspaceRestriction(BaseModel):
     restriction_type: str = Field(
         ..., description="Restriction category: 'TFR', 'MOA', 'NFZ', 'ADIZ', 'CTR', etc."
     )
-    geometry_geojson: Dict[str, Any] = Field(
+    geometry_geojson: dict[str, Any] = Field(
         ..., description="GeoJSON Polygon or MultiPolygon defining the restricted area"
     )
-    lower_limit_ft: Optional[float] = Field(default=None, description="Lower altitude limit in feet MSL")
-    upper_limit_ft: Optional[float] = Field(default=None, description="Upper altitude limit in feet MSL")
+    lower_limit_ft: float | None = Field(default=None, description="Lower altitude limit in feet MSL")
+    upper_limit_ft: float | None = Field(default=None, description="Upper altitude limit in feet MSL")
     valid_from: datetime = Field(..., description="Activation timestamp (UTC)")
-    valid_to: Optional[datetime] = Field(
+    valid_to: datetime | None = Field(
         default=None, description="Deactivation timestamp (UTC); None = indefinite"
     )
     is_active: bool = Field(default=True)
     source: str = Field(..., description="Data provider, e.g. 'FAA', 'NOTAM-feed'")
-    provenance: Optional[str] = Field(
+    provenance: str | None = Field(
         default=None, description="Raw source reference or URL"
     )
 
@@ -151,7 +150,7 @@ class AirspaceRestriction(BaseModel):
 
     @field_validator("geometry_geojson")
     @classmethod
-    def _validate_geojson(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_geojson(cls, v: dict[str, Any]) -> dict[str, Any]:
         if "type" not in v or "coordinates" not in v:
             raise ValueError("geometry_geojson must be a GeoJSON object with 'type' and 'coordinates'")
         return v
@@ -169,17 +168,17 @@ class NotamEvent(BaseModel):
     notam_number: str = Field(..., description="Official NOTAM number, e.g. 'A1234/26'")
     subject: str = Field(..., description="NOTAM subject or Q-code subject, e.g. 'Airspace restriction'")
     condition: str = Field(..., description="NOTAM condition description")
-    location_icao: Optional[str] = Field(
+    location_icao: str | None = Field(
         default=None, description="ICAO location indicator, e.g. 'OEJD'"
     )
     effective_from: datetime = Field(..., description="Effective start timestamp (UTC)")
-    effective_to: Optional[datetime] = Field(
+    effective_to: datetime | None = Field(
         default=None, description="Effective end timestamp (UTC); None = open-ended"
     )
-    geometry_geojson: Optional[Dict[str, Any]] = Field(
+    geometry_geojson: dict[str, Any] | None = Field(
         default=None, description="Optional GeoJSON geometry scoping the NOTAM"
     )
-    raw_text: Optional[str] = Field(default=None, description="Full raw NOTAM text")
+    raw_text: str | None = Field(default=None, description="Full raw NOTAM text")
     source: str = Field(..., description="Data provider or feed identifier")
 
     @field_validator("effective_from", "effective_to", mode="before")
@@ -189,7 +188,7 @@ class NotamEvent(BaseModel):
 
     @field_validator("geometry_geojson")
     @classmethod
-    def _validate_geojson(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _validate_geojson(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         if v is None:
             return v
         if "type" not in v or "coordinates" not in v:
@@ -218,8 +217,8 @@ class GpsJammingEvent(BaseModel):
     detected_at: datetime = Field(..., description="Detection or report timestamp (UTC)")
     location_lon: float = Field(..., ge=-180.0, le=180.0)
     location_lat: float = Field(..., ge=-90.0, le=90.0)
-    radius_km: Optional[float] = Field(default=None, gt=0.0, description="Estimated affected radius in km")
-    affected_area_geojson: Optional[Dict[str, Any]] = Field(
+    radius_km: float | None = Field(default=None, gt=0.0, description="Estimated affected radius in km")
+    affected_area_geojson: dict[str, Any] | None = Field(
         default=None,
         description="Optional GeoJSON Polygon defining affected area (preferred over radius_km when available)",
     )
@@ -227,7 +226,7 @@ class GpsJammingEvent(BaseModel):
         default="unknown",
         description="Classification: 'jamming', 'spoofing', 'interference', 'unknown'",
     )
-    signal_strength_db: Optional[float] = Field(
+    signal_strength_db: float | None = Field(
         default=None, description="Observed jamming signal strength in dBm"
     )
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
@@ -245,7 +244,7 @@ class GpsJammingEvent(BaseModel):
 
     @field_validator("affected_area_geojson")
     @classmethod
-    def _validate_geojson(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _validate_geojson(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         if v is None:
             return v
         if "type" not in v or "coordinates" not in v:
@@ -282,7 +281,7 @@ class StrikeEvent(BaseModel):
     occurred_at: datetime = Field(..., description="Estimated or reported occurrence timestamp (UTC)")
     location_lon: float = Field(..., ge=-180.0, le=180.0)
     location_lat: float = Field(..., ge=-90.0, le=90.0)
-    location_geojson: Optional[Dict[str, Any]] = Field(
+    location_geojson: dict[str, Any] | None = Field(
         default=None,
         description="Optional GeoJSON geometry (point, polygon, or impact crater outline)",
     )
@@ -290,15 +289,15 @@ class StrikeEvent(BaseModel):
         default="unknown",
         description="Strike category: 'airstrike', 'artillery', 'missile', 'drone', 'unknown'",
     )
-    target_description: Optional[str] = Field(
+    target_description: str | None = Field(
         default=None, description="Human-readable description of the presumed target"
     )
-    damage_severity: Optional[str] = Field(
+    damage_severity: str | None = Field(
         default=None,
         description="Assessed damage severity: 'none', 'minor', 'moderate', 'severe', 'destroyed'",
     )
     confidence: float = Field(default=0.5, ge=0.0, le=1.0)
-    evidence_refs: List[str] = Field(
+    evidence_refs: list[str] = Field(
         default_factory=list,
         description="List of canonical evidence_id values from EvidenceLink",
     )
@@ -317,7 +316,7 @@ class StrikeEvent(BaseModel):
 
     @field_validator("location_geojson")
     @classmethod
-    def _validate_geojson(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def _validate_geojson(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         if v is None:
             return v
         if "type" not in v or "coordinates" not in v:
@@ -345,10 +344,10 @@ class EvidenceLink(BaseModel):
         ...,
         description="Evidence category: 'imagery', 'ais_record', 'report', 'adsb_record', 'social_media', etc.",
     )
-    url: Optional[str] = Field(default=None, description="URL to the evidence artefact if publicly accessible")
-    description: Optional[str] = Field(default=None, description="Human-readable description of the evidence")
+    url: str | None = Field(default=None, description="URL to the evidence artefact if publicly accessible")
+    description: str | None = Field(default=None, description="Human-readable description of the evidence")
     added_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         description="UTC-aware timestamp when this link was created",
     )
     confidence: float = Field(

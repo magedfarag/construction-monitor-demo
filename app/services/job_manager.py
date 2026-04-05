@@ -12,8 +12,8 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from app.models.jobs import Job, JobState
 
@@ -27,7 +27,7 @@ class JobManager:
     def __init__(self, redis_url: str = "", database_url: str = "") -> None:
         self._redis: Any = None
         self._pg: Any = None
-        self._memory: Dict[str, Dict[str, Any]] = {}
+        self._memory: dict[str, dict[str, Any]] = {}
 
         if redis_url:
             try:
@@ -41,7 +41,7 @@ class JobManager:
 
         if database_url:
             try:
-                from app.services.postgres_jobs import PostgresJobStore, SQLALCHEMY_AVAILABLE
+                from app.services.postgres_jobs import SQLALCHEMY_AVAILABLE, PostgresJobStore
                 if SQLALCHEMY_AVAILABLE:
                     self._pg = PostgresJobStore(database_url)
                     log.info("JobManager backend: PostgreSQL")
@@ -61,12 +61,12 @@ class JobManager:
             parts.append("postgresql")
         return "+".join(parts) if parts else "memory"
 
-    def create_job(self, request_data: Dict[str, Any]) -> Job:
+    def create_job(self, request_data: dict[str, Any]) -> Job:
         job = Job(job_id=str(uuid.uuid4()), request_data=request_data)
         self._save(job)
         return job
 
-    def get_job(self, job_id: str) -> Optional[Job]:
+    def get_job(self, job_id: str) -> Job | None:
         data = self._load(job_id)
         if data is None:
             return None
@@ -81,8 +81,8 @@ class JobManager:
         self,
         job_id: str,
         state: JobState,
-        result: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
+        result: dict[str, Any] | None = None,
+        error: str | None = None,
     ) -> None:
         job = self.get_job(job_id)
         if job is None:
@@ -91,7 +91,7 @@ class JobManager:
         job.state      = state
         job.result     = result
         job.error      = error
-        job.updated_at = datetime.now(timezone.utc)
+        job.updated_at = datetime.now(UTC)
         self._save(job)
 
     def _save(self, job: Job) -> None:
@@ -111,7 +111,7 @@ class JobManager:
         # Always keep in memory as last-resort
         self._memory[job.job_id] = d
 
-    def _load(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def _load(self, job_id: str) -> dict[str, Any] | None:
         # 1. Redis (fastest)
         if self._redis:
             try:

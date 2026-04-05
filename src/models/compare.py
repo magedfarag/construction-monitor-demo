@@ -5,9 +5,6 @@ two imagery scenes (before/after) retrieved from the event store.
 """
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Dict, List, Optional
-
 from pydantic import BaseModel, Field
 
 from src.models.imagery import ImageryItemSummary
@@ -37,13 +34,13 @@ class ImageryQualityAssessment(BaseModel):
         ...,
         description="Calendar days between after.event_time and before.event_time.",
     )
-    cloud_cover_before: Optional[float] = Field(
+    cloud_cover_before: float | None = Field(
         default=None, description="Cloud cover % for the before scene."
     )
-    cloud_cover_after: Optional[float] = Field(
+    cloud_cover_after: float | None = Field(
         default=None, description="Cloud cover % for the after scene."
     )
-    notes: List[str] = Field(
+    notes: list[str] = Field(
         default_factory=list,
         description="Human-readable quality notes (warnings, caveats).",
     )

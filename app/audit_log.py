@@ -23,8 +23,8 @@ import hashlib
 import json
 import logging
 import logging.config
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 from starlette.background import BackgroundTask
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -85,7 +85,7 @@ def _write_audit(
         "user_id": _hash_user_id(user_id),
         "resource_type": resource_type,
         "resource_id": resource_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "ip_address": ip_address,
         "result": result,
     }

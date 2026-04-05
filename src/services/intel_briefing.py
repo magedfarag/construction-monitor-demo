@@ -7,8 +7,7 @@ Uses deterministic templates — no LLM dependency.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
-from typing import List
+from datetime import UTC, datetime
 
 from pydantic import BaseModel
 
@@ -31,15 +30,15 @@ class IntelBriefing(BaseModel):
     risk_level: str          # CRITICAL | HIGH | MODERATE | LOW
     risk_color: str          # hex
     executive_summary: str
-    key_findings: List[str]
-    vessel_alerts: List[VesselAlert]
-    chokepoint_status: List[dict]
+    key_findings: list[str]
+    vessel_alerts: list[VesselAlert]
+    chokepoint_status: list[dict]
     dark_ship_count: int
     sanctioned_vessel_count: int
     active_vessel_count: int
 
 
-_VESSEL_ALERTS: List[VesselAlert] = [
+_VESSEL_ALERTS: list[VesselAlert] = [
     VesselAlert(
         mmsi="9154671", vessel_name="HORSE",
         sanctions_status="shadow-fleet",
@@ -74,7 +73,7 @@ _VESSEL_ALERTS: List[VesselAlert] = [
     ),
 ]
 
-_KEY_FINDINGS: List[str] = [
+_KEY_FINDINGS: list[str] = [
     "3 shadow-fleet/OFAC-SDN vessels detected in Hormuz area with recent AIS dark periods (>34 h).",
     "Bab-el-Mandeb CRITICAL: Houthi drone/missile activity forcing continued Cape diversions; "
     "4.8 MBBL/day throughput 18% below 2023 baseline.",
@@ -96,7 +95,7 @@ _EXECUTIVE_SUMMARY = (
 
 
 def generate_briefing() -> IntelBriefing:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     cps = get_all_chokepoints()
     max_threat = max(cp.threat_level for cp in cps)
 

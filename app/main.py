@@ -1,21 +1,24 @@
 from __future__ import annotations
+
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from app import dependencies
 from app.audit_log import AuditLoggingMiddleware, configure_audit_logger
 from app.cache.client import CacheClient
-from app.performance_budgets import PerformanceBudgetMiddleware
 from app.config import get_settings
 from app.logging_config import configure_logging
+from app.performance_budgets import PerformanceBudgetMiddleware
 from app.providers.demo import DemoProvider
 from app.providers.registry import ProviderRegistry
 from app.resilience.circuit_breaker import CircuitBreaker
 from app.resilience.rate_limiter import limiter, rate_limit_error_handler
-from slowapi.errors import RateLimitExceeded
+
 
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -66,9 +69,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     dependencies.set_job_manager(jm)
 
     # ── V2 ConnectorRegistry (P1-3) ──────────────────────────────────────────
-    from src.connectors.registry import ConnectorRegistry as V2Registry
     from src.connectors.earth_search import EarthSearchConnector
     from src.connectors.planetary_computer import PlanetaryComputerConnector
+    from src.connectors.registry import ConnectorRegistry as V2Registry
     v2_registry = V2Registry()
     v2_registry.register(EarthSearchConnector(stac_url=settings.earth_search_stac_url))
     v2_registry.register(PlanetaryComputerConnector(
@@ -76,7 +79,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         subscription_key=settings.planetary_computer_token,
     ))
     if settings.sentinel2_is_configured():
-        from src.connectors.sentinel2 import CdseSentinel2Connector, _STAC_URL as _CDSE_STAC_URL, _TOKEN_URL as _CDSE_TOKEN_URL
+        from src.connectors.sentinel2 import _STAC_URL as _CDSE_STAC_URL
+        from src.connectors.sentinel2 import _TOKEN_URL as _CDSE_TOKEN_URL
+        from src.connectors.sentinel2 import CdseSentinel2Connector
         v2_registry.register(CdseSentinel2Connector(
             # Always use the CDSE STAC endpoint — not the V1 provider's Element84 URL.
             stac_url=_CDSE_STAC_URL,
@@ -88,7 +93,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         from src.connectors.landsat import UsgsLandsatConnector
         v2_registry.register(UsgsLandsatConnector(stac_url=settings.landsat_stac_url))
     # P2-1: GDELT contextual events connector (public, no credentials required)
-    from src.connectors.gdelt import GdeltConnector, DEFAULT_CONSTRUCTION_THEMES
+    from src.connectors.gdelt import DEFAULT_CONSTRUCTION_THEMES, GdeltConnector
     v2_registry.register(GdeltConnector(default_themes=DEFAULT_CONSTRUCTION_THEMES))
     # P3-1: AIS maritime connector (requires AISSTREAM_API_KEY)
     import os as _os
@@ -108,6 +113,94 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         ))
     except Exception as exc:
         _log.getLogger(__name__).warning("OpenSkyConnector: %s", exc)
+    # Free data sources — no credentials required ────────────────────────────
+    # USGS Earthquake Catalog (public domain, zero auth)
+    try:
+        from src.connectors.usgs_earthquake import UsgsEarthquakeConnector
+        v2_registry.register(UsgsEarthquakeConnector(
+            api_url=settings.usgs_earthquake_api_url,
+            min_magnitude=settings.usgs_earthquake_min_magnitude,
+        ))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("UsgsEarthquakeConnector: %s", exc)
+    # NASA EONET Natural Events (CC0 / public domain, zero auth)
+    try:
+        from src.connectors.nasa_eonet import NasaEonetConnector
+        v2_registry.register(NasaEonetConnector(
+            api_url=settings.nasa_eonet_api_url,
+            days_lookback=settings.nasa_eonet_days_lookback,
+        ))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("NasaEonetConnector: %s", exc)
+    # Open-Meteo Weather Forecast (CC BY 4.0, zero auth)
+    try:
+        from src.connectors.open_meteo import OpenMeteoConnector
+        v2_registry.register(OpenMeteoConnector(
+            api_url=settings.open_meteo_api_url,
+            forecast_hours=settings.open_meteo_forecast_hours,
+        ))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("OpenMeteoConnector: %s", exc)
+    # Military / Gulf-specific data sources ─────────────────────────────────
+    # ACLED Armed Conflict Location & Event Data (free API key + email required)
+    if settings.acled_is_configured():
+        try:
+            from src.connectors.acled import AcledConnector
+            v2_registry.register(AcledConnector(
+                api_key=settings.acled_api_key,
+                email=settings.acled_email,
+                api_url=settings.acled_api_url,
+            ))
+        except Exception as exc:
+            _log.getLogger(__name__).warning("AcledConnector: %s", exc)
+    # NGA MSI Maritime Safety Information (zero auth, US Gov public domain)
+    try:
+        from src.connectors.nga_msi import NgaMsiConnector
+        v2_registry.register(NgaMsiConnector(
+            api_url=settings.nga_msi_api_url,
+            default_nav_areas=[
+                a.strip()
+                for a in settings.nga_msi_default_nav_areas.split(",")
+                if a.strip()
+            ],
+        ))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("NgaMsiConnector: %s", exc)
+    # OSM Overpass Military Features (zero auth, ODbL)
+    try:
+        from src.connectors.osm_military import OsmMilitaryConnector
+        v2_registry.register(OsmMilitaryConnector(
+            overpass_url=settings.osm_overpass_url,
+        ))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("OsmMilitaryConnector: %s", exc)
+    # Environmental / signals intelligence sources ──────────────────────
+    # NASA FIRMS Active Fire / Thermal Anomaly (DEMO_KEY works out of the box)
+    try:
+        from src.connectors.nasa_firms import NasaFirmsConnector
+        v2_registry.register(NasaFirmsConnector(
+            map_key=settings.nasa_firms_map_key,
+            api_url=settings.nasa_firms_api_url,
+            source=settings.nasa_firms_source,
+            days_lookback=settings.nasa_firms_days_lookback,
+        ))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("NasaFirmsConnector: %s", exc)
+    # NOAA Space Weather Prediction Center (zero auth)
+    try:
+        from src.connectors.noaa_swpc import NoaaSwpcConnector
+        v2_registry.register(NoaaSwpcConnector(api_url=settings.noaa_swpc_api_url))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("NoaaSwpcConnector: %s", exc)
+    # OpenAQ Air Quality Network (zero auth)
+    try:
+        from src.connectors.openaq import OpenAqConnector
+        v2_registry.register(OpenAqConnector(
+            api_url=settings.openaq_api_url,
+            api_key=settings.openaq_api_key,
+        ))
+    except Exception as exc:
+        _log.getLogger(__name__).warning("OpenAqConnector: %s", exc)
     from src.api.imagery import set_connector_registry, set_imagery_event_store
     set_connector_registry(v2_registry)
 
@@ -124,10 +217,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             _health_svc._get_or_create(_cid, _conn.display_name, _conn.source_type)
 
     # Shared EventStore for V2 event/playback/compare/analytics routers
-    from src.services.event_store import EventStore as V2EventStore
     from src.api import events as _events_router_module
-    from src.api.playback import set_event_store as _set_playback_store
     from src.api.analytics import set_analytics_event_store as _set_analytics_store
+    from src.api.playback import set_event_store as _set_playback_store
     _shared_store = _events_router_module._store  # reuse the module-level singleton
     set_imagery_event_store(_shared_store)
     _set_playback_store(_shared_store)
@@ -136,8 +228,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # Seed the in-memory stores with synthetic demo data so the UI has
     # ship tracks, flight tracks, GDELT context, imagery, and an AOI on first load.
     try:
-        from src.services.demo_seeder import seed_event_store as _seed, seed_aoi_store as _seed_aoi
         from src.api.aois import _store as _aoi_store
+        from src.services.demo_seeder import seed_aoi_store as _seed_aoi
+        from src.services.demo_seeder import seed_event_store as _seed
         _demo_aoi_id = _seed_aoi(_aoi_store)
         _seed_count = _seed(_shared_store, aoi_id=_demo_aoi_id)
         _log.getLogger(__name__).info("Demo seeder: AOI %s + %d events ingested", _demo_aoi_id, _seed_count)
@@ -172,11 +265,19 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         targets = {
             "earth-search": "https://earth-search.aws.element84.com/v1/",
             "planetary-computer": "https://planetarycomputer.microsoft.com/api/stac/v1/",
-            "cdse-sentinel2": "https://catalogue.dataspace.copernicus.eu/stac/collections/sentinel-2-l2a",
+            "cdse-sentinel2": "https://stac.dataspace.copernicus.eu/v1/collections/sentinel-2-l2a",
             "usgs-landsat": "https://landsatlook.usgs.gov/stac-server/",
             "gdelt-doc": "https://api.gdeltproject.org/api/v2/doc/doc?query=test&mode=artlist&maxrecords=1&format=json",
             "opensky": "https://opensky-network.org/api/states/all?lamin=0&lamax=1&lomin=0&lomax=1",
             "ais-stream": "https://aisstream.io/",  # basic liveness probe
+            "usgs-earthquake": "https://earthquake.usgs.gov/fdsnws/event/1/version",
+            "nasa-eonet": "https://eonet.gsfc.nasa.gov/api/v3/events?limit=1&status=open",
+            "open-meteo": "https://api.open-meteo.com/v1/forecast?latitude=51.5&longitude=0.1&hourly=cloud_cover&forecast_days=1",
+            "nga-msi": "https://msi.nga.mil/api/publications/broadcast-warn?output=json&includePublications=true&status=active&navArea=IX",
+            "osm-military": "https://overpass-api.de/api/status",
+            "nasa-firms": "https://firms.modaps.eosdis.nasa.gov/api/area/json/DEMO_KEY/VIIRS_SNPP_NRT/0,0,0.001,0.001/1",
+            "noaa-swpc": "https://services.swpc.noaa.gov/products/alerts.json",
+            "openaq": "https://api.openaq.org/v3/locations?limit=1",
         }
         while True:
             _probe_log.info("Running health probes for %d connectors", len(targets))
@@ -240,9 +341,20 @@ app.add_middleware(PerformanceBudgetMiddleware)
 def index() -> JSONResponse:
     return JSONResponse({"service": "ARGUS API", "docs": "/docs", "version": "2.0.0"})
 
-from app.routers import analyze, config_router, credits, health, health_connectors, jobs, providers_router, search, thumbnails
-from app.routers import ws_jobs
+from app.routers import (
+    analyze,
+    config_router,
+    credits,
+    health,
+    health_connectors,
+    jobs,
+    providers_router,
+    search,
+    thumbnails,
+    ws_jobs,
+)
 from app.routers import cache_stats as cache_stats_router_module
+
 app.include_router(health.router)
 app.include_router(health_connectors.router)
 app.include_router(cache_stats_router_module.router)
@@ -256,34 +368,41 @@ app.include_router(ws_jobs.router)
 app.include_router(thumbnails.router)
 
 # ── V2 routes (P1-2, P1-3, P1-4, P1-5, P2-2, P2-3, P4-1, P4-2) ────────────
-from src.api import aois as aois_router_module
-from src.api import events as events_router_module
-from src.api import exports as exports_router_module
-from src.api import imagery as imagery_router_module
-from src.api import playback as playback_router_module
-from src.api import analytics as analytics_router_module
-from src.api import source_health as source_health_router_module
-# ── P6 Maritime Intelligence routes ─────────────────────────────────────────
-from src.api import chokepoints as chokepoints_router_module
-from src.api import vessels as vessels_router_module
-from src.api import dark_ships as dark_ships_router_module
-from src.api import intel as intel_router_module
-# ── Phase 2 Operational Layer routes ────────────────────────────────────────
-from src.api import orbits as orbits_router_module
-from src.api import airspace as airspace_router_module
-from src.api import jamming as jamming_router_module
-from src.api import strike as strike_router_module
-# ── Phase 4 Track B — Camera/Video Abstraction routes ───────────────────────
-from src.api import cameras as cameras_router_module
-from src.api import detections as detections_router_module
-# ── Phase 5 Track A — Saved Investigations ──────────────────────────────────
-from src.api import investigations as investigations_router_module
 # ── Phase 5 Track D — Absence-As-Signal Analytics ───────────────────────────
 from src.api import absence as absence_router_module
-# ── Phase 5 Track B — Evidence Packs ────────────────────────────────────────
-from src.api import evidence_packs as evidence_packs_router_module
+from src.api import airspace as airspace_router_module
+
 # ── Phase 5 Track C — Agent-Assisted Analyst Workflows ──────────────────────
 from src.api import analyst as analyst_router_module
+from src.api import analytics as analytics_router_module
+from src.api import aois as aois_router_module
+
+# ── Phase 4 Track B — Camera/Video Abstraction routes ───────────────────────
+from src.api import cameras as cameras_router_module
+
+# ── P6 Maritime Intelligence routes ─────────────────────────────────────────
+from src.api import chokepoints as chokepoints_router_module
+from src.api import dark_ships as dark_ships_router_module
+from src.api import detections as detections_router_module
+from src.api import events as events_router_module
+
+# ── Phase 5 Track B — Evidence Packs ────────────────────────────────────────
+from src.api import evidence_packs as evidence_packs_router_module
+from src.api import exports as exports_router_module
+from src.api import imagery as imagery_router_module
+from src.api import intel as intel_router_module
+
+# ── Phase 5 Track A — Saved Investigations ──────────────────────────────────
+from src.api import investigations as investigations_router_module
+from src.api import jamming as jamming_router_module
+
+# ── Phase 2 Operational Layer routes ────────────────────────────────────────
+from src.api import orbits as orbits_router_module
+from src.api import playback as playback_router_module
+from src.api import source_health as source_health_router_module
+from src.api import strike as strike_router_module
+from src.api import vessels as vessels_router_module
+
 app.include_router(aois_router_module.router)
 app.include_router(events_router_module.router)
 app.include_router(exports_router_module.router)

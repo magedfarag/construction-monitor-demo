@@ -1,16 +1,19 @@
 from __future__ import annotations
+
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
+
 import httpx
+
 from app.config import AppSettings
 from app.models.scene import SceneMetadata
 from app.providers.base import ProviderUnavailableError, SatelliteProvider
 from app.resilience.retry import with_retry
 
 log = logging.getLogger(__name__)
-_COLLECTION_CDSE = "SENTINEL-2"
+_COLLECTION_CDSE = "sentinel-2-l2a"
 _COLLECTION_E84  = "sentinel-2-l2a"
 
 class Sentinel2Provider(SatelliteProvider):
@@ -19,7 +22,7 @@ class Sentinel2Provider(SatelliteProvider):
 
     def __init__(self, settings: AppSettings) -> None:
         self._settings = settings
-        self._token: Optional[str] = None
+        self._token: str | None = None
         self._token_expiry: float = 0.0
 
     @property
@@ -36,7 +39,7 @@ class Sentinel2Provider(SatelliteProvider):
             return "Sentinel-2 (Element84 Earth Search)"
         return "Sentinel-2 (Copernicus Data Space)"
 
-    def _auth_headers(self) -> Dict[str, str]:
+    def _auth_headers(self) -> dict[str, str]:
         if self._is_element84:
             return {"Content-Type": "application/json"}
         return {"Authorization": f"Bearer {self._get_token()}", "Content-Type": "application/json"}
@@ -61,7 +64,7 @@ class Sentinel2Provider(SatelliteProvider):
         self._token_expiry = time.monotonic() + payload.get("expires_in", 600)
         return self._token
 
-    def validate_credentials(self) -> Tuple[bool, str]:
+    def validate_credentials(self) -> tuple[bool, str]:
         if self._is_element84:
             return True, "Element84 Earth Search is publicly accessible"
         if not self._settings.sentinel2_is_configured():
@@ -72,7 +75,7 @@ class Sentinel2Provider(SatelliteProvider):
         except Exception as exc:
             return False, f"Token request failed: {exc}"
 
-    def healthcheck(self) -> Tuple[bool, str]:
+    def healthcheck(self) -> tuple[bool, str]:
         try:
             headers = {} if self._is_element84 else self._auth_headers()
             resp = httpx.get(
@@ -122,7 +125,7 @@ class Sentinel2Provider(SatelliteProvider):
             )
         return [self._normalise(item) for item in features[:max_results]]
 
-    def fetch_scene_metadata(self, scene_id: str) -> Optional[SceneMetadata]:
+    def fetch_scene_metadata(self, scene_id: str) -> SceneMetadata | None:
         try:
             resp = httpx.get(
                 f"{self._settings.sentinel2_stac_url}/collections/{self._collection}/items/{scene_id}",
@@ -144,13 +147,13 @@ class Sentinel2Provider(SatelliteProvider):
         })
         return caps
 
-    def _normalise(self, item: Dict[str, Any]) -> SceneMetadata:
+    def _normalise(self, item: dict[str, Any]) -> SceneMetadata:
         props = item.get("properties", {})
         acquired_raw = props.get("datetime") or props.get("start_datetime", "")
         try:
             acquired_at = datetime.fromisoformat(acquired_raw.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            acquired_at = datetime.now(timezone.utc)
+            acquired_at = datetime.now(UTC)
         cloud_cover = float(props.get("eo:cloud_cover", 0.0))
         raw_assets = item.get("assets", {})
         band_map = {

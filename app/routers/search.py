@@ -5,9 +5,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.config import AppMode
+from app.config import AppMode, AppSettings
 from app.dependencies import get_app_settings, get_registry, verify_api_key
-from app.config import AppSettings
 from app.models.requests import SearchRequest
 from app.models.responses import SceneSearchResult, SearchResponse
 from app.providers.base import ProviderUnavailableError

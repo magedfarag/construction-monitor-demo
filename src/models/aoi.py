@@ -5,11 +5,10 @@ Geometry is stored as GeoJSON (RFC 7946). PostGIS column type: GEOMETRY(Geometry
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-from uuid import uuid4
+from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class GeometryModel(BaseModel):
@@ -30,9 +29,9 @@ class AOIBase(BaseModel):
     """Fields shared by create / update requests."""
     name: str = Field(..., min_length=1, max_length=255, description="Human-readable AOI label")
     geometry: GeometryModel = Field(..., description="GeoJSON Polygon or MultiPolygon (EPSG:4326)")
-    description: Optional[str] = Field(default=None, max_length=2048)
-    tags: List[str] = Field(default_factory=list, description="Free-form tags for filtering")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Arbitrary analyst-owned metadata")
+    description: str | None = Field(default=None, max_length=2048)
+    tags: list[str] = Field(default_factory=list, description="Free-form tags for filtering")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary analyst-owned metadata")
 
 
 class AOICreate(AOIBase):
@@ -41,11 +40,11 @@ class AOICreate(AOIBase):
 
 class AOIUpdate(BaseModel):
     """Request body for PUT /api/v1/aois/:id — all fields optional."""
-    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    geometry: Optional[GeometryModel] = None
-    description: Optional[str] = Field(default=None, max_length=2048)
-    tags: Optional[List[str]] = None
-    metadata: Optional[Dict[str, Any]] = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    geometry: GeometryModel | None = None
+    description: str | None = Field(default=None, max_length=2048)
+    tags: list[str] | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class AOIResponse(AOIBase):
@@ -60,7 +59,7 @@ class AOIResponse(AOIBase):
 
 class AOIListResponse(BaseModel):
     """Paginated list of AOIs."""
-    items: List[AOIResponse]
+    items: list[AOIResponse]
     total: int
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=20, ge=1, le=100)

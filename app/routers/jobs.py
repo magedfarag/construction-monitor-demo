@@ -32,6 +32,7 @@ def get_job_status(
         )
     try:
         from celery.result import AsyncResult
+
         from app.workers.celery_app import celery_app
 
         res = AsyncResult(job_id, app=celery_app)

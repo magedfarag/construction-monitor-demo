@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -28,7 +28,7 @@ from src.models.canonical_event import CanonicalEvent, LicenseRecord
 logger = logging.getLogger(__name__)
 
 _COLLECTION = "sentinel-2-l2a"
-_STAC_URL = "https://catalogue.dataspace.copernicus.eu/stac"
+_STAC_URL = "https://stac.dataspace.copernicus.eu/v1"
 _TOKEN_URL = (
     "https://identity.dataspace.copernicus.eu/auth/realms/CDSE"
     "/protocol/openid-connect/token"
@@ -62,7 +62,7 @@ class CdseSentinel2Connector(BaseConnector):
         self._client_id = client_id
         self._client_secret = client_secret
         self._http_timeout = http_timeout
-        self._token: Optional[str] = None
+        self._token: str | None = None
         self._token_expiry: float = 0.0
 
     # ── Auth ──────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ class CdseSentinel2Connector(BaseConnector):
         self._token_expiry = time.monotonic() + payload.get("expires_in", 600)
         return self._token
 
-    def _auth_headers(self) -> Dict[str, str]:
+    def _auth_headers(self) -> dict[str, str]:
         token = self._get_token()
         if token:
             return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
@@ -119,14 +119,14 @@ class CdseSentinel2Connector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         *,
         cloud_threshold: float = 20.0,
         max_results: int = 20,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search CDSE STAC for Sentinel-2 scenes intersecting an AOI + time window."""
         if self._needs_auth:
             self._get_token()
@@ -135,7 +135,7 @@ class CdseSentinel2Connector(BaseConnector):
             f"{start_time.strftime('%Y-%m-%dT%H:%M:%SZ')}/"
             f"{end_time.strftime('%Y-%m-%dT%H:%M:%SZ')}"
         )
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "collections": [_COLLECTION],
             "intersects": geometry,
             "datetime": dt_range,
@@ -156,7 +156,7 @@ class CdseSentinel2Connector(BaseConnector):
 
         return resp.json().get("features", [])
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Convert a raw CDSE STAC item to a CanonicalEvent."""
         try:
             return stac_item_to_canonical_event(
@@ -180,7 +180,7 @@ class CdseSentinel2Connector(BaseConnector):
                 connector_id=self.connector_id,
                 healthy=True,
                 message="CDSE STAC reachable",
-                last_successful_poll=datetime.now(timezone.utc),
+                last_successful_poll=datetime.now(UTC),
             )
         except Exception as exc:
             return ConnectorHealthStatus(

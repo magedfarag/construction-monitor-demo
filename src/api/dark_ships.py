@@ -5,8 +5,6 @@ GET  /api/v1/dark-ships          — curated demo dark-ship candidates
 """
 from __future__ import annotations
 
-from typing import List
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -21,7 +19,7 @@ router = APIRouter(prefix="/api/v1/dark-ships", tags=["dark-ships"])
 
 
 class DetectRequest(BaseModel):
-    events: List[CanonicalEvent]
+    events: list[CanonicalEvent]
 
 
 @router.post(
@@ -39,7 +37,7 @@ def detect(req: DetectRequest) -> DarkShipDetectionResponse:
 # Returns a deterministic list of dark-ship candidates seeded from demo data.
 # This guarantees the UI has data without needing a live AIS feed.
 
-_DEMO_CANDIDATES: List[DarkShipCandidate] = [
+_DEMO_CANDIDATES: list[DarkShipCandidate] = [
     DarkShipCandidate(
         mmsi="9169501", vessel_name="WISDOM",
         gap_start="2026-03-10T04:22:00+00:00",

@@ -24,14 +24,14 @@ gracefully returns an empty list with a warning.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from app.models.scene import SceneMetadata
 
 log = logging.getLogger(__name__)
 
 # Bands used per provider
-_BANDS: Dict[str, Dict[str, int]] = {
+_BANDS: dict[str, dict[str, int]] = {
     # Sentinel-2 L2A COG band indices (1-based) in standard band files
     "sentinel2": {"red": 1, "nir": 1},   # B04.tif, B08.tif separate files
     "landsat":   {"red": 1, "nir": 1},   # B4.TIF, B5.TIF separate files
@@ -52,21 +52,20 @@ def _rasterio_available() -> bool:
 
 def _read_band_window(
     url: str,
-    bbox_wgs84: Tuple[float, float, float, float],
+    bbox_wgs84: tuple[float, float, float, float],
     band_index: int = 1,
-    bearer_token: Optional[str] = None,
+    bearer_token: str | None = None,
 ):
     """Stream-read a single band clipped to bbox from a remote COG.
 
     Returns numpy masked array (rows, cols) in float32.
     Uses rasterio.Env() to inject GDAL HTTPS auth if needed.
     """
-    import numpy as np
     import rasterio
     from rasterio.crs import CRS
     from rasterio.warp import transform_bounds
 
-    env_kwargs: Dict[str, str] = {}
+    env_kwargs: dict[str, str] = {}
     if bearer_token:
         env_kwargs["GDAL_HTTP_BEARER"] = bearer_token
         env_kwargs["GDAL_HTTP_AUTH"]   = "BEARER"
@@ -109,7 +108,7 @@ def _classify_component(
     diff_patch,
     aoi_area_km2: float,
     resolution_m: int,
-) -> Tuple[str, float, List[str]]:
+) -> tuple[str, float, list[str]]:
     """Heuristic change classification based on spectral + size pattern.
 
     Returns (change_type, confidence 0-1, rationale_strings).
@@ -120,7 +119,7 @@ def _classify_component(
     patch_size = diff_patch.size
     area_m2    = patch_size * (resolution_m ** 2)
 
-    rationale: List[str] = []
+    rationale: list[str] = []
     confidence = 0.60
 
     if mean_diff < -_NDVI_CHANGE_THRESHOLD:
@@ -171,10 +170,10 @@ def _classify_component(
 def run_change_detection(
     before: SceneMetadata,
     after: SceneMetadata,
-    aoi_geom: Dict[str, Any],
+    aoi_geom: dict[str, Any],
     aoi_area_km2: float,
-    bearer_token: Optional[str] = None,
-) -> Tuple[List[Dict[str, Any]], List[str]]:
+    bearer_token: str | None = None,
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Run the full rasterio change detection pipeline.
 
     Returns (change_records, warnings).
@@ -185,7 +184,7 @@ def run_change_detection(
     - If COG read fails for a URL: logs warning, returns empty
     - If no significant changes found: returns ([], [])
     """
-    warnings: List[str] = []
+    warnings: list[str] = []
 
     if not _rasterio_available():
         warnings.append(
@@ -270,9 +269,8 @@ def run_change_detection(
         warnings.append("No significant changes detected within AOI after filtering.")
         return [], warnings
 
-    from datetime import datetime
 
-    changes: List[Dict[str, Any]] = []
+    changes: list[dict[str, Any]] = []
     for component_idx in range(1, num_features + 1):
         component_mask = labeled == component_idx
         if component_mask.sum() < _MIN_PATCH_PIXELS:

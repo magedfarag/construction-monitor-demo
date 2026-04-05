@@ -1,7 +1,8 @@
 """API request models."""
 from __future__ import annotations
+
 from datetime import date
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -22,7 +23,7 @@ class AnalyzeRequest(BaseModel):
         default="auto",
         description="auto | demo | sentinel2 | landsat",
     )
-    area_km2: Optional[float] = Field(
+    area_km2: float | None = Field(
         default=None,
         description="Client-computed area; backend re-validates regardless",
     )
@@ -41,7 +42,7 @@ class AnalyzeRequest(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _validate_dates(self) -> "AnalyzeRequest":
+    def _validate_dates(self) -> AnalyzeRequest:
         if self.start_date > self.end_date:
             raise ValueError("start_date must be before or equal to end_date")
         return self

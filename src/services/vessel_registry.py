@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -42,7 +44,7 @@ class VesselProfile(BaseModel):
     notes: str = ""
 
 
-_VESSELS: List[Dict[str, Any]] = [
+_VESSELS: list[dict[str, Any]] = [
     # Sanctioned / IRGC-affiliated tankers
     {"imo":"9169501","mmsi":"422110600","name":"WISDOM","flag":"IR","flag_emoji":"🇮🇷","vessel_type":"VLCC",
      "gross_tonnage":299999,"year_built":2000,"owner":"NITC","operator":"NITC",
@@ -118,26 +120,26 @@ _VESSELS: List[Dict[str, Any]] = [
      "sanctions_status":"clean","dark_ship_risk":"low","last_known_port":"Dubai"},
 ]
 
-_INDEX: Dict[str, Dict[str, Any]] = {v["mmsi"]: v for v in _VESSELS}
-_IMO_INDEX: Dict[str, Dict[str, Any]] = {v["imo"]: v for v in _VESSELS if v["imo"] != "N/A"}
+_INDEX: dict[str, dict[str, Any]] = {v["mmsi"]: v for v in _VESSELS}
+_IMO_INDEX: dict[str, dict[str, Any]] = {v["imo"]: v for v in _VESSELS if v["imo"] != "N/A"}
 
 
-def get_vessel_by_mmsi(mmsi: str) -> Optional[VesselProfile]:
+def get_vessel_by_mmsi(mmsi: str) -> VesselProfile | None:
     raw = _INDEX.get(mmsi)
     return VesselProfile(**raw) if raw else None
 
 
-def get_vessel_by_imo(imo: str) -> Optional[VesselProfile]:
+def get_vessel_by_imo(imo: str) -> VesselProfile | None:
     raw = _IMO_INDEX.get(imo)
     return VesselProfile(**raw) if raw else None
 
 
 def list_vessels(
     sanctions_only: bool = False,
-    dark_risk: Optional[str] = None,
-    vessel_type: Optional[str] = None,
+    dark_risk: str | None = None,
+    vessel_type: str | None = None,
     limit: int = 100,
-) -> List[VesselProfile]:
+) -> list[VesselProfile]:
     results = list(_VESSELS)
     if sanctions_only:
         results = [v for v in results if v["sanctions_status"] != "clean"]

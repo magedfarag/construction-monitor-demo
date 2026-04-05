@@ -7,8 +7,7 @@ swapping backends requires only a new class, no router changes.
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from src.models.aoi import AOICreate, AOIResponse, AOIUpdate
@@ -18,11 +17,11 @@ class AOIStore:
     """Thread-safe in-memory AOI repository."""
 
     def __init__(self) -> None:
-        self._store: Dict[str, AOIResponse] = {}
+        self._store: dict[str, AOIResponse] = {}
         self._lock = threading.Lock()
 
     def create(self, payload: AOICreate) -> AOIResponse:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         aoi = AOIResponse(
             id=str(uuid4()),
             **payload.model_dump(),
@@ -34,14 +33,14 @@ class AOIStore:
             self._store[aoi.id] = aoi
         return aoi
 
-    def get(self, aoi_id: str) -> Optional[AOIResponse]:
+    def get(self, aoi_id: str) -> AOIResponse | None:
         with self._lock:
             aoi = self._store.get(aoi_id)
         if aoi and not aoi.deleted:
             return aoi
         return None
 
-    def list_active(self, page: int = 1, page_size: int = 20) -> List[AOIResponse]:
+    def list_active(self, page: int = 1, page_size: int = 20) -> list[AOIResponse]:
         with self._lock:
             active = [a for a in self._store.values() if not a.deleted]
         active.sort(key=lambda a: a.created_at, reverse=True)
@@ -52,7 +51,7 @@ class AOIStore:
         with self._lock:
             return sum(1 for a in self._store.values() if not a.deleted)
 
-    def update(self, aoi_id: str, patch: AOIUpdate) -> Optional[AOIResponse]:
+    def update(self, aoi_id: str, patch: AOIUpdate) -> AOIResponse | None:
         with self._lock:
             existing = self._store.get(aoi_id)
             if not existing or existing.deleted:
@@ -60,7 +59,7 @@ class AOIStore:
             updates = patch.model_dump(exclude_none=True)
             data = existing.model_dump()
             data.update(updates)
-            data["updated_at"] = datetime.now(timezone.utc)
+            data["updated_at"] = datetime.now(UTC)
             updated = AOIResponse(**data)
             self._store[aoi_id] = updated
         return updated
@@ -72,6 +71,6 @@ class AOIStore:
                 return False
             data = existing.model_dump()
             data["deleted"] = True
-            data["updated_at"] = datetime.now(timezone.utc)
+            data["updated_at"] = datetime.now(UTC)
             self._store[aoi_id] = AOIResponse(**data)
         return True

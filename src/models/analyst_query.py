@@ -8,12 +8,11 @@ All datetimes must be UTC-aware.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from pydantic import BaseModel, Field
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Query enumerations
@@ -53,11 +52,11 @@ class AnalystQuery(BaseModel):
     """Structured query expression for the analyst query surface."""
 
     query_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    label: Optional[str] = None
-    filters: List[QueryFilter] = Field(default_factory=list)
+    label: str | None = None
+    filters: list[QueryFilter] = Field(default_factory=list)
     combine_with: QueryOperator = QueryOperator.AND
-    time_window_start: Optional[datetime] = None
-    time_window_end: Optional[datetime] = None
+    time_window_start: datetime | None = None
+    time_window_end: datetime | None = None
     limit: int = Field(default=100, ge=1, le=1000)
     include_provenance: bool = True
 
@@ -66,12 +65,12 @@ class QueryResult(BaseModel):
     """Result of executing an AnalystQuery."""
 
     query_id: str
-    executed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    executed_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     total_matched: int
     returned_count: int
-    events: List[dict] = Field(default_factory=list)
-    sources_cited: List[str] = Field(default_factory=list)
-    confidence_range: Optional[Tuple[float, float]] = None
+    events: list[dict] = Field(default_factory=list)
+    sources_cited: list[str] = Field(default_factory=list)
+    confidence_range: tuple[float, float] | None = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -93,15 +92,15 @@ class BriefingRequest(BaseModel):
     """Request to generate a data-backed analyst briefing."""
 
     title: str
-    investigation_id: Optional[str] = None
-    query: Optional[AnalystQuery] = None
-    sections: List[BriefingSection] = Field(
+    investigation_id: str | None = None
+    query: AnalystQuery | None = None
+    sections: list[BriefingSection] = Field(
         default_factory=lambda: list(BriefingSection)
     )
-    time_window_start: Optional[datetime] = None
-    time_window_end: Optional[datetime] = None
+    time_window_start: datetime | None = None
+    time_window_end: datetime | None = None
     classification_label: str = "UNCLASSIFIED"
-    created_by: Optional[str] = None
+    created_by: str | None = None
 
 
 class BriefingOutput(BaseModel):
@@ -109,19 +108,19 @@ class BriefingOutput(BaseModel):
 
     briefing_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_by: str | None = None
     classification_label: str = "UNCLASSIFIED"
-    investigation_id: Optional[str] = None
-    sections_generated: List[BriefingSection] = Field(default_factory=list)
-    content: Dict[str, str] = Field(
+    investigation_id: str | None = None
+    sections_generated: list[BriefingSection] = Field(default_factory=list)
+    content: dict[str, str] = Field(
         default_factory=dict, description="section_name -> narrative text"
     )
-    citations: List[dict] = Field(
+    citations: list[dict] = Field(
         default_factory=list,
         description='[{"source": str, "event_id": str, "timestamp": str}]',
     )
-    data_summary: Dict[str, Any] = Field(
+    data_summary: dict[str, Any] = Field(
         default_factory=dict, description="Quick stats: event counts by type, sources used, time range"
     )
     raw_event_count: int = 0

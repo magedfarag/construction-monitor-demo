@@ -14,8 +14,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Set
+from datetime import UTC, datetime
 
 from src.models.canonical_event import CanonicalEvent
 
@@ -38,7 +37,7 @@ class InMemoryDeduplicationBackend(DeduplicationBackend):
     """Non-persistent in-memory backend — suitable for tests and single-process demo."""
 
     def __init__(self) -> None:
-        self._seen: Set[str] = set()
+        self._seen: set[str] = set()
 
     def has_seen(self, event_id: str) -> bool:
         return event_id in self._seen
@@ -65,7 +64,7 @@ class DeduplicationService:
 
     FUZZY_BUCKET_SECONDS: int = 60
 
-    def __init__(self, backend: Optional[DeduplicationBackend] = None) -> None:
+    def __init__(self, backend: DeduplicationBackend | None = None) -> None:
         self._backend = backend or InMemoryDeduplicationBackend()
 
     def is_duplicate(self, event: CanonicalEvent) -> bool:
@@ -92,7 +91,7 @@ class DeduplicationService:
     @staticmethod
     def make_fuzzy_dedupe_key(source: str, entity_id: str, event_time: datetime) -> str:
         """Build the fuzzy dedupe key by bucketing event_time to 60-second intervals."""
-        ts = event_time.astimezone(timezone.utc)
+        ts = event_time.astimezone(UTC)
         bucket_ts = ts.replace(second=(ts.second // 60) * 60, microsecond=0)
         raw = f"{source}:{entity_id}:{bucket_ts.isoformat()}"
         return "fuzz_" + hashlib.sha256(raw.encode()).hexdigest()[:16]

@@ -13,8 +13,8 @@ from __future__ import annotations
 import hashlib
 import math
 import random
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from src.connectors.base import (
     BaseConnector,
@@ -33,10 +33,9 @@ from src.models.canonical_event import (
 )
 from src.models.operational_layers import GpsJammingEvent
 
-
 # ── Known conflict-zone jamming centres ───────────────────────────────────────
 # (zone_slug, centre_lon, centre_lat, nominal_radius_km, jamming_type)
-_ZONE_SPECS: List[tuple[str, float, float, float, str]] = [
+_ZONE_SPECS: list[tuple[str, float, float, float, str]] = [
     ("east-med-cyprus",       33.60,  35.10, 120.0, "spoofing"),
     ("black-sea-crimea",      33.40,  44.90, 180.0, "jamming"),
     ("black-sea-odessa",      31.60,  46.50,  90.0, "interference"),
@@ -60,7 +59,7 @@ def _circle_polygon_geojson(
     lat: float,
     radius_km: float,
     steps: int = 16,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Return a closed GeoJSON Polygon approximating a circle (flat-earth).
 
     Points are evenly distributed around the circumference.  The ring is
@@ -70,7 +69,7 @@ def _circle_polygon_geojson(
     d_lat = radius_km / 111.32
     d_lon = radius_km / (111.32 * math.cos(math.radians(lat)))
 
-    coords: List[List[float]] = []
+    coords: list[list[float]] = []
     for i in range(steps):
         angle = 2.0 * math.pi * i / steps
         coords.append([
@@ -113,16 +112,16 @@ class JammingConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Delegate to detect_jamming_events and return raw dicts."""
         events = self.detect_jamming_events(start_time, end_time)
         return [e.model_dump(mode="json") for e in events]
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Convert a single raw jamming dict to a CanonicalEvent.
 
         Raises:
@@ -139,7 +138,7 @@ class JammingConnector(BaseConnector):
             connector_id=self.connector_id,
             healthy=True,
             message="Stub connector — no remote dependency",
-            last_successful_poll=datetime.now(timezone.utc),
+            last_successful_poll=datetime.now(UTC),
         )
 
     # ── Domain methods ────────────────────────────────────────────────────
@@ -148,8 +147,8 @@ class JammingConnector(BaseConnector):
         self,
         start_time: datetime,
         end_time: datetime,
-        region_bbox: Optional[tuple[float, float, float, float]] = None,
-    ) -> List[GpsJammingEvent]:
+        region_bbox: tuple[float, float, float, float] | None = None,
+    ) -> list[GpsJammingEvent]:
         """Generate 3–5 deterministic synthetic jamming events for the window.
 
         The output is reproducible: the same (start_time, end_time) always
@@ -166,9 +165,9 @@ class JammingConnector(BaseConnector):
         """
         # Ensure timezone-aware input
         if start_time.tzinfo is None:
-            start_time = start_time.replace(tzinfo=timezone.utc)
+            start_time = start_time.replace(tzinfo=UTC)
         if end_time.tzinfo is None:
-            end_time = end_time.replace(tzinfo=timezone.utc)
+            end_time = end_time.replace(tzinfo=UTC)
 
         rng = random.Random(_seed_from_window(start_time, end_time))
         zones = list(_ZONE_SPECS)
@@ -177,9 +176,9 @@ class JammingConnector(BaseConnector):
         selected_zones = zones[:count]
 
         span_seconds = max(int((end_time - start_time).total_seconds()), 1)
-        events: List[GpsJammingEvent] = []
+        events: list[GpsJammingEvent] = []
 
-        for i, (zone_name, lon, lat, radius_km, jamming_type) in enumerate(selected_zones):
+        for _i, (zone_name, lon, lat, radius_km, jamming_type) in enumerate(selected_zones):
             offset_seconds = rng.randint(0, span_seconds - 1)
             detected_at = start_time + timedelta(seconds=offset_seconds)
 
@@ -220,20 +219,20 @@ class JammingConnector(BaseConnector):
         return events
 
     def to_canonical_events(
-        self, events: List[GpsJammingEvent]
-    ) -> List[CanonicalEvent]:
+        self, events: list[GpsJammingEvent]
+    ) -> list[CanonicalEvent]:
         """Convert GpsJammingEvent instances to CanonicalEvents for EventStore ingestion.
 
         Uses the affected_area_geojson Polygon as the canonical geometry when
         available; falls back to a GeoJSON Point at (location_lon, location_lat).
         """
-        canonical: List[CanonicalEvent] = []
+        canonical: list[CanonicalEvent] = []
         for ev in events:
-            geometry: Dict[str, Any] = ev.affected_area_geojson or {
+            geometry: dict[str, Any] = ev.affected_area_geojson or {
                 "type": "Point",
                 "coordinates": [ev.location_lon, ev.location_lat],
             }
-            centroid: Dict[str, Any] = {
+            centroid: dict[str, Any] = {
                 "type": "Point",
                 "coordinates": [ev.location_lon, ev.location_lat],
             }

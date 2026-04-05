@@ -12,14 +12,14 @@ crashing the application at import time.
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
 
 log = logging.getLogger(__name__)
 
 try:
     from sqlalchemy import create_engine, text
-    from sqlalchemy.orm import sessionmaker, Session
+    from sqlalchemy.orm import Session, sessionmaker
     _SA_AVAILABLE = True
 except ImportError:
     _SA_AVAILABLE = False  # type: ignore[assignment]
@@ -74,7 +74,7 @@ def create_all_tables() -> None:
 
 
 @contextmanager
-def get_session() -> Generator["Session", None, None]:  # type: ignore[type-arg]
+def get_session() -> Generator[Session, None, None]:  # type: ignore[type-arg]
     """Yield a SQLAlchemy session, committing on exit or rolling back on error."""
     if _SessionFactory is None:
         raise DatabaseNotConfiguredError("Database not initialised — call init_db() first")
@@ -89,7 +89,7 @@ def get_session() -> Generator["Session", None, None]:  # type: ignore[type-arg]
         session.close()
 
 
-def get_db() -> Generator["Session", None, None]:  # type: ignore[type-arg]
+def get_db() -> Generator[Session, None, None]:  # type: ignore[type-arg]
     """FastAPI dependency — yields a session and closes it after the request."""
     with get_session() as session:
         yield session

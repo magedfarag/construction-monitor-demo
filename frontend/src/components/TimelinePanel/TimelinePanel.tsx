@@ -24,6 +24,17 @@ const PRESETS = [
 const SOURCE_COLORS: Record<string, string> = {
   sentinel2: "#4caf50", landsat: "#8bc34a", gdelt: "#9c27b0",
   aisstream: "#00bcd4", opensky: "#ff5722",
+  // Signal connectors
+  "usgs-earthquake": "#ef4444", "nasa-eonet": "#f97316",
+  "open-meteo": "#3b82f6", acled: "#dc2626",
+  "nga-msi": "#06b6d4", "osm-military": "#7c3aed",
+  "nasa-firms": "#ea580c", "noaa-swpc": "#8b5cf6",
+  openaq: "#22c55e",
+  // Other imagery / telemetry connectors
+  "cdse-sentinel2": "#4caf50", "usgs-landsat": "#8bc34a",
+  "earth-search": "#66bb6a", "planetary-computer": "#81c784",
+  "gdelt-doc": "#9c27b0", "ais-stream": "#00bcd4",
+  "vessel-data": "#26c6da", "rapidapi-ais": "#00acc1",
 };
 
 export function TimelinePanel({ aoiId, startTime, endTime, onRangeChange }: Props) {

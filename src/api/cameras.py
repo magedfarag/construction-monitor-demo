@@ -18,8 +18,7 @@ GET /api/v1/cameras/detections is not captured by the path-parameter route.
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 
@@ -35,21 +34,21 @@ router = APIRouter(prefix="/api/v1/cameras", tags=["cameras"])
 # ── In-memory stores ──────────────────────────────────────────────────────────
 
 # camera_id → GeoRegistration (the authoritative world anchor for each camera)
-_camera_store: Dict[str, GeoRegistration] = {}
+_camera_store: dict[str, GeoRegistration] = {}
 
 # camera_id → camera type and display metadata
-_camera_meta: Dict[str, Dict] = {}
+_camera_meta: dict[str, dict] = {}
 
 # observation_id → CameraObservation
-_observation_store: Dict[str, CameraObservation] = {}
+_observation_store: dict[str, CameraObservation] = {}
 
 # clip_id → MediaClipRef
-_clip_store: Dict[str, MediaClipRef] = {}
+_clip_store: dict[str, MediaClipRef] = {}
 
 # detection_id → DetectionOverlay  (shared with detections router)
-_detection_store: Dict[str, DetectionOverlay] = {}
+_detection_store: dict[str, DetectionOverlay] = {}
 
-_REF_NOW = datetime(2026, 4, 4, 0, 0, 0, tzinfo=timezone.utc)
+_REF_NOW = datetime(2026, 4, 4, 0, 0, 0, tzinfo=UTC)
 
 
 # ── Seed data ─────────────────────────────────────────────────────────────────
@@ -313,17 +312,17 @@ _seed()
 
 @router.get(
     "",
-    response_model=List[Dict],
+    response_model=list[dict],
     summary="List all cameras",
     description="Returns camera IDs, type, label, and geo_registration for all seeded cameras.",
 )
-def list_cameras() -> List[Dict]:
+def list_cameras() -> list[dict]:
     return list(_camera_meta.values())
 
 
 @router.get(
     "/detections",
-    response_model=List[DetectionOverlay],
+    response_model=list[DetectionOverlay],
     summary="List detection overlays for all cameras",
     description=(
         "Returns detection overlay events across all cameras.  "
@@ -331,14 +330,14 @@ def list_cameras() -> List[Dict]:
     ),
 )
 def list_detections(
-    detection_type: Optional[str] = Query(
+    detection_type: str | None = Query(
         default=None,
         description="Filter by type: vehicle | person | aircraft | vessel | infrastructure | unknown",
     ),
     confidence_min: float = Query(
         default=0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"
     ),
-) -> List[DetectionOverlay]:
+) -> list[DetectionOverlay]:
     results = list(_detection_store.values())
     if detection_type is not None:
         results = [d for d in results if d.detection_type == detection_type]
@@ -350,11 +349,11 @@ def list_detections(
 
 @router.get(
     "/{camera_id}",
-    response_model=Dict,
+    response_model=dict,
     summary="Get a single camera by ID",
     description="Returns the camera metadata and geo_registration for the given camera_id.",
 )
-def get_camera(camera_id: str) -> Dict:
+def get_camera(camera_id: str) -> dict:
     meta = _camera_meta.get(camera_id)
     if meta is None:
         raise HTTPException(status_code=404, detail=f"Camera {camera_id!r} not found")
@@ -363,7 +362,7 @@ def get_camera(camera_id: str) -> Dict:
 
 @router.get(
     "/{camera_id}/observations",
-    response_model=List[CameraObservation],
+    response_model=list[CameraObservation],
     summary="List observations for a camera",
     description=(
         "Returns observations for the given camera.  "
@@ -372,14 +371,14 @@ def get_camera(camera_id: str) -> Dict:
 )
 def list_observations(
     camera_id: str,
-    start: Optional[datetime] = Query(
+    start: datetime | None = Query(
         default=None, description="Filter observations on or after this UTC timestamp"
     ),
-    end: Optional[datetime] = Query(
+    end: datetime | None = Query(
         default=None, description="Filter observations on or before this UTC timestamp"
     ),
     limit: int = Query(default=50, ge=1, le=500, description="Maximum results to return"),
-) -> List[CameraObservation]:
+) -> list[CameraObservation]:
     if camera_id not in _camera_store:
         raise HTTPException(status_code=404, detail=f"Camera {camera_id!r} not found")
     results = [o for o in _observation_store.values() if o.camera_id == camera_id]
@@ -393,19 +392,19 @@ def list_observations(
 
 @router.get(
     "/{camera_id}/clips",
-    response_model=List[MediaClipRef],
+    response_model=list[MediaClipRef],
     summary="List clips for a camera",
     description="Returns media clip references for the given camera, optionally filtered by time range.",
 )
 def list_clips(
     camera_id: str,
-    start: Optional[datetime] = Query(
+    start: datetime | None = Query(
         default=None, description="Filter clips recorded on or after this UTC timestamp"
     ),
-    end: Optional[datetime] = Query(
+    end: datetime | None = Query(
         default=None, description="Filter clips recorded on or before this UTC timestamp"
     ),
-) -> List[MediaClipRef]:
+) -> list[MediaClipRef]:
     if camera_id not in _camera_store:
         raise HTTPException(status_code=404, detail=f"Camera {camera_id!r} not found")
     results = [c for c in _clip_store.values() if c.camera_id == camera_id]

@@ -23,8 +23,8 @@ from __future__ import annotations
 import json
 import logging
 import math
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 import httpx
 
@@ -65,7 +65,7 @@ _LICENSE = LicenseRecord(
 )
 
 # Navigation status code → human-readable label
-_NAV_STATUS: Dict[int, str] = {
+_NAV_STATUS: dict[int, str] = {
     0: "Under way using engine",
     1: "At anchor",
     2: "Not under command",
@@ -79,10 +79,10 @@ _NAV_STATUS: Dict[int, str] = {
 }
 
 
-def _bbox_from_geojson(geometry: Dict[str, Any]) -> Tuple[float, float, float, float]:
+def _bbox_from_geojson(geometry: dict[str, Any]) -> tuple[float, float, float, float]:
     """Derive (min_lat, min_lon, max_lat, max_lon) from a GeoJSON geometry."""
     gtype = geometry.get("type", "")
-    coords_flat: List[List[float]] = []
+    coords_flat: list[list[float]] = []
     if gtype == "Point":
         coords_flat = [geometry["coordinates"]]
     elif gtype == "Polygon":
@@ -98,9 +98,9 @@ def _bbox_from_geojson(geometry: Dict[str, Any]) -> Tuple[float, float, float, f
 
 
 def _track_segment_from_positions(
-    positions: List[CanonicalEvent],
+    positions: list[CanonicalEvent],
     entity_id: str,
-) -> Optional[CanonicalEvent]:
+) -> CanonicalEvent | None:
     """Aggregate a list of ship_position events into a ship_track_segment event.
 
     Returns None if fewer than 2 positions are available.
@@ -206,11 +206,11 @@ class AisStreamConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Collect AIS position messages for the given AOI bounding box.
 
         Opens a short-lived WebSocket connection to AISStream.io, subscribes to
@@ -242,7 +242,7 @@ class AisStreamConnector(BaseConnector):
             "FilterMessageTypes": ["PositionReport", "ExtendedClassBPositionReport"],
         }
 
-        collected: List[Dict[str, Any]] = []
+        collected: list[dict[str, Any]] = []
 
         async def _collect() -> None:
             try:
@@ -257,9 +257,9 @@ class AisStreamConnector(BaseConnector):
                             raw = await asyncio.wait_for(ws.recv(), timeout=2.0)
                             msg = json.loads(raw)
                             # Inject fetch metadata for normalization
-                            msg["_fetched_at"] = datetime.now(timezone.utc).isoformat()
+                            msg["_fetched_at"] = datetime.now(UTC).isoformat()
                             collected.append(msg)
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             # No message in 2s — check deadline and continue
                             continue
             except Exception as exc:
@@ -276,7 +276,7 @@ class AisStreamConnector(BaseConnector):
         log.info("AisStreamConnector.fetch: collected %d messages", len(collected))
         return collected
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Normalize a single AIS message dict → ship_position CanonicalEvent.
 
         Supports AISStream JSON envelope with ``Message.PositionReport`` or
@@ -303,13 +303,13 @@ class AisStreamConnector(BaseConnector):
             nav_code = pos.get("NavigationalStatus", 15)
             ship_type = meta.get("ShipType")
 
-            fetched_at_str = raw.get("_fetched_at") or datetime.now(timezone.utc).isoformat()
+            fetched_at_str = raw.get("_fetched_at") or datetime.now(UTC).isoformat()
             fetched_at = datetime.fromisoformat(fetched_at_str.replace("Z", "+00:00"))
 
             time_utc_str = meta.get("time_utc") or fetched_at_str
             event_time = datetime.fromisoformat(time_utc_str.replace("Z", "+00:00"))
             if event_time.tzinfo is None:
-                event_time = event_time.replace(tzinfo=timezone.utc)
+                event_time = event_time.replace(tzinfo=UTC)
 
             if not mmsi:
                 raise NormalizationError("AIS message missing MMSI")
@@ -329,7 +329,7 @@ class AisStreamConnector(BaseConnector):
                 nav_status=_NAV_STATUS.get(int(nav_code), "Undefined"),
             )
 
-            warnings: List[str] = []
+            warnings: list[str] = []
             if msg_type not in ("PositionReport", "ExtendedClassBPositionReport"):
                 warnings.append(f"Unexpected message type: {msg_type!r}")
 
@@ -362,9 +362,9 @@ class AisStreamConnector(BaseConnector):
         except Exception as exc:
             raise NormalizationError(f"AIS normalization failed: {exc}") from exc
 
-    def normalize_all(self, records: List[Dict[str, Any]]) -> List[CanonicalEvent]:
+    def normalize_all(self, records: list[dict[str, Any]]) -> list[CanonicalEvent]:
         """Normalize a batch of AIS messages, skipping failed records."""
-        events: List[CanonicalEvent] = []
+        events: list[CanonicalEvent] = []
         for r in records:
             try:
                 events.append(self.normalize(r))
@@ -374,9 +374,9 @@ class AisStreamConnector(BaseConnector):
 
     def build_track_segments(
         self,
-        events: List[CanonicalEvent],
+        events: list[CanonicalEvent],
         min_positions: int = 2,
-    ) -> List[CanonicalEvent]:
+    ) -> list[CanonicalEvent]:
         """P3-1.4: Group ship_position events by MMSI and build track segments.
 
         Args:
@@ -386,14 +386,14 @@ class AisStreamConnector(BaseConnector):
         Returns:
             List of ship_track_segment CanonicalEvents, one per MMSI.
         """
-        by_mmsi: Dict[str, List[CanonicalEvent]] = {}
+        by_mmsi: dict[str, list[CanonicalEvent]] = {}
         for e in events:
             if e.event_type != EventType.SHIP_POSITION:
                 continue
             mmsi = e.attributes.get("mmsi", "unknown")
             by_mmsi.setdefault(mmsi, []).append(e)
 
-        segments: List[CanonicalEvent] = []
+        segments: list[CanonicalEvent] = []
         for mmsi, positions in by_mmsi.items():
             positions.sort(key=lambda e: e.event_time)
             if len(positions) < min_positions:
@@ -424,7 +424,7 @@ class AisStreamConnector(BaseConnector):
                 connector_id=self.connector_id,
                 healthy=ok,
                 message=f"HTTP {r.status_code}",
-                last_successful_poll=datetime.now(timezone.utc) if ok else None,
+                last_successful_poll=datetime.now(UTC) if ok else None,
             )
         except Exception as exc:
             return ConnectorHealthStatus(

@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ class ParquetExportResult:
         self,
         parquet_bytes: bytes,
         event_count: int,
-        aoi_id: Optional[str],
+        aoi_id: str | None,
         exported_at: datetime,
     ) -> None:
         self.parquet_bytes = parquet_bytes
@@ -59,7 +60,7 @@ class ParquetExportResult:
 
 # ── GeoJSON → WKT helpers ─────────────────────────────────────────────────────
 
-def _geojson_point_to_wkt(geojson: Dict[str, Any]) -> str:
+def _geojson_point_to_wkt(geojson: dict[str, Any]) -> str:
     """Convert a GeoJSON Point dict to WKT string."""
     try:
         coords = geojson["coordinates"]
@@ -71,7 +72,7 @@ def _geojson_point_to_wkt(geojson: Dict[str, Any]) -> str:
         return "POINT (0 0)"
 
 
-def _geojson_to_wkt(geojson: Dict[str, Any]) -> str:
+def _geojson_to_wkt(geojson: dict[str, Any]) -> str:
     """Best-effort GeoJSON → WKT conversion for common geometry types."""
     gtype = (geojson or {}).get("type", "")
     try:
@@ -89,10 +90,10 @@ def _geojson_to_wkt(geojson: Dict[str, Any]) -> str:
             return f"MULTIPOLYGON ({', '.join(polygons)})"
     except (KeyError, IndexError, TypeError):
         pass
-    return f"GEOMETRYCOLLECTION EMPTY"
+    return "GEOMETRYCOLLECTION EMPTY"
 
 
-def _centroid_coords(geojson: Dict[str, Any]) -> tuple[Optional[float], Optional[float]]:
+def _centroid_coords(geojson: dict[str, Any]) -> tuple[float | None, float | None]:
     """Extract (lon, lat) from a GeoJSON Point dict."""
     try:
         coords = geojson["coordinates"]
@@ -103,7 +104,7 @@ def _centroid_coords(geojson: Dict[str, Any]) -> tuple[Optional[float], Optional
 
 # ── Canonical event → flat row ───────────────────────────────────────────────
 
-def _event_to_row(event: Any) -> Dict[str, Any]:
+def _event_to_row(event: Any) -> dict[str, Any]:
     """Flatten a CanonicalEvent to a dict of scalar/string values."""
     centroid_lon, centroid_lat = _centroid_coords(event.centroid)
     return {
@@ -136,7 +137,7 @@ def _event_to_row(event: Any) -> Dict[str, Any]:
 
 # ── PyArrow schema ────────────────────────────────────────────────────────────
 
-def _build_schema() -> "pa.Schema":
+def _build_schema() -> pa.Schema:
     return pa.schema([
         pa.field("event_id", pa.string()),
         pa.field("source", pa.string()),
@@ -172,7 +173,7 @@ class ParquetExportService:
     def export_events(
         self,
         events: Sequence[Any],
-        aoi_id: Optional[str] = None,
+        aoi_id: str | None = None,
         include_restricted: bool = False,
     ) -> ParquetExportResult:
         """Serialize *events* to Parquet.
@@ -202,13 +203,13 @@ class ParquetExportService:
         ]
 
         rows = [_event_to_row(e) for e in filtered]
-        exported_at = datetime.now(timezone.utc)
+        exported_at = datetime.now(UTC)
 
         if not rows:
             log.info("ParquetExportService: 0 events after license filter — writing empty table")
             table = pa.table({f.name: [] for f in _build_schema()}, schema=_build_schema())
         else:
-            col_data: Dict[str, list] = {f.name: [] for f in _build_schema()}
+            col_data: dict[str, list] = {f.name: [] for f in _build_schema()}
             for row in rows:
                 for col in col_data:
                     col_data[col].append(row.get(col))

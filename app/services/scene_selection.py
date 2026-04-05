@@ -10,7 +10,6 @@ recency_score is 1.0 for today, 0.0 for the oldest day in the window.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional, Tuple
 
 from app.models.scene import SceneMetadata
 
@@ -23,7 +22,7 @@ def _recency_score(scene: SceneMetadata, newest_dt: datetime, oldest_dt: datetim
     return max(0.0, 1.0 - age / span)
 
 
-def rank_scenes(scenes: List[SceneMetadata]) -> List[SceneMetadata]:
+def rank_scenes(scenes: list[SceneMetadata]) -> list[SceneMetadata]:
     """Return *scenes* sorted by composite quality score, best first."""
     if not scenes:
         return []
@@ -41,9 +40,9 @@ def rank_scenes(scenes: List[SceneMetadata]) -> List[SceneMetadata]:
 
 
 def select_scene_pair(
-    ranked: List[SceneMetadata],
+    ranked: list[SceneMetadata],
     min_temporal_gap_days: int = 7,
-) -> Tuple[Optional[SceneMetadata], Optional[SceneMetadata]]:
+) -> tuple[SceneMetadata | None, SceneMetadata | None]:
     """Pick (before, after) scene pair for change detection.
 
     Strategy:

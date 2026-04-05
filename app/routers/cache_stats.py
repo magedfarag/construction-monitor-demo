@@ -5,7 +5,7 @@ Route:
 """
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/v1/cache", tags=["cache"])
     summary="Query cache statistics",
     response_model=None,
 )
-def get_cache_stats() -> Dict[str, Any]:
+def get_cache_stats() -> dict[str, Any]:
     """Return hit/miss rates, eviction count, and live entry count for the
     in-process query cache.
     """

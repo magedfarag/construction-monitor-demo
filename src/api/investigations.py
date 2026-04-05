@@ -14,12 +14,9 @@ Endpoints:
 """
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.dependencies import UserClaims, require_analyst, require_operator
-
 from src.models.investigations import (
     Investigation,
     InvestigationCreateRequest,
@@ -52,7 +49,7 @@ def _get_or_404(investigation_id: str) -> Investigation:
 
 @router.get("", response_model=InvestigationListResponse, summary="List investigations")
 def list_investigations(
-    status: Optional[InvestigationStatus] = Query(
+    status: InvestigationStatus | None = Query(
         default=None, description="Filter by investigation status"
     ),
     _user: UserClaims = Depends(require_analyst),

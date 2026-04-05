@@ -11,8 +11,8 @@ Auth: API key (Basic auth or Bearer token)
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
 from app.config import AppSettings
 from app.models.scene import SceneMetadata
@@ -34,12 +34,12 @@ class PlanetProvider(SatelliteProvider):
     def __init__(self, settings: AppSettings) -> None:
         self._settings = settings
 
-    def validate_credentials(self) -> Tuple[bool, str]:
+    def validate_credentials(self) -> tuple[bool, str]:
         if not self._settings.planet_api_key:
             return False, "PLANET_API_KEY not set"
         return True, "Planet API key present (not yet verified)"
 
-    def healthcheck(self) -> Tuple[bool, str]:
+    def healthcheck(self) -> tuple[bool, str]:
         """Check Planet Data API reachability."""
         if not self._settings.planet_api_key:
             return False, "PLANET_API_KEY not configured"
@@ -59,12 +59,12 @@ class PlanetProvider(SatelliteProvider):
     @with_retry(max_attempts=3)
     def search_imagery(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_date: str,
         end_date: str,
         cloud_threshold: float = 20.0,
         max_results: int = 10,
-    ) -> List[SceneMetadata]:
+    ) -> list[SceneMetadata]:
         if not self._settings.planet_api_key:
             raise ProviderUnavailableError("PLANET_API_KEY not configured")
         try:
@@ -111,7 +111,7 @@ class PlanetProvider(SatelliteProvider):
         except Exception as exc:
             raise ProviderUnavailableError(f"Planet search failed: {exc}") from exc
 
-    def fetch_scene_metadata(self, scene_id: str) -> Optional[SceneMetadata]:
+    def fetch_scene_metadata(self, scene_id: str) -> SceneMetadata | None:
         if not self._settings.planet_api_key:
             return None
         try:
@@ -128,7 +128,7 @@ class PlanetProvider(SatelliteProvider):
             log.warning("Planet fetch_scene_metadata failed: %s", exc)
             return None
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         caps = super().get_capabilities()
         caps.update({
             "supports_cog_streaming": True,
@@ -140,13 +140,13 @@ class PlanetProvider(SatelliteProvider):
         })
         return caps
 
-    def _normalise(self, item: Dict[str, Any]) -> SceneMetadata:
+    def _normalise(self, item: dict[str, Any]) -> SceneMetadata:
         props = item.get("properties", {})
         acquired_raw = props.get("acquired", "")
         try:
             acquired_at = datetime.fromisoformat(acquired_raw.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
-            acquired_at = datetime.now(timezone.utc)
+            acquired_at = datetime.now(UTC)
         cloud_cover = float(props.get("cloud_cover", 0.0)) * 100.0  # Planet uses 0-1
         raw_assets = item.get("assets", {})
         assets = {}
@@ -166,7 +166,7 @@ class PlanetProvider(SatelliteProvider):
         )
 
 
-def _bbox_from_geometry(geom: Optional[Dict[str, Any]]) -> List[float]:
+def _bbox_from_geometry(geom: dict[str, Any] | None) -> list[float]:
     """Extract bounding box from GeoJSON geometry."""
     if not geom or "coordinates" not in geom:
         return []

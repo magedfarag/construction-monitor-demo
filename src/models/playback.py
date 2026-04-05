@@ -8,7 +8,7 @@ Covers:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -18,25 +18,25 @@ from src.models.canonical_event import CanonicalEvent, EventType, SourceType
 class PlaybackQueryRequest(BaseModel):
     """POST /api/v1/playback/query — stream events ordered by event_time."""
 
-    geometry: Optional[Dict[str, Any]] = Field(
+    geometry: dict[str, Any] | None = Field(
         default=None,
         description="GeoJSON Polygon/MultiPolygon AOI filter.",
     )
-    aoi_id: Optional[str] = Field(
+    aoi_id: str | None = Field(
         default=None,
         description="Restrict query to events correlated to this AOI id.",
     )
     start_time: datetime = Field(..., description="Window start (UTC)")
     end_time: datetime = Field(..., description="Window end (UTC)")
-    source_types: Optional[List[SourceType]] = Field(
+    source_types: list[SourceType] | None = Field(
         default=None,
         description="Restrict to these source category codes.",
     )
-    event_types: Optional[List[EventType]] = Field(
+    event_types: list[EventType] | None = Field(
         default=None,
         description="Restrict to these event families.",
     )
-    sources: Optional[List[str]] = Field(
+    sources: list[str] | None = Field(
         default=None,
         description="Restrict to specific connector identifiers.",
     )
@@ -46,7 +46,7 @@ class PlaybackQueryRequest(BaseModel):
         le=5000,
         description="Maximum events to return (hard cap 5 000).",
     )
-    viewport_bbox: Optional[List[float]] = Field(
+    viewport_bbox: list[float] | None = Field(
         default=None,
         description=(
             "[west, south, east, north] viewport bounds (EPSG:4326). "
@@ -89,18 +89,18 @@ class PlaybackFrame(BaseModel):
 class PlaybackQueryResponse(BaseModel):
     """Response for POST /api/v1/playback/query."""
 
-    frames: List[PlaybackFrame]
+    frames: list[PlaybackFrame]
     total_frames: int
-    time_range: Dict[str, datetime]
-    sources_included: List[str]
+    time_range: dict[str, datetime]
+    sources_included: list[str]
     late_arrival_count: int
 
 
 class MaterializeRequest(BaseModel):
     """POST /api/v1/playback/materialize — enqueue async frame pre-computation."""
 
-    geometry: Optional[Dict[str, Any]] = Field(default=None)
-    aoi_id: Optional[str] = Field(default=None)
+    geometry: dict[str, Any] | None = Field(default=None)
+    aoi_id: str | None = Field(default=None)
     start_time: datetime = Field(..., description="Window start (UTC)")
     end_time: datetime = Field(..., description="Window end (UTC)")
     window_size_minutes: int = Field(
@@ -109,8 +109,8 @@ class MaterializeRequest(BaseModel):
         le=1440,
         description="Width of each binned window slice in minutes.",
     )
-    source_types: Optional[List[SourceType]] = Field(default=None)
-    event_types: Optional[List[EventType]] = Field(default=None)
+    source_types: list[SourceType] | None = Field(default=None)
+    event_types: list[EventType] | None = Field(default=None)
 
     @field_validator("start_time", "end_time", mode="before")
     @classmethod
@@ -136,7 +136,7 @@ class WindowFrame(BaseModel):
     window_start: datetime
     window_end: datetime
     event_count: int
-    event_ids: List[str]
+    event_ids: list[str]
     late_arrival_count: int = 0
 
 
@@ -147,11 +147,11 @@ class PlaybackJobStatus(BaseModel):
     state: str
     created_at: datetime
     updated_at: datetime
-    request_summary: Optional[Dict[str, Any]] = None
-    windows: Optional[List[WindowFrame]] = None
-    total_events: Optional[int] = None
-    total_windows: Optional[int] = None
-    error: Optional[str] = None
+    request_summary: dict[str, Any] | None = None
+    windows: list[WindowFrame] | None = None
+    total_events: int | None = None
+    total_windows: int | None = None
+    error: str | None = None
 
 
 # ── Entity track models (P3-3.4) ──────────────────────────────────────────────
@@ -164,8 +164,8 @@ class EntityTrackPoint(BaseModel):
     event_time: datetime
     lon: float
     lat: float
-    altitude_m: Optional[float] = None
-    attributes: Dict[str, Any] = Field(default_factory=dict)
+    altitude_m: float | None = None
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class EntityTrackResponse(BaseModel):
@@ -173,7 +173,7 @@ class EntityTrackResponse(BaseModel):
 
     entity_id: str
     entity_type: str
-    source: Optional[str] = None
+    source: str | None = None
     point_count: int
-    track_points: List[EntityTrackPoint]
-    time_range: Dict[str, datetime]
+    track_points: list[EntityTrackPoint]
+    time_range: dict[str, datetime]

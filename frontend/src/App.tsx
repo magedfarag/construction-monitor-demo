@@ -99,6 +99,7 @@ function AppShell() {
     showTerrain: false,
     show3dBuildings: false,
     showDetections: false,
+    showSignals: true,
   });
 
   // P2-5.2: fetch all AOIs to render on globe
@@ -124,6 +125,18 @@ function AppShell() {
   const gdeltSearch = useEventSearch(
     layers.showGdelt && selectedAoiId
       ? { aoi_id: selectedAoiId, start_time: startTime, end_time: endTime, source_types: ["context_feed"], limit: 300 }
+      : null
+  );
+
+  // Fetch all intelligence signal events (seismic, hazard, weather, conflict, etc.) when layer enabled
+  const SIGNAL_EVENT_TYPES: import("./api/types").EventType[] = [
+    "seismic_event", "natural_hazard_event", "weather_observation",
+    "conflict_event", "maritime_warning", "military_site_observation",
+    "thermal_anomaly_event", "space_weather_event", "air_quality_observation",
+  ];
+  const signalsSearch = useEventSearch(
+    layers.showSignals && selectedAoiId
+      ? { aoi_id: selectedAoiId, start_time: startTime, end_time: endTime, event_types: SIGNAL_EVENT_TYPES, limit: 500 }
       : null
   );
 
@@ -424,6 +437,8 @@ function AppShell() {
               strikeEvents={filteredStrikes(strikesQuery.strikes ?? [])}
               showDetectionsLayer={layers.showDetections}
               detections={detectionsQuery.detections ?? []}
+              signalEvents={signalsSearch.data ?? []}
+              showSignalsLayer={layers.showSignals}
               renderMode={renderMode}
               onStrikeClick={(id) => setSelectedEntityId(id)}
               centerPoint={cameraFocusPoint ?? undefined}
@@ -454,6 +469,8 @@ function AppShell() {
                 show3dBuildingsLayer={layers.show3dBuildings}
                 showDetectionsLayer={layers.showDetections}
                 detections={detectionsQuery.detections ?? []}
+                signalEvents={signalsSearch.data ?? []}
+                showSignalsLayer={layers.showSignals}
                 renderMode={renderMode}
                 selectedEntityId={selectedEntityId}
                 centerPoint={cameraFocusPoint ?? undefined}

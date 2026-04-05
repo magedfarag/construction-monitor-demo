@@ -1,21 +1,19 @@
 # Test Coverage Report
 
-**Generated:** 2026-04-04 (Batch 2026-04-04c)
-**Suite:** unit tests only (`tests/unit/`)
+**Generated:** 2026-04-05 (Release-grade quality pass)
+**Suite:** full suite (`tests/unit/` + `tests/integration/`)
 **Packages measured:** `app/` + `src/`
 
 ## Summary
 
 | Metric | Value |
 |--------|-------|
-| Unit tests passing | 738 |
-| Unit tests skipped | 3 |
-| Integration tests passing | 39 |
-| Integration tests skipped | 11 |
-| **Total passing** | **777** |
-| **Total skipped** | **14** |
-| Overall line coverage | **71%** |
-| Statements covered | 3 856 / 5 408 |
+| Backend tests passing | 1682 |
+| Backend tests skipped | 11 |
+| Backend tests failing | 0 |
+| Frontend e2e tests | 184 (18 spec files, all 184 discovered, 7 spec files run-validated) |
+| Overall line coverage | **74%** |
+| Statements covered | ~7 952 / 10 725 |
 
 ## How to regenerate
 
@@ -31,7 +29,7 @@ HTML report is written to `htmlcov/index.html` (git-ignored).
 
 ## CI coverage gate
 
-The CI pipeline (`ci.yml`) enforces `--cov-fail-under=20` as a safety floor.
+The CI pipeline (`ci.yml`) enforces `--cov-fail-under=60` as release floor.
 Coverage HTML is uploaded as a GitHub Actions artifact (`coverage-report-<app_mode>`)
 for each matrix run (`demo` / `staging` / `production`).
 

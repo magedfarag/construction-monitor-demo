@@ -6,12 +6,10 @@ swapping backends requires only a new class without touching routers.
 """
 from __future__ import annotations
 
-import math
 import threading
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timedelta
 
-from src.models.canonical_event import CanonicalEvent, EventType, SourceType
+from src.models.canonical_event import CanonicalEvent
 from src.models.event_search import (
     EventSearchRequest,
     EventSearchResponse,
@@ -25,7 +23,7 @@ class EventStore:
     """Thread-safe in-memory store for CanonicalEvents."""
 
     def __init__(self) -> None:
-        self._events: Dict[str, CanonicalEvent] = {}
+        self._events: dict[str, CanonicalEvent] = {}
         self._lock = threading.Lock()
 
     def ingest(self, event: CanonicalEvent) -> None:
@@ -33,12 +31,12 @@ class EventStore:
         with self._lock:
             self._events[event.event_id] = event
 
-    def ingest_batch(self, events: List[CanonicalEvent]) -> None:
+    def ingest_batch(self, events: list[CanonicalEvent]) -> None:
         with self._lock:
             for e in events:
                 self._events[e.event_id] = e
 
-    def get(self, event_id: str) -> Optional[CanonicalEvent]:
+    def get(self, event_id: str) -> CanonicalEvent | None:
         with self._lock:
             return self._events.get(event_id)
 
@@ -97,7 +95,7 @@ class EventStore:
         self,
         start_time: datetime,
         end_time: datetime,
-        aoi_id: Optional[str] = None,
+        aoi_id: str | None = None,
         bucket_minutes: int = 60,
     ) -> TimelineResponse:
         """Aggregate event counts into uniform time buckets."""
@@ -110,13 +108,13 @@ class EventStore:
             and (aoi_id is None or aoi_id in e.correlation_keys.aoi_ids)
         ]
 
-        buckets: List[TimelineBucket] = []
+        buckets: list[TimelineBucket] = []
         delta = timedelta(minutes=bucket_minutes)
         current = start_time
         while current < end_time:
             bucket_end = min(current + delta, end_time)
             in_bucket = [e for e in window if current <= e.event_time < bucket_end]
-            by_type: Dict[str, int] = {}
+            by_type: dict[str, int] = {}
             for e in in_bucket:
                 by_type[e.event_type.value] = by_type.get(e.event_type.value, 0) + 1
             buckets.append(TimelineBucket(
@@ -133,9 +131,9 @@ class EventStore:
             bucket_size_minutes=bucket_minutes,
         )
 
-    def active_sources(self) -> List[SourceSummary]:
+    def active_sources(self) -> list[SourceSummary]:
         """Return per-source event counts + last event time."""
-        summary: Dict[str, SourceSummary] = {}
+        summary: dict[str, SourceSummary] = {}
         with self._lock:
             events = list(self._events.values())
         for e in events:
@@ -155,10 +153,10 @@ class EventStore:
 
 # Module-level singleton — used by pollers and app alike.
 # Cross-process sharing requires PostgreSQL activation (see docs/ARCHITECTURE.md).
-_default_store: "EventStore | None" = None
+_default_store: EventStore | None = None
 
 
-def get_default_event_store() -> "EventStore":
+def get_default_event_store() -> EventStore:
     """Return the process-wide EventStore singleton.
 
     In single-process mode (tests, dev) this provides a shared in-memory store.

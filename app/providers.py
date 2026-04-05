@@ -16,14 +16,5 @@ _warnings.warn(
 )
 
 # Re-export under old stub names for backward compatibility
+from app.providers.landsat import LandsatProvider as LandsatStacProvider  # noqa: F401,E402
 from app.providers.sentinel2 import Sentinel2Provider as Sentinel2StacProvider  # noqa: F401,E402
-from app.providers.landsat import LandsatProvider as LandsatStacProvider        # noqa: F401,E402
-
-
-class LandsatStacProvider(BaseImageryProvider):
-    provider_name = 'landsat-stac'
-
-    def search_scenes(self, params: SearchParams) -> List[Dict[str, Any]]:
-        # Intended integration target:
-        # LandsatLook or USGS M2M / STAC search for matching scenes.
-        return []

@@ -8,7 +8,7 @@ Request and response shapes for:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, field_validator
 class ImagerySearchRequest(BaseModel):
     """Parameters for a multi-catalog STAC imagery search."""
 
-    geometry: Dict[str, Any] = Field(
+    geometry: dict[str, Any] = Field(
         ...,
         description="GeoJSON Polygon or MultiPolygon of the AOI (EPSG:4326)",
     )
@@ -40,7 +40,7 @@ class ImagerySearchRequest(BaseModel):
         le=100,
         description="Maximum items to return per catalog",
     )
-    connectors: Optional[List[str]] = Field(
+    connectors: list[str] | None = Field(
         default=None,
         description=(
             "Limit search to specific connector IDs. "
@@ -50,7 +50,7 @@ class ImagerySearchRequest(BaseModel):
 
     @field_validator("geometry")
     @classmethod
-    def _validate_geojson_type(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_geojson_type(cls, v: dict[str, Any]) -> dict[str, Any]:
         if v.get("type") not in ("Polygon", "MultiPolygon"):
             raise ValueError("geometry.type must be 'Polygon' or 'MultiPolygon'")
         if "coordinates" not in v:
@@ -73,7 +73,7 @@ class ConnectorResultSummary(BaseModel):
     connector_id: str
     display_name: str
     item_count: int
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class ImageryItemSummary(BaseModel):
@@ -81,17 +81,17 @@ class ImageryItemSummary(BaseModel):
 
     event_id: str
     source: str
-    entity_id: Optional[str]
+    entity_id: str | None
     event_time: datetime
-    geometry: Dict[str, Any]
-    centroid: Dict[str, Any]
-    cloud_cover_pct: Optional[float] = None
-    platform: Optional[str] = None
-    gsd_m: Optional[float] = None
-    processing_level: Optional[str] = None
-    scene_url: Optional[str] = None
-    bands_available: List[str] = Field(default_factory=list)
-    quality_flags: List[str] = Field(default_factory=list)
+    geometry: dict[str, Any]
+    centroid: dict[str, Any]
+    cloud_cover_pct: float | None = None
+    platform: str | None = None
+    gsd_m: float | None = None
+    processing_level: str | None = None
+    scene_url: str | None = None
+    bands_available: list[str] = Field(default_factory=list)
+    quality_flags: list[str] = Field(default_factory=list)
     license_access_tier: str = "public"
     connector_id: str
 
@@ -100,9 +100,9 @@ class ImagerySearchResponse(BaseModel):
     """Response from POST /api/v1/imagery/search."""
 
     total_items: int
-    items: List[ImageryItemSummary]
-    connector_summaries: List[ConnectorResultSummary]
-    search_time_ms: Optional[float] = None
+    items: list[ImageryItemSummary]
+    connector_summaries: list[ConnectorResultSummary]
+    search_time_ms: float | None = None
 
 
 class ImageryProviderInfo(BaseModel):
@@ -114,11 +114,11 @@ class ImageryProviderInfo(BaseModel):
     healthy: bool
     message: str
     requires_auth: bool = False
-    collections: List[str] = Field(default_factory=list)
+    collections: list[str] = Field(default_factory=list)
 
 
 class ImageryProvidersResponse(BaseModel):
     """Response from GET /api/v1/imagery/providers."""
 
-    providers: List[ImageryProviderInfo]
+    providers: list[ImageryProviderInfo]
     total: int

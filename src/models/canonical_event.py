@@ -11,12 +11,11 @@ event_id is deterministic: generate with make_event_id().
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Enumerations (P0-3.2)
@@ -49,6 +48,15 @@ class EventType(str, Enum):
     DETECTION_OVERLAY = "detection_overlay"
     VIDEO_CLIP_REF = "video_clip_ref"
     RENDER_MODE_EVENT = "render_mode_event"
+    SEISMIC_EVENT = "seismic_event"
+    NATURAL_HAZARD_EVENT = "natural_hazard_event"
+    WEATHER_OBSERVATION = "weather_observation"
+    CONFLICT_EVENT = "conflict_event"
+    MARITIME_WARNING = "maritime_warning"
+    MILITARY_SITE_OBSERVATION = "military_site_observation"
+    THERMAL_ANOMALY_EVENT = "thermal_anomaly_event"
+    SPACE_WEATHER_EVENT = "space_weather_event"
+    AIR_QUALITY_OBSERVATION = "air_quality_observation"
 
 
 class SourceType(str, Enum):
@@ -71,6 +79,14 @@ class EntityType(str, Enum):
     NEWS_ARTICLE = "news_article"
     SYSTEM = "system"
     TRACK = "track"
+    SEISMIC_HAZARD = "seismic_hazard"
+    NATURAL_HAZARD = "natural_hazard"
+    CONFLICT_INCIDENT = "conflict_incident"
+    MARITIME_ZONE = "maritime_zone"
+    MILITARY_INSTALLATION = "military_installation"
+    THERMAL_ANOMALY = "thermal_anomaly"
+    SPACE_WEATHER_PHENOMENON = "space_weather_phenomenon"
+    AIR_QUALITY_SENSOR = "air_quality_sensor"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -82,16 +98,16 @@ class NormalizationRecord(BaseModel):
     """Tracks how and when raw source data was transformed."""
     schema_version: str = Field(default="1.0.0")
     normalized_by: str = Field(..., description="Connector module identifier, e.g. connector.cdse.stac")
-    normalization_warnings: List[str] = Field(default_factory=list)
-    dedupe_key: Optional[str] = Field(default=None)
+    normalization_warnings: list[str] = Field(default_factory=list)
+    dedupe_key: str | None = Field(default=None)
 
 
 class ProvenanceRecord(BaseModel):
     """Links back to the raw source artefact."""
     raw_source_ref: str = Field(..., description="S3 path or equivalent reference to the raw payload")
-    source_record_id: Optional[str] = Field(default=None)
-    source_record_version: Optional[str] = Field(default=None, description="ETag or content-hash of the source record")
-    source_url: Optional[str] = Field(default=None)
+    source_record_id: str | None = Field(default=None)
+    source_record_version: str | None = Field(default=None, description="ETag or content-hash of the source record")
+    source_url: str | None = Field(default=None)
 
 
 class LicenseRecord(BaseModel):
@@ -104,13 +120,13 @@ class LicenseRecord(BaseModel):
 
 class CorrelationKeys(BaseModel):
     """Typed cross-reference pointers for entity-centric correlation."""
-    aoi_ids: List[str] = Field(default_factory=list)
-    mmsi: Optional[str] = Field(default=None, description="Maritime Mobile Service Identity")
-    imo: Optional[str] = Field(default=None, description="IMO vessel number")
-    icao24: Optional[str] = Field(default=None, description="ICAO 24-bit aircraft address")
-    callsign: Optional[str] = Field(default=None)
-    permit_id: Optional[str] = Field(default=None)
-    place_key: Optional[str] = Field(default=None, description="Normalised place identifier, e.g. SA-RIYADH")
+    aoi_ids: list[str] = Field(default_factory=list)
+    mmsi: str | None = Field(default=None, description="Maritime Mobile Service Identity")
+    imo: str | None = Field(default=None, description="IMO vessel number")
+    icao24: str | None = Field(default=None, description="ICAO 24-bit aircraft address")
+    callsign: str | None = Field(default=None)
+    permit_id: str | None = Field(default=None)
+    place_key: str | None = Field(default=None, description="Normalised place identifier, e.g. SA-RIYADH")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -120,70 +136,195 @@ class CorrelationKeys(BaseModel):
 
 class ImageryAttributes(BaseModel):
     """Attributes for imagery_acquisition and imagery_detection events."""
-    platform: Optional[str] = Field(default=None, description="e.g. Sentinel-2A, Landsat-9")
-    sensor: Optional[str] = Field(default=None)
-    gsd_m: Optional[float] = Field(default=None, description="Ground sample distance in metres")
-    cloud_cover_pct: Optional[float] = Field(default=None, ge=0.0, le=100.0)
-    off_nadir_angle: Optional[float] = Field(default=None)
-    sun_azimuth: Optional[float] = Field(default=None)
-    scene_url: Optional[str] = Field(default=None)
-    bands_available: List[str] = Field(default_factory=list)
-    processing_level: Optional[str] = Field(default=None, description="e.g. L1C, L2A, ARD")
+    platform: str | None = Field(default=None, description="e.g. Sentinel-2A, Landsat-9")
+    sensor: str | None = Field(default=None)
+    gsd_m: float | None = Field(default=None, description="Ground sample distance in metres")
+    cloud_cover_pct: float | None = Field(default=None, ge=0.0, le=100.0)
+    off_nadir_angle: float | None = Field(default=None)
+    sun_azimuth: float | None = Field(default=None)
+    scene_url: str | None = Field(default=None)
+    bands_available: list[str] = Field(default_factory=list)
+    processing_level: str | None = Field(default=None, description="e.g. L1C, L2A, ARD")
 
 
 class ShipPositionAttributes(BaseModel):
     """Attributes for ship_position events."""
-    mmsi: Optional[str] = None
-    imo: Optional[str] = None
-    vessel_name: Optional[str] = None
-    ship_type: Optional[int] = None
-    course_deg: Optional[float] = Field(default=None, ge=0.0, le=360.0)
-    speed_kn: Optional[float] = Field(default=None, ge=0.0)
-    heading_deg: Optional[float] = Field(default=None, ge=0.0, le=360.0)
-    nav_status: Optional[str] = None
-    length_m: Optional[float] = None
-    beam_m: Optional[float] = None
-    destination: Optional[str] = None
-    eta: Optional[str] = None
+    mmsi: str | None = None
+    imo: str | None = None
+    vessel_name: str | None = None
+    ship_type: int | None = None
+    course_deg: float | None = Field(default=None, ge=0.0, le=360.0)
+    speed_kn: float | None = Field(default=None, ge=0.0)
+    heading_deg: float | None = Field(default=None, ge=0.0, le=360.0)
+    nav_status: str | None = None
+    length_m: float | None = None
+    beam_m: float | None = None
+    destination: str | None = None
+    eta: str | None = None
 
 
 class AircraftAttributes(BaseModel):
     """Attributes for aircraft_position events."""
-    icao24: Optional[str] = None
-    callsign: Optional[str] = None
-    origin_country: Optional[str] = None
-    baro_altitude_m: Optional[float] = None
-    geo_altitude_m: Optional[float] = None
-    velocity_ms: Optional[float] = None
-    true_track_deg: Optional[float] = None
-    vertical_rate_ms: Optional[float] = None
-    on_ground: Optional[bool] = None
-    squawk: Optional[str] = None
+    icao24: str | None = None
+    callsign: str | None = None
+    origin_country: str | None = None
+    baro_altitude_m: float | None = None
+    geo_altitude_m: float | None = None
+    velocity_ms: float | None = None
+    true_track_deg: float | None = None
+    vertical_rate_ms: float | None = None
+    on_ground: bool | None = None
+    squawk: str | None = None
 
 
 class PermitAttributes(BaseModel):
     """Attributes for permit_event events."""
-    permit_number: Optional[str] = None
-    permit_type: Optional[str] = None
-    applicant: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    issued_date: Optional[str] = None
-    expiry_date: Optional[str] = None
-    authority: Optional[str] = None
+    permit_number: str | None = None
+    permit_type: str | None = None
+    applicant: str | None = None
+    description: str | None = None
+    status: str | None = None
+    issued_date: str | None = None
+    expiry_date: str | None = None
+    authority: str | None = None
 
 
 class ContextualAttributes(BaseModel):
     """Attributes for contextual_event events derived from GDELT and similar feeds."""
-    headline: Optional[str] = None
-    url: Optional[str] = None
-    tone: Optional[float] = None
-    theme_codes: List[str] = Field(default_factory=list)
-    source_publication: Optional[str] = None
-    language: Optional[str] = None
-    num_mentions: Optional[int] = None
-    num_sources: Optional[int] = None
-    gdelt_id: Optional[str] = None
+    headline: str | None = None
+    url: str | None = None
+    tone: float | None = None
+    theme_codes: list[str] = Field(default_factory=list)
+    source_publication: str | None = None
+    language: str | None = None
+    num_mentions: int | None = None
+    num_sources: int | None = None
+    gdelt_id: str | None = None
+
+
+class SeismicAttributes(BaseModel):
+    """Attributes for seismic_event events (USGS Earthquake Catalog)."""
+    magnitude: float | None = None
+    magnitude_type: str | None = None
+    depth_km: float | None = None
+    place: str | None = None
+    status: str | None = None
+    tsunami_flag: int | None = None
+    felt_reports: int | None = None
+    cdi: float | None = None
+    mmi: float | None = None
+    alert: str | None = None
+    usgs_url: str | None = None
+    net: str | None = None
+
+
+class NaturalHazardAttributes(BaseModel):
+    """Attributes for natural_hazard_event events (NASA EONET)."""
+    category: str | None = None
+    category_title: str | None = None
+    sources: list[str] = Field(default_factory=list)
+    status: str | None = None
+    closed_date: str | None = None
+    eonet_id: str | None = None
+
+
+class WeatherAttributes(BaseModel):
+    """Attributes for weather_observation events (Open-Meteo)."""
+    cloud_cover_pct: float | None = None
+    precipitation_mm: float | None = None
+    wind_speed_ms: float | None = None
+    wind_direction_deg: float | None = None
+    temperature_c: float | None = None
+    forecast_horizon_hours: int | None = None
+    weather_model: str | None = None
+
+
+class ConflictAttributes(BaseModel):
+    """Attributes for conflict_event events (ACLED Armed Conflict data)."""
+    acled_event_id: str | None = None
+    disorder_type: str | None = None
+    event_type: str | None = None
+    sub_event_type: str | None = None
+    actor1: str | None = None
+    actor2: str | None = None
+    country: str | None = None
+    admin1: str | None = None
+    location: str | None = None
+    fatalities: int | None = None
+    source: str | None = None
+    notes: str | None = None
+    civilian_targeting: str | None = None
+
+
+class MaritimeWarningAttributes(BaseModel):
+    """Attributes for maritime_warning events (NGA MSI Broadcast Warnings)."""
+    nav_area: str | None = None
+    nav_area_code: str | None = None
+    subregion: str | None = None
+    region: str | None = None
+    authority: str | None = None
+    msg_year: str | None = None
+    msg_number: str | None = None
+    cancel_date: str | None = None
+    issue_date: str | None = None
+    warning_text: str | None = None
+    status: str | None = None
+
+
+class MilitaryFeatureAttributes(BaseModel):
+    """Attributes for military_site_observation events (OpenStreetMap Overpass)."""
+    osm_id: str | None = None
+    osm_type: str | None = None
+    military_type: str | None = None
+    name: str | None = None
+    operator: str | None = None
+    additional_tags: dict[str, str] = Field(default_factory=dict)
+
+
+class ThermalAnomalyAttributes(BaseModel):
+    """Attributes for thermal_anomaly_event events (NASA FIRMS active fire data)."""
+    satellite: str | None = None        # Terra, Aqua, Suomi-NPP, NOAA-20, NOAA-21
+    instrument: str | None = None       # MODIS, VIIRS
+    frp: float | None = None            # Fire Radiative Power (MW)
+    brightness: float | None = None     # Channel 21/22 brightness (Kelvin)
+    bright_t31: float | None = None     # Channel 31 brightness temperature (K)
+    confidence: str | None = None       # VIIRS: high/nominal/low; MODIS: 0-100
+    track: float | None = None          # Pixel size along track (km)
+    scan: float | None = None           # Pixel size along scan (km)
+    acq_date: str | None = None         # Acquisition date YYYY-MM-DD
+    acq_time: str | None = None         # Acquisition time HHMM UTC
+    day_night: str | None = None        # D (day) or N (night)
+    version: str | None = None          # FIRMS product version
+    source_dataset: str | None = None   # e.g. VIIRS_SNPP_NRT, MODIS_NRT
+
+
+class SpaceWeatherAttributes(BaseModel):
+    """Attributes for space_weather_event events (NOAA SWPC alerts)."""
+    product_id: str | None = None        # NOAA SWPC product code (e.g. ALTEF3)
+    issue_datetime: str | None = None    # ISO 8601 issue datetime
+    message: str | None = None           # Full alert text (truncated to 2000 chars)
+    phenomenon: str | None = None        # Geomagnetic Storm, Solar Flare, etc.
+    noaa_scale: str | None = None        # G1-G5, S1-S5, R1-R5
+    kp_index: float | None = None        # Planetary K-index
+    severity: str | None = None          # Minor, Moderate, Strong, Severe, Extreme
+    serial_number: str | None = None
+
+
+class AirQualityAttributes(BaseModel):
+    """Attributes for air_quality_observation events (OpenAQ sensor readings)."""
+    location_id: int | None = None
+    location_name: str | None = None
+    sensor_id: int | None = None
+    parameter: str | None = None         # pm25, pm10, o3, no2, so2, co
+    display_name: str | None = None      # Human-readable parameter name
+    value: float | None = None
+    unit: str | None = None
+    last_updated: str | None = None      # ISO8601
+    is_mobile: bool | None = None
+    is_monitor: bool | None = None
+    provider_name: str | None = None
+    country_code: str | None = None
+    locality: str | None = None
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -220,7 +361,7 @@ class CanonicalEvent(BaseModel):
     source: str = Field(..., description="Normalised provider/source code, e.g. copernicus-cdse")
     source_type: SourceType
     entity_type: EntityType
-    entity_id: Optional[str] = Field(
+    entity_id: str | None = Field(
         default=None,
         description=(
             "Source-native entity identifier. Semantics by entity_type: "
@@ -235,24 +376,24 @@ class CanonicalEvent(BaseModel):
 
     # Time — all UTC enforced by validator
     event_time: datetime = Field(..., description="Primary event timestamp (UTC)")
-    time_start: Optional[datetime] = Field(default=None, description="Interval start (UTC)")
-    time_end: Optional[datetime] = Field(default=None, description="Interval end (UTC)")
-    ingested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    first_seen_at: Optional[datetime] = Field(default=None)
-    last_seen_at: Optional[datetime] = Field(default=None)
+    time_start: datetime | None = Field(default=None, description="Interval start (UTC)")
+    time_end: datetime | None = Field(default=None, description="Interval end (UTC)")
+    ingested_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    first_seen_at: datetime | None = Field(default=None)
+    last_seen_at: datetime | None = Field(default=None)
 
     # Spatial — GeoJSON dicts
-    geometry: Dict[str, Any] = Field(..., description="GeoJSON geometry object (RFC 7946)")
-    centroid: Dict[str, Any] = Field(..., description="GeoJSON Point at event centroid")
-    altitude_m: Optional[float] = Field(default=None)
-    depth_m: Optional[float] = Field(default=None)
+    geometry: dict[str, Any] = Field(..., description="GeoJSON geometry object (RFC 7946)")
+    centroid: dict[str, Any] = Field(..., description="GeoJSON Point at event centroid")
+    altitude_m: float | None = Field(default=None)
+    depth_m: float | None = Field(default=None)
 
     # Quality
-    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
-    quality_flags: List[str] = Field(default_factory=list)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    quality_flags: list[str] = Field(default_factory=list)
 
     # Payload — typed per family, serialised to dict for schema flexibility
-    attributes: Dict[str, Any] = Field(default_factory=dict)
+    attributes: dict[str, Any] = Field(default_factory=dict)
 
     # Provenance chain
     normalization: NormalizationRecord
@@ -279,20 +420,20 @@ class CanonicalEvent(BaseModel):
 
     @field_validator("geometry", "centroid")
     @classmethod
-    def _require_geojson_type(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def _require_geojson_type(cls, v: dict[str, Any]) -> dict[str, Any]:
         if "type" not in v or "coordinates" not in v:
             raise ValueError("geometry/centroid must be a GeoJSON object with 'type' and 'coordinates'")
         return v
 
     @field_validator("centroid")
     @classmethod
-    def _centroid_must_be_point(cls, v: Dict[str, Any]) -> Dict[str, Any]:
+    def _centroid_must_be_point(cls, v: dict[str, Any]) -> dict[str, Any]:
         if v.get("type") != "Point":
             raise ValueError("centroid must be a GeoJSON Point")
         return v
 
     @model_validator(mode="after")
-    def _time_interval_order(self) -> "CanonicalEvent":
+    def _time_interval_order(self) -> CanonicalEvent:
         if self.time_start and self.time_end and self.time_start > self.time_end:
             raise ValueError("time_start must not be after time_end")
         return self
@@ -322,7 +463,7 @@ def make_event_id(source: str, entity_id: str, event_time: str | datetime) -> st
         # "evt_copernicus-cdse_a3f8b2c1d04e"
     """
     if isinstance(event_time, datetime):
-        ts = event_time.astimezone(timezone.utc).isoformat()
+        ts = event_time.astimezone(UTC).isoformat()
     else:
         ts = event_time
     raw = f"{source}:{entity_id}:{ts}"

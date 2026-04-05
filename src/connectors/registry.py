@@ -6,7 +6,6 @@ connector registry that supports any source family.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Type
 
 from src.connectors.base import BaseConnector, ConnectorHealthStatus, ConnectorUnavailableError
 
@@ -21,7 +20,7 @@ class ConnectorRegistry:
     """
 
     def __init__(self) -> None:
-        self._connectors: Dict[str, BaseConnector] = {}
+        self._connectors: dict[str, BaseConnector] = {}
         self._disabled: set[str] = set()
 
     def register(self, connector: BaseConnector) -> None:
@@ -38,20 +37,20 @@ class ConnectorRegistry:
         except Exception as exc:  # noqa: BLE001
             logger.error("Connector %s failed to connect — not registered: %s", cid, exc, exc_info=True)
 
-    def get(self, connector_id: str) -> Optional[BaseConnector]:
+    def get(self, connector_id: str) -> BaseConnector | None:
         """Return connector by id, or None if not found / disabled."""
         c = self._connectors.get(connector_id)
         if c and connector_id not in self._disabled:
             return c
         return None
 
-    def all_connectors(self, include_disabled: bool = False) -> List[BaseConnector]:
+    def all_connectors(self, include_disabled: bool = False) -> list[BaseConnector]:
         """Return all registered connectors, optionally including disabled ones."""
         if include_disabled:
             return list(self._connectors.values())
         return [c for cid, c in self._connectors.items() if cid not in self._disabled]
 
-    def connectors_by_source_type(self, source_type: str) -> List[BaseConnector]:
+    def connectors_by_source_type(self, source_type: str) -> list[BaseConnector]:
         """Return enabled connectors filtered by source_type."""
         return [c for c in self.all_connectors() if c.source_type == source_type]
 
@@ -68,9 +67,9 @@ class ConnectorRegistry:
         self._disabled.discard(connector_id)
         logger.info("Connector re-enabled: %s", connector_id)
 
-    def health_snapshot(self) -> Dict[str, ConnectorHealthStatus]:
+    def health_snapshot(self) -> dict[str, ConnectorHealthStatus]:
         """Return health status for all registered connectors."""
-        result: Dict[str, ConnectorHealthStatus] = {}
+        result: dict[str, ConnectorHealthStatus] = {}
         for cid, connector in self._connectors.items():
             try:
                 result[cid] = connector.health()

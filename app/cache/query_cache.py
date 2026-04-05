@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 # ── Default TTL ────────────────────────────────────────────────────────────────
 _DEFAULT_TTL: float = 60.0
@@ -47,14 +47,14 @@ class QueryCache:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._store: Dict[str, _Entry] = {}
+        self._store: dict[str, _Entry] = {}
         self._hits: int = 0
         self._misses: int = 0
         self._evictions: int = 0
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Return cached value or ``None`` on miss / expiry."""
         with self._lock:
             entry = self._store.get(key)
@@ -95,7 +95,7 @@ class QueryCache:
 
     # ── Introspection ─────────────────────────────────────────────────────────
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """Return a point-in-time snapshot of cache statistics."""
         with self._lock:
             total = self._hits + self._misses
@@ -139,7 +139,7 @@ def ttl_for_window(days: float) -> float:
 # Double-checked locking for lazy initialisation.
 
 _singleton_lock = threading.Lock()
-_default_cache: Optional[QueryCache] = None
+_default_cache: QueryCache | None = None
 
 
 def get_query_cache() -> QueryCache:

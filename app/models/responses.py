@@ -1,7 +1,8 @@
 """API response models."""
 from __future__ import annotations
+
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -11,19 +12,19 @@ class ChangeRecord(BaseModel):
     detected_at: datetime
     change_type: str
     confidence: float = Field(ge=0.0, le=100.0)
-    center: Dict[str, float]
-    bbox: List[float]
+    center: dict[str, float]
+    bbox: list[float]
     provider: str
     summary: str
-    rationale: List[str]
+    rationale: list[str]
     before_image: str
     after_image: str
     thumbnail: str
     # Live mode extras (omitted in demo mode)
-    scene_id_before: Optional[str] = None
-    scene_id_after: Optional[str] = None
-    resolution_m: Optional[int] = None
-    warnings: List[str] = Field(default_factory=list)
+    scene_id_before: str | None = None
+    scene_id_after: str | None = None
+    resolution_m: int | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class AnalyzeResponse(BaseModel):
@@ -34,18 +35,18 @@ class AnalyzeResponse(BaseModel):
         default=False,
         description="True when results are synthetic demo data",
     )
-    request_bounds: List[float]
-    imagery_window: Dict[str, str]
-    warnings: List[str]
-    changes: List[ChangeRecord]
-    stats: Dict[str, Any]
+    request_bounds: list[float]
+    imagery_window: dict[str, str]
+    warnings: list[str]
+    changes: list[ChangeRecord]
+    stats: dict[str, Any]
 
 
 class JobStatusResponse(BaseModel):
     job_id: str
     state: str
-    result: Optional[AnalyzeResponse] = None
-    error: Optional[str] = None
+    result: AnalyzeResponse | None = None
+    error: str | None = None
     created_at: str
     updated_at: str
 
@@ -54,13 +55,13 @@ class ProviderInfo(BaseModel):
     name: str
     display_name: str
     available: bool
-    reason: Optional[str] = None   # why unavailable, if applicable
-    resolution_m: Optional[int] = None
-    notes: List[str] = Field(default_factory=list)
+    reason: str | None = None   # why unavailable, if applicable
+    resolution_m: int | None = None
+    notes: list[str] = Field(default_factory=list)
 
 
 class ProvidersResponse(BaseModel):
-    providers: List[ProviderInfo]
+    providers: list[ProviderInfo]
     demo_available: bool
 
 
@@ -70,9 +71,9 @@ class HealthResponse(BaseModel):
     demo_available: bool = True
     redis: str
     celery_worker: str
-    providers: Dict[str, str]
+    providers: dict[str, str]
     version: str = "2.0.0"
-    circuit_breakers: Dict[str, str] = Field(
+    circuit_breakers: dict[str, str] = Field(
         default_factory=dict,
         description="Per-provider circuit breaker state (closed/open/half_open)",
     )
@@ -80,7 +81,7 @@ class HealthResponse(BaseModel):
         default="unknown",
         description="Job persistence backend in use (redis+postgresql / redis / memory)",
     )
-    cache_stats: Dict[str, Any] = Field(
+    cache_stats: dict[str, Any] = Field(
         default_factory=dict,
         description="Cache hit/miss ratio and backend type",
     )
@@ -99,7 +100,7 @@ class ConfigResponse(BaseModel):
     min_area_km2: float
     max_area_km2: float
     max_lookback_days: int
-    supported_providers: List[str]
+    supported_providers: list[str]
     app_mode: str
     async_area_threshold_km2: float
     default_cloud_threshold: float
@@ -114,20 +115,20 @@ class SceneSearchResult(BaseModel):
     satellite: str
     acquired_at: str
     cloud_cover: float
-    bbox: List[float]
+    bbox: list[float]
     resolution_m: int
-    asset_urls: Dict[str, str]
+    asset_urls: dict[str, str]
 
 
 class SearchResponse(BaseModel):
-    scenes: List[SceneSearchResult]
+    scenes: list[SceneSearchResult]
     total: int
     provider: str
-    warnings: List[str]
+    warnings: list[str]
 
 
 class CreditsResponse(BaseModel):
-    provider_request_counts: Dict[str, int]
+    provider_request_counts: dict[str, int]
     cache_hit_rate: float
     cache_hits: int
     cache_misses: int

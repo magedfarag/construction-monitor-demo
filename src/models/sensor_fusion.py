@@ -12,11 +12,10 @@ Pydantic v2 is required.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -46,7 +45,7 @@ class GeoRegistration(BaseModel):
 
     lon: float = Field(..., description="Decimal degrees longitude")
     lat: float = Field(..., description="Decimal degrees latitude")
-    altitude_m: Optional[float] = Field(
+    altitude_m: float | None = Field(
         default=None, description="Height above ground, metres"
     )
     heading_deg: float = Field(
@@ -79,18 +78,18 @@ class CameraObservation(BaseModel):
         description="optical | thermal | night_vision | radar | sar",
     )
     geo_registration: GeoRegistration
-    clip_ref: Optional[str] = Field(
+    clip_ref: str | None = Field(
         default=None, description="URL or storage key to the video clip"
     )
-    clip_start_offset_sec: Optional[float] = Field(
+    clip_start_offset_sec: float | None = Field(
         default=None, description="Offset within the clip for this observation"
     )
-    clip_duration_sec: Optional[float] = None
-    thumbnail_url: Optional[str] = None
+    clip_duration_sec: float | None = None
+    thumbnail_url: str | None = None
     confidence: float = Field(ge=0.0, le=1.0, default=1.0)
     source: str
     provenance: str
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
     @field_validator("observed_at", mode="before")
     @classmethod
@@ -109,9 +108,9 @@ class MediaClipRef(BaseModel):
     duration_sec: float
     url: str = Field(..., description="HTTP URL or presigned storage URL")
     media_type: str = Field(default="video/mp4")
-    resolution_width: Optional[int] = None
-    resolution_height: Optional[int] = None
-    storage_key: Optional[str] = None
+    resolution_width: int | None = None
+    resolution_height: int | None = None
+    storage_key: str | None = None
     is_loopable: bool = Field(
         default=False, description="True for simulated/demo clips"
     )
@@ -164,17 +163,17 @@ class DetectionOverlay(BaseModel):
         ...,
         description="vehicle | person | aircraft | vessel | infrastructure | unknown",
     )
-    bounding_box: Optional[Dict[str, float]] = Field(
+    bounding_box: dict[str, float] | None = Field(
         default=None,
         description="{x, y, width, height} in clip-relative 0-1 coordinates",
     )
-    geo_location: Optional[Dict[str, float]] = Field(
+    geo_location: dict[str, float] | None = Field(
         default=None,
         description="{lon, lat, altitude_m} — None if not georegistered",
     )
     confidence: float = Field(ge=0.0, le=1.0, default=0.5)
-    model_version: Optional[str] = None
-    evidence_refs: List[str] = Field(default_factory=list)
+    model_version: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
     source: str
     provenance: str
 

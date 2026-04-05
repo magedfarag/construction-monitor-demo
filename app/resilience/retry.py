@@ -7,14 +7,14 @@ Confirmed pattern from tenacity docs:
 from __future__ import annotations
 
 import logging
-from typing import Callable, Tuple, Type
+from collections.abc import Callable
 
 from tenacity import (
+    before_sleep_log,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
     wait_random_exponential,
-    before_sleep_log,
 )
 
 log = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 def with_retry(
     max_attempts: int = 3,
     max_wait_s: float = 60.0,
-    retry_on: Tuple[Type[Exception], ...] = (Exception,),
+    retry_on: tuple[type[Exception], ...] = (Exception,),
 ) -> Callable:
     """Decorator factory for retrying functions with full jitter backoff.
 

@@ -12,8 +12,7 @@ generate_alerts() groups active high-severity signals by entity within a
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 from src.models.absence_signals import (
     AbsenceAlert,
@@ -25,10 +24,10 @@ from src.models.absence_signals import (
 )
 
 # Reference date kept in sync with main.py TODAY = date(2026, 3, 28)
-_TODAY = datetime(2026, 3, 28, tzinfo=timezone.utc)
+_TODAY = datetime(2026, 3, 28, tzinfo=UTC)
 
 # Severity ordering used for comparisons
-_SEVERITY_ORDER: Dict[AbsenceSeverity, int] = {
+_SEVERITY_ORDER: dict[AbsenceSeverity, int] = {
     AbsenceSeverity.LOW: 0,
     AbsenceSeverity.MEDIUM: 1,
     AbsenceSeverity.HIGH: 2,
@@ -39,7 +38,7 @@ _SEVERITY_ORDER: Dict[AbsenceSeverity, int] = {
 # Five deterministic signals covering different types and severities.
 # They all use _TODAY as the reference so temporal logic stays relative.
 
-_DEMO_SIGNALS: List[dict] = [
+_DEMO_SIGNALS: list[dict] = [
     {
         "signal_type": AbsenceSignalType.AIS_GAP,
         "entity_id": "MMSI-244820000",
@@ -156,7 +155,7 @@ class AbsenceAnalyticsService:
     """Thread-safe in-memory store and analytics engine for absence signals."""
 
     def __init__(self) -> None:
-        self._signals: Dict[str, AbsenceSignal] = {}
+        self._signals: dict[str, AbsenceSignal] = {}
         self._lock = threading.Lock()
         self._seed_demo_signals()
 
@@ -205,19 +204,19 @@ class AbsenceAnalyticsService:
             self._signals[signal.signal_id] = signal
         return signal
 
-    def get_signal(self, signal_id: str) -> Optional[AbsenceSignal]:
+    def get_signal(self, signal_id: str) -> AbsenceSignal | None:
         """Return a single signal by ID, or None if not found."""
         with self._lock:
             return self._signals.get(signal_id)
 
     def list_signals(
         self,
-        signal_type: Optional[AbsenceSignalType] = None,
-        entity_id: Optional[str] = None,
+        signal_type: AbsenceSignalType | None = None,
+        entity_id: str | None = None,
         active_only: bool = False,
         min_confidence: float = 0.0,
         limit: int = 100,
-    ) -> List[AbsenceSignal]:
+    ) -> list[AbsenceSignal]:
         """Return signals matching the given filters, newest gap_start first."""
         with self._lock:
             candidates = list(self._signals.values())
@@ -234,7 +233,7 @@ class AbsenceAnalyticsService:
         candidates.sort(key=lambda s: s.gap_start, reverse=True)
         return candidates[:limit]
 
-    def resolve_signal(self, signal_id: str, gap_end: datetime) -> Optional[AbsenceSignal]:
+    def resolve_signal(self, signal_id: str, gap_end: datetime) -> AbsenceSignal | None:
         """Mark an absence signal as resolved by setting its gap_end timestamp."""
         with self._lock:
             signal = self._signals.get(signal_id)
@@ -244,7 +243,7 @@ class AbsenceAnalyticsService:
             self._signals[signal_id] = updated
             return updated
 
-    def link_event(self, signal_id: str, event_id: str) -> Optional[AbsenceSignal]:
+    def link_event(self, signal_id: str, event_id: str) -> AbsenceSignal | None:
         """Link a canonical event ID to an absence signal (idempotent)."""
         with self._lock:
             signal = self._signals.get(signal_id)
@@ -269,7 +268,7 @@ class AbsenceAnalyticsService:
         telemetry_store,
         min_gap_seconds: float = 1800.0,
         confidence_threshold: float = 0.5,
-    ) -> List[AbsenceSignal]:
+    ) -> list[AbsenceSignal]:
         """Scan TelemetryStore for vessels with AIS gaps > min_gap_seconds.
 
         For each entity, compares the last known position timestamp to
@@ -280,8 +279,8 @@ class AbsenceAnalyticsService:
         This is a deterministic scan function, not a background poller.
         Returns newly created signals.
         """
-        now = datetime.now(timezone.utc)
-        new_signals: List[AbsenceSignal] = []
+        now = datetime.now(UTC)
+        new_signals: list[AbsenceSignal] = []
 
         # Collect entity IDs already tracked as active AIS gaps
         with self._lock:
@@ -299,15 +298,8 @@ class AbsenceAnalyticsService:
             if entity_id in tracked_entities:
                 continue
 
-            positions = telemetry_store.query_entity(
-                entity_id,
-                start_time=window_start,
-                end_time=now,
-                max_points=1,
-            )
-            # query_entity returns ASC; with max_points=1 we get only the first
-            # within the window.  We want the LAST, so query with full default
-            # and take the final element.
+            # query_entity returns ASC; we want the LAST position,
+            # so query the full window and take the final element.
             positions_full = telemetry_store.query_entity(
                 entity_id,
                 start_time=window_start,
@@ -373,8 +365,8 @@ class AbsenceAnalyticsService:
                 if window_start <= s.gap_start <= window_end
             ]
 
-        by_type: Dict[str, int] = {}
-        by_severity: Dict[str, int] = {}
+        by_type: dict[str, int] = {}
+        by_severity: dict[str, int] = {}
         active = resolved = high_conf = 0
 
         for s in candidates:
@@ -400,7 +392,7 @@ class AbsenceAnalyticsService:
 
     def generate_alerts(
         self, min_severity: AbsenceSeverity = AbsenceSeverity.MEDIUM
-    ) -> List[AbsenceAlert]:
+    ) -> list[AbsenceAlert]:
         """Group active high-severity signals into alerts.
 
         One alert per cluster of co-located signals (same entity_id or same
@@ -408,7 +400,7 @@ class AbsenceAnalyticsService:
         are excluded.
         """
         min_rank = _SEVERITY_ORDER[min_severity]
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now - timedelta(hours=6)
 
         with self._lock:
@@ -421,12 +413,12 @@ class AbsenceAnalyticsService:
             ]
 
         # Group by entity_id (or signal_type for area signals without an entity)
-        clusters: Dict[str, List[AbsenceSignal]] = {}
+        clusters: dict[str, list[AbsenceSignal]] = {}
         for s in candidates:
             key = s.entity_id if s.entity_id else f"area:{s.signal_type.value}"
             clusters.setdefault(key, []).append(s)
 
-        alerts: List[AbsenceAlert] = []
+        alerts: list[AbsenceAlert] = []
         for key, signals in clusters.items():
             if not signals:
                 continue
@@ -460,7 +452,7 @@ class AbsenceAnalyticsService:
 # Process-wide singleton
 # ──────────────────────────────────────────────────────────────────────────────
 
-_default_service: Optional[AbsenceAnalyticsService] = None
+_default_service: AbsenceAnalyticsService | None = None
 _default_service_lock = threading.Lock()
 
 

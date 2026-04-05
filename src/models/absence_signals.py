@@ -11,13 +11,12 @@ Pydantic v2 is required.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field, field_validator
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # UTC helper
@@ -75,28 +74,28 @@ class AbsenceSignal(BaseModel):
         description="Unique signal identifier (UUID).",
     )
     signal_type: AbsenceSignalType
-    entity_id: Optional[str] = Field(
+    entity_id: str | None = Field(
         default=None,
         description="Vessel MMSI, aircraft callsign, camera ID, etc.",
     )
-    entity_type: Optional[str] = Field(
+    entity_type: str | None = Field(
         default=None,
         description="One of: vessel | aircraft | camera | area.",
     )
-    aoi_geometry: Optional[Dict[str, Any]] = Field(
+    aoi_geometry: dict[str, Any] | None = Field(
         default=None,
         description="GeoJSON geometry dict representing the affected area.",
     )
     gap_start: datetime = Field(description="UTC-aware start of the absence window.")
-    gap_end: Optional[datetime] = Field(
+    gap_end: datetime | None = Field(
         default=None,
         description="UTC-aware end of the absence window; None means ongoing.",
     )
-    expected_interval_seconds: Optional[float] = Field(
+    expected_interval_seconds: float | None = Field(
         default=None,
         description="How often the signal was expected, in seconds.",
     )
-    last_known_value: Optional[Dict[str, Any]] = Field(
+    last_known_value: dict[str, Any] | None = Field(
         default=None,
         description="Last known entity state before absence began (entity-specific).",
     )
@@ -105,11 +104,11 @@ class AbsenceSignal(BaseModel):
     detection_method: str = Field(
         description="E.g. 'gap_detection', 'schedule_miss', 'feed_monitor'."
     )
-    provenance: Dict[str, Any] = Field(
+    provenance: dict[str, Any] = Field(
         description="Source name, detection_timestamp, and any other provenance fields."
     )
-    notes: Optional[str] = None
-    related_event_ids: List[str] = Field(
+    notes: str | None = None
+    related_event_ids: list[str] = Field(
         default_factory=list,
         description="Linked canonical event IDs.",
     )
@@ -125,17 +124,17 @@ class AbsenceSignalCreateRequest(BaseModel):
     """Inbound payload for manually creating an absence signal."""
 
     signal_type: AbsenceSignalType
-    entity_id: Optional[str] = None
-    entity_type: Optional[str] = None
-    aoi_geometry: Optional[Dict[str, Any]] = None
+    entity_id: str | None = None
+    entity_type: str | None = None
+    aoi_geometry: dict[str, Any] | None = None
     gap_start: datetime
-    gap_end: Optional[datetime] = None
-    expected_interval_seconds: Optional[float] = None
+    gap_end: datetime | None = None
+    expected_interval_seconds: float | None = None
     severity: AbsenceSeverity
     confidence: float = Field(ge=0.0, le=1.0)
     detection_method: str
-    provenance: Dict[str, Any]
-    notes: Optional[str] = None
+    provenance: dict[str, Any]
+    notes: str | None = None
 
     @field_validator("gap_start", "gap_end", mode="before")
     @classmethod
@@ -156,14 +155,14 @@ class AbsenceAlert(BaseModel):
         description="Unique alert identifier (UUID).",
     )
     title: str
-    signals: List[str] = Field(description="Signal IDs contributing to this alert.")
+    signals: list[str] = Field(description="Signal IDs contributing to this alert.")
     severity: AbsenceSeverity
-    area_description: Optional[str] = None
+    area_description: str | None = None
     created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
     )
     confidence: float = Field(ge=0.0, le=1.0)
-    suggested_actions: List[str] = Field(default_factory=list)
+    suggested_actions: list[str] = Field(default_factory=list)
 
     @field_validator("created_at", mode="before")
     @classmethod
@@ -182,10 +181,10 @@ class AbsenceAnalyticsSummary(BaseModel):
     window_start: datetime
     window_end: datetime
     total_signals: int
-    by_type: Dict[str, int] = Field(
+    by_type: dict[str, int] = Field(
         description="AbsenceSignalType value → count."
     )
-    by_severity: Dict[str, int] = Field(
+    by_severity: dict[str, int] = Field(
         description="AbsenceSeverity value → count."
     )
     active_signals: int = Field(description="Signals with gap_end == None.")

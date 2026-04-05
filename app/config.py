@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -27,7 +27,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class AppMode(str, Enum):
     """Application operating mode.
-    
+
     - DEMO: Always use DemoProvider (for testing, no live data)
     - STAGING: Real providers with demo fallback (safe default)
     - PRODUCTION: Real providers only (no demo fallback, fail-fast)
@@ -80,7 +80,7 @@ class AppSettings(BaseSettings):
         default="https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
     )
     sentinel2_stac_url: str = Field(
-        default="https://catalogue.dataspace.copernicus.eu/stac"
+        default="https://stac.dataspace.copernicus.eu/v1"
     )
 
     # ── Landsat (USGS LandsatLook STAC) ──────────────────────────────────────
@@ -149,7 +149,7 @@ class AppSettings(BaseSettings):
         default=25.0,
         description="AOI areas above this threshold are automatically sent to async queue",
     )
-    raster_temp_dir: Optional[str] = Field(
+    raster_temp_dir: str | None = Field(
         default=None,
         description="Temp dir for raster downloads. Defaults to system temp.",
     )
@@ -228,6 +228,116 @@ class AppSettings(BaseSettings):
     gdelt_base_url: str = Field(
         default="https://api.gdeltproject.org/api/v2",
         description="GDELT DOC 2.0 API base URL",
+    )
+
+    # USGS Earthquake Catalog (no auth required)
+    usgs_earthquake_api_url: str = Field(
+        default="https://earthquake.usgs.gov/fdsnws/event/1",
+        description="USGS FDSN Earthquake Web Service endpoint",
+    )
+    usgs_earthquake_min_magnitude: float = Field(
+        default=2.5,
+        description="Minimum magnitude threshold for USGS earthquake queries",
+    )
+
+    # NASA EONET Natural Events (no auth required)
+    nasa_eonet_api_url: str = Field(
+        default="https://eonet.gsfc.nasa.gov/api/v3",
+        description="NASA Earth Observatory Natural Event Tracker API endpoint",
+    )
+    nasa_eonet_days_lookback: int = Field(
+        default=30,
+        description="Number of days to look back when fetching open EONET events",
+    )
+
+    # Open-Meteo Weather Forecast (no auth required, CC BY 4.0)
+    open_meteo_api_url: str = Field(
+        default="https://api.open-meteo.com/v1",
+        description="Open-Meteo forecast API base URL",
+    )
+    open_meteo_forecast_hours: int = Field(
+        default=6,
+        description="Number of hours over which to average forecast values per query",
+    )
+
+    # ACLED Armed Conflict Location & Event Data (free with registration)
+    # Register at: https://developer.acleddata.com
+    acled_api_key: str = Field(
+        default="",
+        description="ACLED API key from developer.acleddata.com",
+    )
+    acled_email: str = Field(
+        default="",
+        description="Registered email associated with the ACLED API key",
+    )
+    acled_api_url: str = Field(
+        default="https://api.acleddata.com/acled/read.php",
+        description="ACLED REST API endpoint",
+    )
+
+    # NGA Maritime Safety Information (no auth required, US Gov public domain)
+    nga_msi_api_url: str = Field(
+        default="https://msi.nga.mil/api/publications/broadcast-warn",
+        description="NGA MSI broadcast warnings API endpoint",
+    )
+    nga_msi_default_nav_areas: str = Field(
+        default="IX,III",
+        description=(
+            "Comma-separated NAVAREA codes to query by default when no AOI restricts "
+            "the query area. NAVAREA IX = Persian Gulf/Red Sea/Arabian Sea, "
+            "NAVAREA III = Mediterranean/Baltic."
+        ),
+    )
+
+    # OSM Overpass — Military Features (no auth required, ODbL)
+    osm_overpass_url: str = Field(
+        default="https://overpass-api.de/api/interpreter",
+        description="Overpass API endpoint for OSM data queries",
+    )
+
+    def acled_is_configured(self) -> bool:
+        """Return True when both ACLED API key and email are present."""
+        return bool(self.acled_api_key and self.acled_email)
+
+    # NASA FIRMS Active Fire / Thermal Anomaly (free MAP_KEY from NASA FIRMS)
+    nasa_firms_api_url: str = Field(
+        default="https://firms.modaps.eosdis.nasa.gov/api",
+        description="NASA FIRMS area API base URL",
+    )
+    nasa_firms_map_key: str = Field(
+        default="DEMO_KEY",
+        description=(
+            "NASA FIRMS MAP_KEY for API access. Get a free key at "
+            "https://firms.modaps.eosdis.nasa.gov/api/ — DEMO_KEY works "
+            "at low rate limits for testing."
+        ),
+    )
+    nasa_firms_source: str = Field(
+        default="VIIRS_SNPP_NRT",
+        description=(
+            "FIRMS data source product name. One of: VIIRS_SNPP_NRT, "
+            "VIIRS_NOAA20_NRT, VIIRS_NOAA21_NRT, MODIS_NRT, MODIS_SP."
+        ),
+    )
+    nasa_firms_days_lookback: int = Field(
+        default=2,
+        description="Days of FIRMS archive to query (1\u201310)",
+    )
+
+    # NOAA Space Weather Prediction Center (no auth required)
+    noaa_swpc_api_url: str = Field(
+        default="https://services.swpc.noaa.gov",
+        description="NOAA SWPC API base URL",
+    )
+
+    # OpenAQ Air Quality (no auth required; optional key for higher limits)
+    openaq_api_url: str = Field(
+        default="https://api.openaq.org/v3",
+        description="OpenAQ v3 API base URL",
+    )
+    openaq_api_key: str = Field(
+        default="",
+        description="Optional OpenAQ API key for increased rate limits",
     )
 
     # Earth Search (Element 84) — free STAC, no auth
@@ -428,7 +538,7 @@ def build_landsat_config(s: AppSettings) -> LandsatConfig:
 
 # ── Singleton accessor ────────────────────────────────────────────────────────
 
-_settings: Optional[AppSettings] = None
+_settings: AppSettings | None = None
 
 
 def get_settings() -> AppSettings:

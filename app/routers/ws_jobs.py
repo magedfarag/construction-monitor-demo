@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -39,6 +38,7 @@ async def job_stream(websocket: WebSocket, job_id: str) -> None:
 
     try:
         from celery.result import AsyncResult
+
         from app.workers.celery_app import celery_app
     except ImportError:
         await websocket.send_json({
@@ -48,7 +48,7 @@ async def job_stream(websocket: WebSocket, job_id: str) -> None:
         await websocket.close(code=1008)
         return
 
-    previous_state: Optional[str] = None
+    previous_state: str | None = None
 
     try:
         while True:

@@ -6,7 +6,7 @@ import httpx
 from app.config import AppSettings
 from app.providers.sentinel2 import Sentinel2Provider
 
-_CDSE_STAC_URL = "https://catalogue.dataspace.copernicus.eu/stac/v1"
+_CDSE_STAC_URL = "https://stac.dataspace.copernicus.eu/v1"
 _E84_STAC_URL  = "https://earth-search.aws.element84.com/v1"
 
 
@@ -132,7 +132,7 @@ class TestSentinel2Capabilities:
         caps = provider.get_capabilities()
         assert caps.get("supports_cog_streaming") is True
         assert caps.get("requires_credentials") is True
-        assert caps.get("collection") == "SENTINEL-2"
+        assert caps.get("collection") == "sentinel-2-l2a"
 
     def test_capabilities_element84(self, element84_settings):
         """Test that Element84 provider reports correct capabilities."""

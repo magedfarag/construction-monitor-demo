@@ -13,15 +13,13 @@ Endpoints:
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app.cache.query_cache import get_query_cache
-from app.dependencies import UserClaims, require_analyst, require_operator
+from app.dependencies import UserClaims, require_operator
 from app.rate_limiter import heavy_endpoint_rate_limit
-
 from src.models.absence_signals import (
     AbsenceAlert,
     AbsenceAnalyticsSummary,
@@ -51,14 +49,14 @@ def _get_signal_or_404(signal_id: str) -> AbsenceSignal:
 
 @router.get(
     "/signals",
-    response_model=List[AbsenceSignal],
+    response_model=list[AbsenceSignal],
     summary="List absence signals",
 )
 def list_signals(
-    signal_type: Optional[AbsenceSignalType] = Query(
+    signal_type: AbsenceSignalType | None = Query(
         default=None, description="Filter by signal type"
     ),
-    entity_id: Optional[str] = Query(
+    entity_id: str | None = Query(
         default=None, description="Filter by entity ID"
     ),
     active_only: bool = Query(
@@ -68,7 +66,7 @@ def list_signals(
         default=0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"
     ),
     limit: int = Query(default=100, ge=1, le=1000, description="Maximum results"),
-) -> List[AbsenceSignal]:
+) -> list[AbsenceSignal]:
     cache_key = (
         f"absence:signals:{signal_type}:{entity_id}"
         f":{active_only}:{min_confidence}:{limit}"
@@ -156,7 +154,7 @@ def link_event(
 
 @router.get(
     "/alerts",
-    response_model=List[AbsenceAlert],
+    response_model=list[AbsenceAlert],
     summary="List absence alerts",
 )
 def list_alerts(
@@ -164,7 +162,7 @@ def list_alerts(
         default=AbsenceSeverity.MEDIUM,
         description="Minimum severity to include in alerts",
     ),
-) -> List[AbsenceAlert]:
+) -> list[AbsenceAlert]:
     return _svc().generate_alerts(min_severity=min_severity)
 
 
@@ -186,7 +184,7 @@ def get_summary(
         description="Window end (UTC-aware ISO 8601); defaults to now",
     ),
 ) -> AbsenceAnalyticsSummary:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     window_start = start if start is not None else now.replace(
         hour=0, minute=0, second=0, microsecond=0
     ) - __import__("datetime").timedelta(days=30)
@@ -199,7 +197,7 @@ def get_summary(
 
 @router.post(
     "/scan/ais-gaps",
-    response_model=List[AbsenceSignal],
+    response_model=list[AbsenceSignal],
     summary="Trigger AIS gap detection scan",
 )
 def scan_ais_gaps(
@@ -216,19 +214,18 @@ def scan_ais_gaps(
     ),
     _user: UserClaims = Depends(require_operator),
     _rl: None = Depends(heavy_endpoint_rate_limit),
-) -> List[AbsenceSignal]:
+) -> list[AbsenceSignal]:
     """Scan telemetry store for vessels whose AIS stream has gone silent.
 
     Returns newly created absence signals.  If no telemetry data is loaded,
     the result is an empty list.
     """
-    from src.api.events import _store as _telemetry_event_store  # noqa: PLC0415
     # We need the TelemetryStore.  It is the module-level singleton in the
     # telemetry store module.
     try:
-        from src.services.telemetry_store import TelemetryStore as _TS  # noqa: PLC0415
         # Walk the event store's shared telemetry store if it was bound at startup
         from src.api import imagery as _imagery_mod  # noqa: PLC0415
+        from src.services.telemetry_store import TelemetryStore as _TS  # noqa: PLC0415
         ts = getattr(_imagery_mod, "_telemetry_store", None)
         if ts is None:
             # Fall back to a fresh empty store (no data yet)

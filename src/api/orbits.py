@@ -16,8 +16,6 @@ The ``OrbitConnector`` is instantiated once at module load and owns the
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -54,7 +52,7 @@ LANDSAT-9
 _connector.ingest_orbits(_SEED_TLE)
 
 # The canonical orbit store (satellite_id → SatelliteOrbit)
-_orbit_store: Dict[str, SatelliteOrbit] = dict(_connector._orbits)
+_orbit_store: dict[str, SatelliteOrbit] = dict(_connector._orbits)
 
 # ────────────────────────────────────────────────────────────────────────────
 # Request / response models
@@ -66,12 +64,12 @@ class IngestTleRequest(BaseModel):
 
 class IngestTleResponse(BaseModel):
     ingested: int = Field(..., description="Number of satellite orbits successfully ingested")
-    satellite_ids: List[str] = Field(..., description="Satellite IDs that were ingested")
+    satellite_ids: list[str] = Field(..., description="Satellite IDs that were ingested")
 
 
 class OrbitListResponse(BaseModel):
     total: int
-    orbits: List[SatelliteOrbit]
+    orbits: list[SatelliteOrbit]
 
 
 class PassListResponse(BaseModel):
@@ -80,7 +78,7 @@ class PassListResponse(BaseModel):
     observer_lat: float
     horizon_hours: int
     total: int
-    passes: List[SatellitePass]
+    passes: list[SatellitePass]
 
 
 # ────────────────────────────────────────────────────────────────────────────

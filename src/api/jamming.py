@@ -11,8 +11,7 @@ the 30 days prior to the project reference date (2026-04-04).
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -24,10 +23,10 @@ router = APIRouter(prefix="/api/v1/jamming", tags=["jamming"])
 
 # ── In-memory store ───────────────────────────────────────────────────────────
 _connector = JammingConnector()
-_store: Dict[str, GpsJammingEvent] = {}
+_store: dict[str, GpsJammingEvent] = {}
 
 # Fixed reference "now" for deterministic seeding (project-relative timestamp)
-_REF_NOW = datetime(2026, 4, 4, 0, 0, 0, tzinfo=timezone.utc)
+_REF_NOW = datetime(2026, 4, 4, 0, 0, 0, tzinfo=UTC)
 
 
 def _seed_store() -> None:
@@ -38,7 +37,7 @@ def _seed_store() -> None:
     """
     w1_end = _REF_NOW
     w1_start = _REF_NOW - timedelta(days=30)
-    events: List[GpsJammingEvent] = _connector.detect_jamming_events(w1_start, w1_end)
+    events: list[GpsJammingEvent] = _connector.detect_jamming_events(w1_start, w1_end)
 
     if len(events) < 5:
         w2_end = w1_start
@@ -73,7 +72,7 @@ class HeatmapPoint(BaseModel):
 
 @router.get(
     "/events",
-    response_model=List[GpsJammingEvent],
+    response_model=list[GpsJammingEvent],
     summary="List GPS/GNSS jamming events",
     description=(
         "Returns jamming events from the in-memory store.  "
@@ -81,20 +80,20 @@ class HeatmapPoint(BaseModel):
     ),
 )
 def list_jamming_events(
-    start: Optional[datetime] = Query(
+    start: datetime | None = Query(
         default=None, description="Filter events detected on or after this UTC timestamp"
     ),
-    end: Optional[datetime] = Query(
+    end: datetime | None = Query(
         default=None, description="Filter events detected on or before this UTC timestamp"
     ),
-    region_bbox: Optional[str] = Query(
+    region_bbox: str | None = Query(
         default=None,
         description="Bounding box filter: 'min_lon,min_lat,max_lon,max_lat'",
     ),
     confidence_min: float = Query(
         default=0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"
     ),
-) -> List[GpsJammingEvent]:
+) -> list[GpsJammingEvent]:
     results = list(_store.values())
 
     if start is not None:
@@ -126,7 +125,7 @@ def list_jamming_events(
 
 @router.get(
     "/heatmap",
-    response_model=List[HeatmapPoint],
+    response_model=list[HeatmapPoint],
     summary="GPS jamming heatmap — aggregated lon/lat/weight points",
     description=(
         "Returns one weighted point per jamming event.  "
@@ -138,7 +137,7 @@ def get_jamming_heatmap(
     confidence_min: float = Query(
         default=0.0, ge=0.0, le=1.0, description="Minimum confidence threshold"
     ),
-) -> List[HeatmapPoint]:
+) -> list[HeatmapPoint]:
     return [
         HeatmapPoint(lon=e.location_lon, lat=e.location_lat, weight=e.confidence)
         for e in _store.values()
@@ -148,14 +147,14 @@ def get_jamming_heatmap(
 
 @router.post(
     "/ingest",
-    response_model=List[GpsJammingEvent],
+    response_model=list[GpsJammingEvent],
     summary="Trigger stub detection and persist results",
     description=(
         "Runs the jamming connector over the supplied time window, "
         "persists new events to the in-memory store, and returns them."
     ),
 )
-def ingest_jamming(body: IngestRequest) -> List[GpsJammingEvent]:
+def ingest_jamming(body: IngestRequest) -> list[GpsJammingEvent]:
     if body.end <= body.start:
         raise HTTPException(status_code=422, detail="end must be after start")
 

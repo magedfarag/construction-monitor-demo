@@ -9,9 +9,8 @@ Routes
 from __future__ import annotations
 
 import logging
-import time
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -40,7 +39,7 @@ def _derive_status(record: Any) -> str:
     summary="Per-connector health summary",
     response_model=None,
 )
-def get_connector_health() -> Dict[str, Any]:
+def get_connector_health() -> dict[str, Any]:
     """Return name, last fetch time, error count, and health status for every
     registered connector.  Healthy means the connector is reachable and
     has delivered data within its SLA window.
@@ -83,7 +82,7 @@ def get_connector_health() -> Dict[str, Any]:
         "healthy_count": healthy,
         "degraded_count": degraded,
         "unknown_count": unknown,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -92,7 +91,7 @@ def get_connector_health() -> Dict[str, Any]:
     summary="In-process metrics snapshot",
     response_model=None,
 )
-def get_metrics_snapshot() -> Dict[str, Any]:
+def get_metrics_snapshot() -> dict[str, Any]:
     """Return the current in-process metrics registry snapshot.
 
     The payload contains three top-level sections:

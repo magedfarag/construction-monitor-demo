@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -41,14 +41,14 @@ class CacheClient:
             log.info("Cache backend: in-memory TTLCache (max=%s, ttl=%ss)", max_entries, ttl_seconds)
 
     @classmethod
-    def from_settings(cls, settings: Any) -> "CacheClient":
+    def from_settings(cls, settings: Any) -> CacheClient:
         return cls(
             redis_url=settings.redis_url,
             ttl_seconds=settings.cache_ttl_seconds,
             max_entries=settings.cache_max_entries,
         )
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         try:
             if self._redis:
                 raw = self._redis.get(key)
@@ -63,7 +63,7 @@ class CacheClient:
         self._misses += 1
         return None
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+    def set(self, key: str, value: Any, ttl: int | None = None) -> None:
         effective_ttl = ttl if ttl is not None else self._ttl
         try:
             if self._redis:
@@ -82,7 +82,7 @@ class CacheClient:
         except Exception as exc:  # noqa: BLE001
             log.debug("Cache delete error: %s", exc)
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         total = self._hits + self._misses
         return {
             "hits":      self._hits,

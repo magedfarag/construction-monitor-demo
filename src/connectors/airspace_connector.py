@@ -18,8 +18,8 @@ Design notes:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from src.connectors.base import (
     BaseConnector,
@@ -28,7 +28,6 @@ from src.connectors.base import (
 )
 from src.models.canonical_event import (
     CanonicalEvent,
-    CorrelationKeys,
     EntityType,
     EventType,
     LicenseRecord,
@@ -55,10 +54,10 @@ _LICENSE = LicenseRecord(
 # Stub seed data
 # ────────────────────────────────────────────────────────────────────────────
 
-_NOW = datetime.now(timezone.utc)
+_NOW = datetime.now(UTC)
 
 # Stub restrictions — geographically representative sample
-_STUB_RESTRICTIONS: List[AirspaceRestriction] = [
+_STUB_RESTRICTIONS: list[AirspaceRestriction] = [
     AirspaceRestriction(
         restriction_id="TFR-2026-0001",
         name="WASHINGTON DC SFRA TFR",
@@ -157,7 +156,7 @@ _STUB_RESTRICTIONS: List[AirspaceRestriction] = [
 ]
 
 # Stub NOTAMs — 3 representative notices
-_STUB_NOTAMS: List[NotamEvent] = [
+_STUB_NOTAMS: list[NotamEvent] = [
     NotamEvent(
         notam_id="notam-001",
         notam_number="A0123/26",
@@ -221,7 +220,7 @@ def restriction_to_canonical_event(r: AirspaceRestriction) -> CanonicalEvent:
     if coords:
         avg_lon = sum(c[0] for c in coords) / len(coords)
         avg_lat = sum(c[1] for c in coords) / len(coords)
-        centroid: Dict[str, Any] = {"type": "Point", "coordinates": [round(avg_lon, 4), round(avg_lat, 4)]}
+        centroid: dict[str, Any] = {"type": "Point", "coordinates": [round(avg_lon, 4), round(avg_lat, 4)]}
     else:
         centroid = {"type": "Point", "coordinates": [0.0, 0.0]}
 
@@ -262,12 +261,12 @@ def restriction_to_canonical_event(r: AirspaceRestriction) -> CanonicalEvent:
 def notam_to_canonical_event(n: NotamEvent) -> CanonicalEvent:
     """Convert a ``NotamEvent`` to a ``CanonicalEvent`` for ingest."""
     if n.geometry_geojson:
-        geometry: Dict[str, Any] = n.geometry_geojson
+        geometry: dict[str, Any] = n.geometry_geojson
         coords = geometry.get("coordinates", [[]])[0]
         if coords:
             avg_lon = sum(c[0] for c in coords) / len(coords)
             avg_lat = sum(c[1] for c in coords) / len(coords)
-            centroid: Dict[str, Any] = {"type": "Point", "coordinates": [round(avg_lon, 4), round(avg_lat, 4)]}
+            centroid: dict[str, Any] = {"type": "Point", "coordinates": [round(avg_lon, 4), round(avg_lat, 4)]}
         else:
             centroid = {"type": "Point", "coordinates": [0.0, 0.0]}
     else:
@@ -334,20 +333,20 @@ class AirspaceConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return all stub restrictions and NOTAMs as raw dicts."""
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for r in _STUB_RESTRICTIONS:
             results.append({"_type": "restriction", **r.model_dump(mode="json")})
         for n in _STUB_NOTAMS:
             results.append({"_type": "notam", **n.model_dump(mode="json")})
         return results
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Normalize a raw restriction or NOTAM dict into a CanonicalEvent.
 
         ``raw`` must contain a ``_type`` key of ``'restriction'`` or ``'notam'``.
@@ -377,7 +376,7 @@ class AirspaceConnector(BaseConnector):
             connector_id=self.connector_id,
             healthy=True,
             message="Stub connector — always healthy",
-            last_successful_poll=datetime.now(timezone.utc),
+            last_successful_poll=datetime.now(UTC),
             error_count=0,
         )
 
@@ -385,8 +384,8 @@ class AirspaceConnector(BaseConnector):
 
     def fetch_restrictions(
         self,
-        bbox: Optional[Tuple[float, float, float, float]] = None,
-    ) -> List[AirspaceRestriction]:
+        bbox: tuple[float, float, float, float] | None = None,
+    ) -> list[AirspaceRestriction]:
         """Return stub airspace restrictions, optionally filtered by bounding box.
 
         Args:
@@ -402,7 +401,7 @@ class AirspaceConnector(BaseConnector):
             return restrictions
 
         min_lon, min_lat, max_lon, max_lat = bbox
-        filtered: List[AirspaceRestriction] = []
+        filtered: list[AirspaceRestriction] = []
         for r in restrictions:
             coords = r.geometry_geojson.get("coordinates", [[]])[0]
             if not coords:
@@ -413,7 +412,7 @@ class AirspaceConnector(BaseConnector):
                 filtered.append(r)
         return filtered
 
-    def fetch_notams(self, icao_code: Optional[str] = None) -> List[NotamEvent]:
+    def fetch_notams(self, icao_code: str | None = None) -> list[NotamEvent]:
         """Return stub NOTAMs, optionally filtered by ICAO location code.
 
         Args:
@@ -438,7 +437,7 @@ class AirspaceConnector(BaseConnector):
         A restriction with ``valid_to=None`` is treated as indefinite (active
         if already past its start).
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if restriction.valid_from > now:
             return False
         if restriction.valid_to is not None and restriction.valid_to <= now:

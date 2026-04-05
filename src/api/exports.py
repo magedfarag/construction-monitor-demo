@@ -105,7 +105,7 @@ def create_export(
                 include_restricted=req.include_restricted,
             )
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Parquet export failed: {exc}")
+            raise HTTPException(status_code=500, detail=f"Parquet export failed: {exc}") from exc
         # Store as a standard ExportJob so download_url endpoint works
         from uuid import uuid4
         job_id = str(uuid4())

@@ -1,14 +1,20 @@
 """POST /api/analyze — synchronous and asynchronous analysis."""
 from __future__ import annotations
 
-import math
-from typing import Annotated, Union
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.cache.client import CacheClient
 from app.config import AppSettings
-from app.dependencies import get_app_settings, get_cache, get_circuit_breaker, get_job_manager, get_registry, verify_api_key
+from app.dependencies import (
+    get_app_settings,
+    get_cache,
+    get_circuit_breaker,
+    get_job_manager,
+    get_registry,
+    verify_api_key,
+)
 from app.models.requests import AnalyzeRequest
 from app.models.responses import AnalyzeResponse, JobStatusResponse
 from app.providers.base import ProviderUnavailableError
@@ -27,7 +33,7 @@ def _get_analysis_service(
     registry: ProviderRegistry,
     cache: CacheClient,
     breaker: CircuitBreaker,
-    job_manager: Union[JobManager, None] = None,
+    job_manager: JobManager | None = None,
 ) -> AnalysisService:
     """Construct AnalysisService with optional JobManager (singleton from DI)."""
     return AnalysisService(registry=registry, cache=cache, settings=settings, job_manager=job_manager, breaker=breaker)
@@ -57,7 +63,7 @@ def _validate_area(request: AnalyzeRequest) -> float:
 
 @router.post(
     "/analyze",
-    response_model=Union[AnalyzeResponse, JobStatusResponse],
+    response_model=AnalyzeResponse | JobStatusResponse,
     summary="Analyse AOI for construction activity",
     responses={
         200: {"description": "Synchronous analysis result or async job ticket"},
@@ -73,9 +79,9 @@ def analyze(
     registry: Annotated[ProviderRegistry, Depends(get_registry)],
     cache:    Annotated[CacheClient,      Depends(get_cache)],
     breaker:  Annotated[CircuitBreaker,   Depends(get_circuit_breaker)],
-    job_manager: Annotated[Union[JobManager, None], Depends(get_job_manager)],
+    job_manager: Annotated[JobManager | None, Depends(get_job_manager)],
     _: Annotated[str, Depends(verify_api_key)],  # Required API key authentication
-) -> Union[AnalyzeResponse, JobStatusResponse]:
+) -> AnalyzeResponse | JobStatusResponse:
     area = _validate_area(body)
     use_async = body.async_execution or area > settings.async_area_threshold_km2
 

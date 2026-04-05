@@ -12,13 +12,12 @@ from __future__ import annotations
 
 import threading
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Set
+from datetime import UTC, datetime, timedelta
 
 from src.models.canonical_event import CanonicalEvent
 from src.models.playback import (
-    MaterializeRequest,
     MaterializeJobResponse,
+    MaterializeRequest,
     PlaybackFrame,
     PlaybackJobStatus,
     PlaybackQueryRequest,
@@ -54,7 +53,7 @@ def standard_playback_windows() -> dict:
 
     Returns dict: {window_name: (start_time, end_time)}
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return {
         "24h":  (now - timedelta(hours=24),  now),
         "7d":   (now - timedelta(days=7),    now),
@@ -68,12 +67,12 @@ class _MaterializeJob:
     def __init__(self, job_id: str, request: MaterializeRequest) -> None:
         self.job_id = job_id
         self.state = "pending"
-        self.created_at = datetime.now(timezone.utc)
-        self.updated_at = datetime.now(timezone.utc)
+        self.created_at = datetime.now(UTC)
+        self.updated_at = datetime.now(UTC)
         self.request = request
-        self.windows: Optional[List[WindowFrame]] = None
-        self.total_events: Optional[int] = None
-        self.error: Optional[str] = None
+        self.windows: list[WindowFrame] | None = None
+        self.total_events: int | None = None
+        self.error: str | None = None
 
 
 class PlaybackService:
@@ -81,7 +80,7 @@ class PlaybackService:
 
     def __init__(self, event_store: EventStore) -> None:
         self._store = event_store
-        self._jobs: Dict[str, _MaterializeJob] = {}
+        self._jobs: dict[str, _MaterializeJob] = {}
         self._lock = threading.Lock()
 
     def query(self, req: PlaybackQueryRequest) -> PlaybackQueryResponse:
@@ -95,7 +94,7 @@ class PlaybackService:
 
         events.sort(key=lambda e: e.event_time)
 
-        frames: List[PlaybackFrame] = []
+        frames: list[PlaybackFrame] = []
         for seq, event in enumerate(events, start=1):
             is_late = event.event_id in late_ids
 
@@ -134,7 +133,7 @@ class PlaybackService:
             message="Materialization complete." if job.state == "completed" else "Materialization failed.",
         )
 
-    def get_job(self, job_id: str) -> Optional[PlaybackJobStatus]:
+    def get_job(self, job_id: str) -> PlaybackJobStatus | None:
         """Return job status or None if the job is unknown."""
         with self._lock:
             job = self._jobs.get(job_id)
@@ -157,7 +156,7 @@ class PlaybackService:
             error=job.error,
         )
 
-    def _filter_events(self, req: PlaybackQueryRequest) -> List[CanonicalEvent]:
+    def _filter_events(self, req: PlaybackQueryRequest) -> list[CanonicalEvent]:
         """Pull matching events directly from the store applying all catalogue filters.
 
         P3-3.5: When ``req.viewport_bbox`` is set, only events whose centroid
@@ -194,7 +193,7 @@ class PlaybackService:
 
         return results[: req.limit]
 
-    def _detect_late_arrivals(self, events: List[CanonicalEvent]) -> Set[str]:
+    def _detect_late_arrivals(self, events: list[CanonicalEvent]) -> set[str]:
         """Return event_ids that arrived late relative to their source.
 
         Process events in ingested_at order. An event is late when its
@@ -204,8 +203,8 @@ class PlaybackService:
             return set()
 
         by_ingestion = sorted(events, key=lambda e: e.ingested_at)
-        source_max: Dict[str, datetime] = {}
-        late_ids: Set[str] = set()
+        source_max: dict[str, datetime] = {}
+        late_ids: set[str] = set()
 
         for event in by_ingestion:
             current_max = source_max.get(event.source)
@@ -223,7 +222,7 @@ class PlaybackService:
         """Compute windowed frame bins for the materialization request."""
         try:
             job.state = "running"
-            job.updated_at = datetime.now(timezone.utc)
+            job.updated_at = datetime.now(UTC)
 
             req = job.request
             query_req = PlaybackQueryRequest(
@@ -239,7 +238,7 @@ class PlaybackService:
             playback = self.query(query_req)
 
             window_delta = timedelta(minutes=req.window_size_minutes)
-            windows: List[WindowFrame] = []
+            windows: list[WindowFrame] = []
             cursor = req.start_time
 
             while cursor < req.end_time:
@@ -260,9 +259,9 @@ class PlaybackService:
             job.windows = windows
             job.total_events = playback.total_frames
             job.state = "completed"
-            job.updated_at = datetime.now(timezone.utc)
+            job.updated_at = datetime.now(UTC)
 
         except Exception as exc:  # noqa: BLE001
             job.state = "failed"
             job.error = str(exc)
-            job.updated_at = datetime.now(timezone.utc)
+            job.updated_at = datetime.now(UTC)

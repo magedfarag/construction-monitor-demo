@@ -13,11 +13,10 @@ import hashlib
 import io
 import logging
 from collections import OrderedDict
-from typing import List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
-_THUMBNAIL_SIZE: Tuple[int, int] = (256, 256)
+_THUMBNAIL_SIZE: tuple[int, int] = (256, 256)
 _MAX_CACHE_ENTRIES = 128
 
 
@@ -36,7 +35,7 @@ class ThumbnailCache:
         self._store: OrderedDict[str, bytes] = OrderedDict()
         self._max = max_entries
 
-    def get(self, key: str) -> Optional[bytes]:
+    def get(self, key: str) -> bytes | None:
         if key in self._store:
             self._store.move_to_end(key)
             return self._store[key]
@@ -59,7 +58,7 @@ class ThumbnailCache:
 _cache = ThumbnailCache()
 
 
-def cache_key(scene_id: str, bbox: List[float]) -> str:
+def cache_key(scene_id: str, bbox: list[float]) -> str:
     """Deterministic cache key from scene ID and bounding box."""
     bbox_str = ",".join(f"{v:.6f}" for v in bbox)
     raw = f"{scene_id}:{bbox_str}"
@@ -68,11 +67,11 @@ def cache_key(scene_id: str, bbox: List[float]) -> str:
 
 def generate_thumbnail(
     scene_url: str,
-    bbox: List[float],
+    bbox: list[float],
     scene_id: str,
-    size: Tuple[int, int] = _THUMBNAIL_SIZE,
-    bearer_token: Optional[str] = None,
-) -> Optional[bytes]:
+    size: tuple[int, int] = _THUMBNAIL_SIZE,
+    bearer_token: str | None = None,
+) -> bytes | None:
     """Generate a PNG thumbnail from a COG scene URL, cropped to bbox.
 
     Parameters
@@ -154,7 +153,7 @@ def generate_thumbnail(
         return None
 
 
-def _encode_png(data, size: Tuple[int, int]) -> Optional[bytes]:
+def _encode_png(data, size: tuple[int, int]) -> bytes | None:
     """Encode numpy array to PNG bytes."""
     try:
         from PIL import Image
@@ -175,13 +174,13 @@ def _encode_png(data, size: Tuple[int, int]) -> Optional[bytes]:
         return None
 
 
-def thumbnail_url(scene_id: str, bbox: List[float]) -> str:
+def thumbnail_url(scene_id: str, bbox: list[float]) -> str:
     """Build the API URL that serves a cached thumbnail."""
     key = cache_key(scene_id, bbox)
     return f"/api/thumbnails/{scene_id}?key={key}"
 
 
-def get_cached_thumbnail(key: str) -> Optional[bytes]:
+def get_cached_thumbnail(key: str) -> bytes | None:
     """Retrieve a thumbnail from cache by its key."""
     return _cache.get(key)
 

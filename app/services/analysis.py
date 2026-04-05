@@ -10,21 +10,16 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.cache.client import CacheClient
 from app.config import AppMode, AppSettings
-from app.models.jobs import Job, JobState
+from app.models.jobs import Job
 from app.models.requests import AnalyzeRequest
 from app.models.responses import AnalyzeResponse, ChangeRecord
-from app.models.scene import SceneMetadata
 from app.providers.base import ProviderUnavailableError, SatelliteProvider
 from app.providers.demo import (
     DemoProvider,
-    MAX_AREA_KM2,
-    MIN_AREA_KM2,
-    TODAY,
     _polygon_area_km2,
 )
 from app.providers.registry import ProviderRegistry
@@ -37,7 +32,7 @@ log = logging.getLogger(__name__)
 _ASSETS_URL_PREFIX = "/static/assets"
 
 
-def _flatten_coords(geometry: Dict[str, Any]) -> List[List[float]]:
+def _flatten_coords(geometry: dict[str, Any]) -> list[list[float]]:
     gtype = geometry.get("type")
     coords = geometry.get("coordinates", [])
     if gtype == "Polygon":
@@ -51,18 +46,18 @@ def _flatten_coords(geometry: Dict[str, Any]) -> List[List[float]]:
     raise ValueError(f"Unsupported geometry type: {gtype}")
 
 
-def _bounds(coords: List[List[float]]) -> List[float]:
+def _bounds(coords: list[list[float]]) -> list[float]:
     lngs = [pt[0] for pt in coords]
     lats = [pt[1] for pt in coords]
     return [min(lngs), min(lats), max(lngs), max(lats)]
 
 
-def _aoi_hash(bounds: List[float]) -> str:
+def _aoi_hash(bounds: list[float]) -> str:
     key = ",".join(f"{v:.4f}" for v in bounds)
     return hashlib.sha256(key.encode()).hexdigest()[:16]
 
 
-def _cache_key(provider: str, bounds: List[float], start: str, end: str, cloud: float) -> str:
+def _cache_key(provider: str, bounds: list[float], start: str, end: str, cloud: float) -> str:
     return f"analysis:{provider}:{_aoi_hash(bounds)}:{start}:{end}:{cloud:.0f}"
 
 
@@ -72,8 +67,8 @@ class AnalysisService:
         registry: ProviderRegistry,
         cache: CacheClient,
         settings: AppSettings,
-        job_manager: Optional[JobManager] = None,
-        breaker: Optional[CircuitBreaker] = None,
+        job_manager: JobManager | None = None,
+        breaker: CircuitBreaker | None = None,
     ) -> None:
         self._registry    = registry
         self._cache       = cache
@@ -91,7 +86,7 @@ class AnalysisService:
 
         area_km2 = request.area_km2 if request.area_km2 is not None else computed_area
         bounds   = _bounds(coords)
-        warnings: List[str] = []
+        warnings: list[str] = []
 
         # Check cache
         cache_key = _cache_key(
@@ -161,11 +156,10 @@ class AnalysisService:
             )
         try:
             from app.workers.tasks import run_analysis_task
-            from app.models.jobs import JobState
         except ImportError as exc:
             raise RuntimeError(f"Celery workers not available: {exc}") from exc
 
-        job: Optional[Job] = None
+        job: Job | None = None
         if self._job_manager:
             job = self._job_manager.create_job(request.model_dump(mode="json"))
 
@@ -226,7 +220,7 @@ class AnalysisService:
         self,
         primary: SatelliteProvider,
         request: AnalyzeRequest,
-        bounds: List[float],
+        bounds: list[float],
         area_km2: float,
     ):
         """Try primary provider, then alternates from the priority chain.
@@ -239,7 +233,7 @@ class AnalysisService:
         tried: set[str] = set()
 
         # Build ordered list: primary first, then remaining by priority
-        providers_to_try: List[SatelliteProvider] = [primary]
+        providers_to_try: list[SatelliteProvider] = [primary]
         tried.add(primary.provider_name)
         for name in priority:
             if name in tried or name == "demo":
@@ -249,7 +243,7 @@ class AnalysisService:
                 providers_to_try.append(alt)
                 tried.add(name)
 
-        last_exc: Optional[Exception] = None
+        last_exc: Exception | None = None
         for provider in providers_to_try:
             try:
                 changes_raw, detection_warnings = self._run_live_analysis(
@@ -287,13 +281,13 @@ class AnalysisService:
         self,
         provider: SatelliteProvider,
         request: AnalyzeRequest,
-        bounds: List[float],
+        bounds: list[float],
         area_km2: float,
     ):
         """Search, rank, detect; return (changes_raw, warnings)."""
         from app.services.change_detection import run_change_detection
 
-        warnings: List[str] = []
+        warnings: list[str] = []
         pname = provider.provider_name
 
         # Circuit breaker check

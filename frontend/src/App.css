@@ -526,12 +526,13 @@ body {
   bottom: 50px; left: 10px;
   z-index: 10;
   min-width: 130px;
+  max-width: 220px;
   background: rgba(7,13,26,0.88);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 10px;
   backdrop-filter: blur(6px);
-  pointer-events: none;
+  pointer-events: auto;
 }
 .map-legend-title {
   font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
@@ -540,8 +541,18 @@ body {
 .map-legend-row {
   display: flex; align-items: center; gap: 7px; margin-bottom: 5px;
 }
+.map-legend-row--interactive {
+  cursor: pointer; border-radius: 3px; padding: 2px 4px; margin-left: -4px; margin-right: -4px;
+  transition: background 0.15s;
+}
+.map-legend-row--interactive:hover { background: rgba(255,255,255,0.07); }
+.map-legend-row--active { background: rgba(255,255,255,0.10); }
 .map-legend-row:last-child { margin-bottom: 0; }
-.map-legend-label { font-size: 11px; color: var(--text-secondary); }
+.map-legend-label { font-size: 11px; color: var(--text-secondary); user-select: none; }
+.map-legend-desc {
+  font-size: 10px; color: var(--text-muted); line-height: 1.45;
+  padding: 2px 4px 6px 25px;
+}
 
 /* ── Entity popup (MapLibre custom styling) ─────────────────────────────── */
 .maplibregl-popup .maplibregl-popup-content {

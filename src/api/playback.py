@@ -24,13 +24,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.cache.query_cache import get_query_cache, ttl_for_window
 from app.rate_limiter import heavy_endpoint_rate_limit
-
 from src.models.playback import (
     EntityTrackPoint,
     EntityTrackResponse,
@@ -57,7 +55,7 @@ router = APIRouter(prefix="/api/v1/playback", tags=["playback"])
 # set_event_store() takes effect before the first request arrives.  Job state
 # lives on the PlaybackService instance, so the reference must be stable across
 # enqueue_materialize → get_job call pairs.
-_service: "PlaybackService | None" = None
+_service: PlaybackService | None = None
 
 
 def _get_service() -> PlaybackService:
@@ -185,7 +183,7 @@ def get_entity_track(
     entity_id: str,
     start_time: datetime = Query(..., description="Window start (UTC ISO-8601)"),
     end_time: datetime = Query(..., description="Window end (UTC ISO-8601)"),
-    source: Optional[str] = Query(default=None, description="Filter by connector source id"),
+    source: str | None = Query(default=None, description="Filter by connector source id"),
     max_points: int = Query(default=2_000, ge=1, le=10_000, description="Maximum track points"),
 ) -> EntityTrackResponse:
     if end_time <= start_time:
@@ -215,7 +213,7 @@ def get_entity_track(
 
     track_points: list[EntityTrackPoint] = []
     inferred_entity_type = ""
-    inferred_source: Optional[str] = None
+    inferred_source: str | None = None
 
     for event in events:
         coords = event.centroid.get("coordinates", [])

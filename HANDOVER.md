@@ -391,7 +391,7 @@ python -m pytest tests/ -v
 |---|---|
 | GitHub repository | https://github.com/magedfarag/argus-intel |
 | Copernicus CDSE registration | https://dataspace.copernicus.eu |
-| Copernicus STAC API | https://catalogue.dataspace.copernicus.eu/stac/v1 |
+| Copernicus STAC API | https://stac.dataspace.copernicus.eu/v1 |
 | USGS LandsatLook STAC | https://landsatlook.usgs.gov/stac-server |
 | FastAPI Swagger UI (local) | http://localhost:8000/docs |
 
@@ -475,10 +475,10 @@ Track B (rate limiting, caching, budgets) was pre-implemented during earlier pha
 
 | Scope | Count |
 |---|---|
-| Backend tests passing | 1428 |
+| Backend tests passing | 1682 |
 | Backend tests skipped (pre-existing: Celery/Redis CI, sentinel2/thumbnails) | 11 |
 | Backend tests failing | 0 |
-| Frontend tests | 14 (all passing, as of Milestone 5) |
+| Frontend e2e tests | 184 (18 spec files, full POM architecture, 7 spec files individually validated) |
 
 ### Known limitations (before production use)
 
@@ -498,4 +498,4 @@ Track B (rate limiting, caching, budgets) was pre-implemented during earlier pha
 3. **External identity provider**: Replace HMAC tokens with OAuth2 / OIDC (e.g. Keycloak, Auth0)
 4. **Live connector activation**: Provide `AISSTREAM_API_KEY`, `OPENSKY_USERNAME`/`PASSWORD`, Sentinel-2/Landsat credentials
 5. **WGS-84 orbit paths**: Replace flat-earth TLE approximation in `src/api/orbits.py`
-6. **CI coverage gate**: Add `pytest --cov=app --cov-fail-under=85` to `.github/workflows/ci.yml`
+6. **CI coverage gate**: CI enforces `pytest --cov-fail-under=60`. Target 85% before enabling live connectors.

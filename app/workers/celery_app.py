@@ -7,7 +7,6 @@ import time from AppSettings so they respect .env files.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -63,6 +62,15 @@ try:
             "run_export_task":                  {"queue": "low"},
             "probe_stac_connectors":            {"queue": "default"},
             "workers.warm_playback_windows":    {"queue": "default"},
+            "poll_usgs_earthquakes":            {"queue": "default"},
+            "poll_nasa_eonet":                 {"queue": "default"},
+            "poll_open_meteo":                 {"queue": "default"},
+            "poll_acled_events":               {"queue": "default"},
+            "poll_nga_msi":                    {"queue": "default"},
+            "poll_osm_military":               {"queue": "default"},
+            "poll_nasa_firms":                 {"queue": "default"},
+            "poll_noaa_swpc":                  {"queue": "default"},
+            "poll_openaq":                     {"queue": "default"},
         },
         # P5-2.1: Beat schedules for all polling connectors:
         # P2-1.4 GDELT (15 min), P3-2.5 OpenSky (60 s), P3-1 AIS (30 s), P5-4.4 Retention (1 h)
@@ -105,6 +113,51 @@ try:
             "warm-playback-windows-every-6h": {
                 "task": "workers.warm_playback_windows",
                 "schedule": 21600.0,  # 6 hours — reasonable for 24h/7d/30d windows
+                "options": {"queue": "default"},
+            },
+            "poll-usgs-earthquakes-every-15min": {
+                "task": "poll_usgs_earthquakes",
+                "schedule": 900.0,   # 15 minutes
+                "options": {"queue": "default"},
+            },
+            "poll-nasa-eonet-every-30min": {
+                "task": "poll_nasa_eonet",
+                "schedule": 1800.0,  # 30 minutes
+                "options": {"queue": "default"},
+            },
+            "poll-open-meteo-every-60min": {
+                "task": "poll_open_meteo",
+                "schedule": 3600.0,  # 60 minutes
+                "options": {"queue": "default"},
+            },
+            "poll-acled-events-every-60min": {
+                "task": "poll_acled_events",
+                "schedule": 3600.0,  # 60 minutes
+                "options": {"queue": "default"},
+            },
+            "poll-nga-msi-every-15min": {
+                "task": "poll_nga_msi",
+                "schedule": 900.0,   # 15 minutes
+                "options": {"queue": "default"},
+            },
+            "poll-osm-military-every-6h": {
+                "task": "poll_osm_military",
+                "schedule": 21600.0, # 6 hours — OSM is current-state, slow-changing
+                "options": {"queue": "default"},
+            },
+            "poll-nasa-firms-every-30min": {
+                "task": "poll_nasa_firms",
+                "schedule": 1800.0,  # 30 minutes
+                "options": {"queue": "default"},
+            },
+            "poll-noaa-swpc-every-10min": {
+                "task": "poll_noaa_swpc",
+                "schedule": 600.0,   # 10 minutes — space weather can change quickly
+                "options": {"queue": "default"},
+            },
+            "poll-openaq-every-30min": {
+                "task": "poll_openaq",
+                "schedule": 1800.0,  # 30 minutes
                 "options": {"queue": "default"},
             },
         },

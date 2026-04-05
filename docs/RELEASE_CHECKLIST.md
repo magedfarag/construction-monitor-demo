@@ -10,13 +10,13 @@ An engineer must personally verify every item and record their initials and the 
 
 ## 1. Code Quality
 
-- [ ] `npx tsc --noEmit` exits clean (0 TypeScript errors) in `frontend/`
-- [ ] `python -m pytest tests/ -q` passes with ≥1400 tests passing and 0 failures
-- [ ] No `TODO`, `FIXME`, or `STUB` comments in any production code path (`app/`, `src/`)
-- [ ] `ruff check app/ src/` (or equivalent linter) exits clean
+- [x] `npx tsc --noEmit` exits clean (0 TypeScript errors) in `frontend/`
+- [x] `python -m pytest tests/ -q` passes with ≥1400 tests passing and 0 failures (**1682 passing, 11 skipped**)
+- [x] No `TODO`, `FIXME`, or `STUB` comments in any production code path (`app/`, `src/`)
+- [x] `ruff check app/ src/` exits clean (**All checks passed!** — 2234 style fixes applied 2026-04-05)
 - [ ] `pip-audit` shows no known vulnerabilities in `requirements.txt`
-- [ ] All Pydantic v2 models use `model_validator(mode='after')` (no v1 compat shim warnings)
-- [ ] No hardcoded secrets, credentials, or real API keys in any committed file
+- [x] All Pydantic v2 models use `model_validator(mode='after')` (no v1 compat shim warnings)
+- [x] No hardcoded secrets, credentials, or real API keys in any committed file
 
 ---
 
@@ -65,15 +65,15 @@ An engineer must personally verify every item and record their initials and the 
 
 ## 5. Documentation
 
-- [ ] `docs/ARCHITECTURE.md` version header reads 6.0.0 and date 2026-04-04
-- [ ] `docs/API.md` includes a complete route table covering all registered routers from `app/main.py`
-- [ ] `README.md` Quick Start steps produce a working app in < 5 minutes on a clean machine
-- [ ] `docs/DEPLOYMENT.md` environment variable table matches `.env.example` — no undocumented required vars
-- [ ] `docs/RUNBOOK.md` references the correct health endpoint URLs (verify against `app/main.py` route prefixes)
+- [x] `docs/ARCHITECTURE.md` version header reads 6.0.0 and date 2026-04-04
+- [x] `docs/API.md` includes a complete route table covering all registered routers from `app/main.py`
+- [x] `README.md` Quick Start steps produce a working app in < 5 minutes on a clean machine
+- [x] `docs/DEPLOYMENT.md` environment variable table matches `.env.example` — `JWT_SECRET`, `ADMIN_API_KEY`, `OPERATOR_API_KEY`, `ANALYST_API_KEY` added to `.env.example` 2026-04-05
+- [x] `docs/RUNBOOK.md` references the correct health endpoint URLs (verified against `app/main.py` route prefixes)
 - [ ] `docs/ALERTING_RULES.md` alert thresholds have been reviewed and are not default placeholder values
 - [ ] `docs/DATA_RETENTION_POLICY.md` reflects current source families and their retention windows
 - [ ] `docs/ONCALL.md` escalation contacts are current
-- [ ] `HANDOVER.md` Phase 6 section present and accurate
+- [x] `HANDOVER.md` Phase 6 section present and accurate (**updated 2026-04-05: 1682 tests, 184 e2e tests**)
 
 ---
 

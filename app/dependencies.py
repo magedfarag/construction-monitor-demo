@@ -12,7 +12,6 @@ import hmac
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyCookie, APIKeyHeader, APIKeyQuery
@@ -24,10 +23,10 @@ from app.resilience.circuit_breaker import CircuitBreaker
 from app.services.job_manager import JobManager
 
 # These are set by main.py lifespan
-_registry:    Optional[ProviderRegistry] = None
-_cache:       Optional[CacheClient]      = None
-_breaker:     Optional[CircuitBreaker]   = None
-_job_manager: Optional[JobManager]       = None
+_registry:    ProviderRegistry | None = None
+_cache:       CacheClient | None      = None
+_breaker:     CircuitBreaker | None   = None
+_job_manager: JobManager | None       = None
 
 
 def set_registry(r: ProviderRegistry) -> None:
@@ -45,7 +44,7 @@ def set_breaker(b: CircuitBreaker) -> None:
     _breaker = b
 
 
-def set_job_manager(jm: Optional[JobManager]) -> None:
+def set_job_manager(jm: JobManager | None) -> None:
     global _job_manager
     _job_manager = jm
 
@@ -71,7 +70,7 @@ def get_circuit_breaker() -> CircuitBreaker:
     return _breaker
 
 
-def get_job_manager() -> Optional[JobManager]:
+def get_job_manager() -> JobManager | None:
     return _job_manager
 
 

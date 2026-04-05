@@ -21,13 +21,12 @@ Design notes:
 """
 from __future__ import annotations
 
-import hashlib
 import logging
 import math
 import threading
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from src.models.analytics import (
     ChangeCandidate,
@@ -46,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 # ── Synthetic candidate library (demo / no-credentials path) ─────────────────
 # Each entry is (change_class, confidence, ndvi_delta, rationale)
-_SYNTHETIC_SCENARIOS: List[Tuple[ChangeClass, float, float, List[str]]] = [
+_SYNTHETIC_SCENARIOS: list[tuple[ChangeClass, float, float, list[str]]] = [
     (
         ChangeClass.NEW_CONSTRUCTION,
         0.87,
@@ -78,11 +77,11 @@ _SYNTHETIC_SCENARIOS: List[Tuple[ChangeClass, float, float, List[str]]] = [
 ]
 
 
-def _bbox_from_geometry(geometry: Dict[str, Any]) -> Tuple[float, float, float, float]:
+def _bbox_from_geometry(geometry: dict[str, Any]) -> tuple[float, float, float, float]:
     """Derive (min_lon, min_lat, max_lon, max_lat) from a GeoJSON geometry."""
     gtype = geometry.get("type", "")
     coords = geometry.get("coordinates", [])
-    all_pts: List[List[float]] = []
+    all_pts: list[list[float]] = []
     if gtype == "Point":
         all_pts = [coords]
     elif gtype == "Polygon":
@@ -112,15 +111,15 @@ def _bbox_from_geometry(geometry: Dict[str, Any]) -> Tuple[float, float, float, 
 
 
 def _centroid_from_bbox(
-    bbox: Tuple[float, float, float, float],
-) -> Dict[str, float]:
+    bbox: tuple[float, float, float, float],
+) -> dict[str, float]:
     return {
         "lon": (bbox[0] + bbox[2]) / 2.0,
         "lat": (bbox[1] + bbox[3]) / 2.0,
     }
 
 
-def _flat_area_km2(bbox: Tuple[float, float, float, float]) -> float:
+def _flat_area_km2(bbox: tuple[float, float, float, float]) -> float:
     """Rough flat-earth area in km² from a lon/lat bbox."""
     min_lon, min_lat, max_lon, max_lat = bbox
     lat_c = math.radians((min_lat + max_lat) / 2.0)
@@ -150,17 +149,17 @@ def _job_id() -> str:
 
 def _generate_synthetic_candidates(
     job_id: str,
-    aoi_id: Optional[str],
-    bbox: Tuple[float, float, float, float],
+    aoi_id: str | None,
+    bbox: tuple[float, float, float, float],
     before_date: str,
     after_date: str,
-) -> List[ChangeCandidate]:
+) -> list[ChangeCandidate]:
     """Produce deterministic synthetic candidates for demo / no-live-imagery path."""
     min_lon, min_lat, max_lon, max_lat = bbox
     lon_span = max_lon - min_lon
     lat_span = max_lat - min_lat
 
-    candidates: List[ChangeCandidate] = []
+    candidates: list[ChangeCandidate] = []
     for idx, (change_class, confidence, ndvi_delta, rationale) in enumerate(
         _SYNTHETIC_SCENARIOS
     ):
@@ -208,8 +207,8 @@ class ChangeAnalyticsService:
     """
 
     def __init__(self) -> None:
-        self._jobs: Dict[str, ChangeDetectionJobResponse] = {}
-        self._candidates: Dict[str, ChangeCandidate] = {}
+        self._jobs: dict[str, ChangeDetectionJobResponse] = {}
+        self._candidates: dict[str, ChangeCandidate] = {}
         self._lock = threading.Lock()
 
     # ── P4-1.2: Submit job ────────────────────────────────────────────────────
@@ -219,7 +218,7 @@ class ChangeAnalyticsService:
     ) -> ChangeDetectionJobResponse:
         """Create a job, run candidate detection synchronously, store results."""
         job_id = _job_id()
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         job = ChangeDetectionJobResponse(
             job_id=job_id,
             state=ChangeDetectionJobState.RUNNING,
@@ -245,7 +244,7 @@ class ChangeAnalyticsService:
                     geometry=request.geometry,
                     request=request,
                     created_at=now,
-                    updated_at=datetime.now(timezone.utc),
+                    updated_at=datetime.now(UTC),
                     candidates=candidates,
                     scene_pair=scene_pair,
                     stats={
@@ -260,7 +259,7 @@ class ChangeAnalyticsService:
                     update={
                         "state": ChangeDetectionJobState.FAILED,
                         "error": str(exc),
-                        "updated_at": datetime.now(timezone.utc),
+                        "updated_at": datetime.now(UTC),
                     }
                 )
 
@@ -271,7 +270,7 @@ class ChangeAnalyticsService:
         self,
         job_id: str,
         request: ChangeDetectionJobRequest,
-    ) -> List[ChangeCandidate]:
+    ) -> list[ChangeCandidate]:
         """P4-1.3/1.4: Run detection and return scored candidates."""
         geometry = request.geometry or {}
         bbox = _bbox_from_geometry(geometry)
@@ -294,12 +293,11 @@ class ChangeAnalyticsService:
         self,
         job_id: str,
         request: ChangeDetectionJobRequest,
-        bbox: Tuple[float, float, float, float],
-    ) -> Optional[List[ChangeCandidate]]:
+        bbox: tuple[float, float, float, float],
+    ) -> list[ChangeCandidate] | None:
         """Attempt live rasterio NDVI detection. Returns None to trigger fallback."""
         try:
             from app.services.change_detection import detect_changes
-            from app.models.scene import SceneMetadata
         except ImportError:
             return None
 
@@ -332,8 +330,8 @@ class ChangeAnalyticsService:
         self,
         job_id: str,
         request: ChangeDetectionJobRequest,
-        raw: Dict[str, Any],
-        aoi_bbox: Tuple[float, float, float, float],
+        raw: dict[str, Any],
+        aoi_bbox: tuple[float, float, float, float],
     ) -> ChangeCandidate:
         """Map a raw ChangeRecord dict → ChangeCandidate."""
         raw_bbox = raw.get("bbox", list(aoi_bbox))
@@ -372,8 +370,8 @@ class ChangeAnalyticsService:
     @staticmethod
     def _describe_scene_pair(
         request: ChangeDetectionJobRequest,
-        candidates: List[ChangeCandidate],
-    ) -> Dict[str, Any]:
+        candidates: list[ChangeCandidate],
+    ) -> dict[str, Any]:
         before = candidates[0].before_scene_id if candidates else None
         after = candidates[0].after_scene_id if candidates else None
         return {
@@ -386,24 +384,24 @@ class ChangeAnalyticsService:
 
     # ── P4-1.2 + P4-2.1: Job / review queries ─────────────────────────────────
 
-    def get_job(self, job_id: str) -> Optional[ChangeDetectionJobResponse]:
+    def get_job(self, job_id: str) -> ChangeDetectionJobResponse | None:
         with self._lock:
             return self._jobs.get(job_id)
 
-    def get_candidates(self, job_id: str) -> List[ChangeCandidate]:
+    def get_candidates(self, job_id: str) -> list[ChangeCandidate]:
         with self._lock:
             job = self._jobs.get(job_id)
         if job is None:
             return []
         return list(job.candidates)
 
-    def get_candidate(self, candidate_id: str) -> Optional[ChangeCandidate]:
+    def get_candidate(self, candidate_id: str) -> ChangeCandidate | None:
         with self._lock:
             return self._candidates.get(candidate_id)
 
     def list_pending_reviews(
-        self, aoi_id: Optional[str] = None
-    ) -> List[ChangeCandidate]:
+        self, aoi_id: str | None = None
+    ) -> list[ChangeCandidate]:
         """P4-2.1: Return pending-review candidates, optionally filtered by AOI."""
         with self._lock:
             results = [
@@ -421,7 +419,7 @@ class ChangeAnalyticsService:
         self,
         candidate_id: str,
         review: ReviewRequest,
-    ) -> Optional[ChangeCandidate]:
+    ) -> ChangeCandidate | None:
         """Apply analyst disposition. Returns updated candidate or None if not found."""
         with self._lock:
             existing = self._candidates.get(candidate_id)
@@ -432,7 +430,7 @@ class ChangeAnalyticsService:
                     "review_status": review.disposition,
                     "analyst_notes": review.notes,
                     "reviewed_by": review.analyst_id,
-                    "reviewed_at": datetime.now(timezone.utc),
+                    "reviewed_at": datetime.now(UTC),
                 }
             )
             self._candidates[candidate_id] = updated
@@ -463,7 +461,7 @@ class ChangeAnalyticsService:
         self,
         req: CorrelationRequest,
         event_store: Any,
-    ) -> Optional[CorrelationResponse]:
+    ) -> CorrelationResponse | None:
         """Link a candidate to nearby canonical events within the time window.
 
         ``event_store`` is the V2 EventStore singleton (injected from the router).
@@ -482,7 +480,7 @@ class ChangeAnalyticsService:
         t_end = candidate.detected_at + window_td
 
         all_events = self._get_all_events(event_store)
-        matched_ids: List[str] = []
+        matched_ids: list[str] = []
         for ev in all_events:
             # Time filter
             ev_time = ev.event_time
@@ -523,7 +521,7 @@ class ChangeAnalyticsService:
         )
 
     @staticmethod
-    def _get_all_events(event_store: Any) -> List[Any]:
+    def _get_all_events(event_store: Any) -> list[Any]:
         """Extract all events from the EventStore without forcing access to internals."""
         try:
             with event_store._lock:
@@ -536,8 +534,8 @@ class ChangeAnalyticsService:
     def build_evidence_pack(
         self,
         candidate_id: str,
-        event_store: Optional[Any] = None,
-    ) -> Optional[EvidencePack]:
+        event_store: Any | None = None,
+    ) -> EvidencePack | None:
         """Assemble a complete evidence pack for a candidate.
 
         If ``event_store`` is supplied, the correlated events are serialised
@@ -548,7 +546,7 @@ class ChangeAnalyticsService:
         if candidate is None:
             return None
 
-        correlated_events: List[Dict[str, Any]] = []
+        correlated_events: list[dict[str, Any]] = []
         if event_store and candidate.correlated_event_ids:
             for eid in candidate.correlated_event_ids:
                 ev = event_store.get(eid)

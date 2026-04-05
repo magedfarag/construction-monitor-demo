@@ -25,7 +25,7 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, status
 
@@ -46,7 +46,7 @@ router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
 # ── Module-level service singleton ────────────────────────────────────────────
 _service = ChangeAnalyticsService()
-_event_store: Optional[Any] = None
+_event_store: Any | None = None
 
 
 def get_analytics_service() -> ChangeAnalyticsService:
@@ -104,10 +104,10 @@ def get_change_detection_job(job_id: str) -> ChangeDetectionJobResponse:
 
 @router.get(
     "/change-detection/{job_id}/candidates",
-    response_model=List[ChangeCandidate],
+    response_model=list[ChangeCandidate],
     summary="Get change candidates for a job (P4-1.3)",
 )
-def get_job_candidates(job_id: str) -> List[ChangeCandidate]:
+def get_job_candidates(job_id: str) -> list[ChangeCandidate]:
     svc = get_analytics_service()
     if svc.get_job(job_id) is None:
         raise HTTPException(
@@ -119,12 +119,12 @@ def get_job_candidates(job_id: str) -> List[ChangeCandidate]:
 
 @router.get(
     "/review",
-    response_model=List[ChangeCandidate],
+    response_model=list[ChangeCandidate],
     summary="List change candidates pending analyst review (P4-2.1)",
 )
 def list_pending_review(
-    aoi_id: Optional[str] = Query(default=None, description="Filter by AOI ID."),
-) -> List[ChangeCandidate]:
+    aoi_id: str | None = Query(default=None, description="Filter by AOI ID."),
+) -> list[ChangeCandidate]:
     return get_analytics_service().list_pending_reviews(aoi_id=aoi_id)
 
 

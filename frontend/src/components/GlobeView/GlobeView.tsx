@@ -129,6 +129,9 @@ interface Props {
   // Phase 4 Track D — AI detection overlays
   showDetectionsLayer?: boolean;
   detections?: DetectionOverlay[];
+  // Intel signals
+  signalEvents?: CanonicalEvent[];
+  showSignalsLayer?: boolean;
   // Phase 4 Track C — entity selection + camera focus
   selectedEntityId?: string | null;
   centerPoint?: { lon: number; lat: number };
@@ -165,6 +168,7 @@ export function GlobeView({
   showPerfOverlay = false,
   renderMode = "day",
   showDetectionsLayer = false, detections = [],
+  signalEvents = [], showSignalsLayer = false,
   selectedEntityId = null,
   centerPoint,
 }: Props) {
@@ -369,6 +373,48 @@ export function GlobeView({
       paint: { "circle-radius": 4, "circle-color": "#c084fc", "circle-stroke-width": 1, "circle-stroke-color": "#fff" },
     });
   }, [gdeltEvents, showGdeltLayer, styleLoaded]);
+
+  // Intel signal circles — seismic, hazard, weather, conflict, maritime warning, military, thermal, space weather, AQ
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !styleLoaded) return;
+
+    if (map.getLayer("g-signals")) map.removeLayer("g-signals");
+    if (map.getSource("g-signals")) map.removeSource("g-signals");
+
+    const features = showSignalsLayer
+      ? signalEvents
+          .filter(e => e.geometry?.type === "Point")
+          .map(e => ({
+            type: "Feature" as const,
+            geometry: e.geometry as GeoJSON.Point,
+            properties: { type: e.event_type },
+          }))
+      : [];
+
+    map.addSource("g-signals", { type: "geojson", data: toFeatureCollection(features) });
+    map.addLayer({
+      id: "g-signals", type: "circle", source: "g-signals",
+      paint: {
+        "circle-radius": 5,
+        "circle-stroke-width": 1,
+        "circle-stroke-color": "#fff",
+        "circle-color": [
+          "case",
+          ["==", ["get", "type"], "seismic_event"],            "#ef4444",
+          ["==", ["get", "type"], "natural_hazard_event"],     "#f97316",
+          ["==", ["get", "type"], "weather_observation"],      "#3b82f6",
+          ["==", ["get", "type"], "conflict_event"],           "#dc2626",
+          ["==", ["get", "type"], "maritime_warning"],         "#06b6d4",
+          ["==", ["get", "type"], "military_site_observation"],"#7c3aed",
+          ["==", ["get", "type"], "thermal_anomaly_event"],    "#ea580c",
+          ["==", ["get", "type"], "space_weather_event"],      "#8b5cf6",
+          ["==", ["get", "type"], "air_quality_observation"],  "#22c55e",
+          "#22d3ee",
+        ],
+      },
+    });
+  }, [signalEvents, showSignalsLayer, styleLoaded]);
 
   // Ship / aircraft tracks via deck.gl TripsLayer — glow halo + bright core (3D neon effect)
   useEffect(() => {

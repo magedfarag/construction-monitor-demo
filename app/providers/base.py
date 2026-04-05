@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from app.models.scene import SceneMetadata
 
@@ -20,7 +20,7 @@ class SatelliteProvider(ABC):
     resolution_m: int = 0
 
     @abstractmethod
-    def validate_credentials(self) -> Tuple[bool, str]:
+    def validate_credentials(self) -> tuple[bool, str]:
         """Return (is_valid, reason_if_invalid).
 
         Must not make network calls unless necessary; prefer local secret
@@ -30,12 +30,12 @@ class SatelliteProvider(ABC):
     @abstractmethod
     def search_imagery(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_date: str,
         end_date: str,
         cloud_threshold: float = 20.0,
         max_results: int = 10,
-    ) -> List[SceneMetadata]:
+    ) -> list[SceneMetadata]:
         """Search for scenes intersecting *geometry* within the date range.
 
         Returns a list of SceneMetadata ordered by acquisition date (newest first).
@@ -43,23 +43,23 @@ class SatelliteProvider(ABC):
         """
 
     @abstractmethod
-    def fetch_scene_metadata(self, scene_id: str) -> Optional[SceneMetadata]:
+    def fetch_scene_metadata(self, scene_id: str) -> SceneMetadata | None:
         """Retrieve full metadata for a single scene by ID."""
 
     @abstractmethod
-    def healthcheck(self) -> Tuple[bool, str]:
+    def healthcheck(self) -> tuple[bool, str]:
         """Lightweight connectivity check.  Returns (ok, message)."""
 
-    def get_quota_status(self) -> Dict[str, Any]:
+    def get_quota_status(self) -> dict[str, Any]:
         """Return quota / rate-limit information.  Optional to override."""
         return {"available": True, "note": "quota tracking not implemented"}
 
     def download_assets(
         self,
         scene_id: str,
-        bands: List[str],
+        bands: list[str],
         target_dir: str,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Download band assets to *target_dir*.  Returns band -> path map.
 
         Default implementation raises NotImplementedError.
@@ -69,7 +69,7 @@ class SatelliteProvider(ABC):
             f"{self.__class__.__name__} does not support bulk download"
         )
 
-    def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> dict[str, Any]:
         """Return a summary of provider capabilities."""
         return {
             "provider": self.provider_name,

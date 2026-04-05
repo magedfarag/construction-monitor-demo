@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import hashlib
 import random
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from src.connectors.base import (
     BaseConnector,
@@ -33,10 +33,9 @@ from src.models.canonical_event import (
 )
 from src.models.operational_layers import EvidenceLink, StrikeEvent
 
-
 # ── Synthetic strike seed data ─────────────────────────────────────────────────
 # (region_slug, centre_lon, centre_lat, target_description)
-_STRIKE_SPECS: List[tuple[str, float, float, str]] = [
+_STRIKE_SPECS: list[tuple[str, float, float, str]] = [
     ("eastern-ukraine-donetsk",    37.80, 47.90, "industrial infrastructure"),
     ("eastern-ukraine-zaporizhzhia", 35.20, 47.50, "energy facility"),
     ("kharkiv-region",             36.30, 49.90, "residential area"),
@@ -45,8 +44,8 @@ _STRIKE_SPECS: List[tuple[str, float, float, str]] = [
     ("dnipro-city",                35.00, 48.50, "civilian infrastructure"),
 ]
 
-_STRIKE_TYPES: List[str] = ["airstrike", "artillery", "missile", "drone"]
-_DAMAGE_SEVERITIES: List[str] = ["minor", "moderate", "severe", "destroyed"]
+_STRIKE_TYPES: list[str] = ["airstrike", "artillery", "missile", "drone"]
+_DAMAGE_SEVERITIES: list[str] = ["minor", "moderate", "severe", "destroyed"]
 
 _LICENSE = LicenseRecord(
     access_tier="public",
@@ -96,16 +95,16 @@ class StrikeConnector(BaseConnector):
 
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Delegate to fetch_strikes and return raw dicts."""
         events = self.fetch_strikes(start_time, end_time)
         return [e.model_dump(mode="json") for e in events]
 
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Convert a single raw strike dict to a CanonicalEvent.
 
         Raises:
@@ -122,7 +121,7 @@ class StrikeConnector(BaseConnector):
             connector_id=self.connector_id,
             healthy=True,
             message="Stub connector — no remote dependency",
-            last_successful_poll=datetime.now(timezone.utc),
+            last_successful_poll=datetime.now(UTC),
         )
 
     # ── Domain methods ────────────────────────────────────────────────────
@@ -131,8 +130,8 @@ class StrikeConnector(BaseConnector):
         self,
         start_time: datetime,
         end_time: datetime,
-        region_bbox: Optional[tuple[float, float, float, float]] = None,
-    ) -> List[StrikeEvent]:
+        region_bbox: tuple[float, float, float, float] | None = None,
+    ) -> list[StrikeEvent]:
         """Generate 4–6 deterministic synthetic strike events for the window.
 
         The output is reproducible: the same (start_time, end_time) always
@@ -148,9 +147,9 @@ class StrikeConnector(BaseConnector):
             List of StrikeEvent instances ordered by occurred_at ascending.
         """
         if start_time.tzinfo is None:
-            start_time = start_time.replace(tzinfo=timezone.utc)
+            start_time = start_time.replace(tzinfo=UTC)
         if end_time.tzinfo is None:
-            end_time = end_time.replace(tzinfo=timezone.utc)
+            end_time = end_time.replace(tzinfo=UTC)
 
         seed = _seed_from_window(start_time, end_time)
         rng = random.Random(seed)
@@ -160,7 +159,7 @@ class StrikeConnector(BaseConnector):
         selected = specs[:count]
 
         span_seconds = max(int((end_time - start_time).total_seconds()), 1)
-        events: List[StrikeEvent] = []
+        events: list[StrikeEvent] = []
 
         for i, (region, lon, lat, target_desc) in enumerate(selected):
             offset_seconds = rng.randint(0, span_seconds - 1)
@@ -216,7 +215,7 @@ class StrikeConnector(BaseConnector):
     def add_evidence(
         self,
         event: StrikeEvent,
-        links: List[EvidenceLink],
+        links: list[EvidenceLink],
     ) -> StrikeEvent:
         """Append evidence links to a StrikeEvent and update corroboration_count.
 
@@ -246,20 +245,20 @@ class StrikeConnector(BaseConnector):
         )
 
     def to_canonical_events(
-        self, events: List[StrikeEvent]
-    ) -> List[CanonicalEvent]:
+        self, events: list[StrikeEvent]
+    ) -> list[CanonicalEvent]:
         """Convert StrikeEvent instances to CanonicalEvents for EventStore ingestion.
 
         Uses location_geojson as the canonical geometry when available;
         falls back to a GeoJSON Point at (location_lon, location_lat).
         """
-        canonical: List[CanonicalEvent] = []
+        canonical: list[CanonicalEvent] = []
         for ev in events:
-            geometry: Dict[str, Any] = ev.location_geojson or {
+            geometry: dict[str, Any] = ev.location_geojson or {
                 "type": "Point",
                 "coordinates": [ev.location_lon, ev.location_lat],
             }
-            centroid: Dict[str, Any] = {
+            centroid: dict[str, Any] = {
                 "type": "Point",
                 "coordinates": [ev.location_lon, ev.location_lat],
             }

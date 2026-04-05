@@ -10,8 +10,6 @@ Endpoints:
 """
 from __future__ import annotations
 
-from typing import List, Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.cache.query_cache import get_query_cache
@@ -57,7 +55,7 @@ def _get_or_404(pack_id: str) -> EvidencePack:
 )
 def generate_from_investigation(
     inv_id: str,
-    title: Optional[str] = Query(default=None, description="Override pack title"),
+    title: str | None = Query(default=None, description="Override pack title"),
     export_format: EvidencePackFormat = Query(
         default=EvidencePackFormat.JSON, description="Desired output format"
     ),
@@ -81,12 +79,12 @@ def generate_from_investigation(
 # ── Collection endpoints ──────────────────────────────────────────────────────
 
 
-@router.get("", response_model=List[EvidencePack], summary="List evidence packs")
+@router.get("", response_model=list[EvidencePack], summary="List evidence packs")
 def list_packs(
-    investigation_id: Optional[str] = Query(
+    investigation_id: str | None = Query(
         default=None, description="Filter by linked investigation ID"
     ),
-) -> List[EvidencePack]:
+) -> list[EvidencePack]:
     cache_key = f"evidence-packs:list:{investigation_id}"
     qc = get_query_cache()
     cached = qc.get(cache_key)

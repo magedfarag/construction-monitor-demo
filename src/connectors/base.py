@@ -12,8 +12,8 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime
+from typing import Any
 
 from src.models.canonical_event import CanonicalEvent
 
@@ -26,9 +26,9 @@ class ConnectorHealthStatus:
     connector_id: str
     healthy: bool
     message: str
-    last_successful_poll: Optional[datetime] = None
+    last_successful_poll: datetime | None = None
     error_count: int = 0
-    extra: Dict[str, Any] = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 class ConnectorError(Exception):
@@ -71,11 +71,11 @@ class BaseConnector(ABC):
     @abstractmethod
     def fetch(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Retrieve raw records from the source for the given AOI + time window.
 
         Returns:
@@ -87,7 +87,7 @@ class BaseConnector(ABC):
         """
 
     @abstractmethod
-    def normalize(self, raw: Dict[str, Any]) -> CanonicalEvent:
+    def normalize(self, raw: dict[str, Any]) -> CanonicalEvent:
         """Transform a single raw record into a CanonicalEvent.
 
         Must be pure (no I/O). Raise NormalizationError if the record
@@ -100,17 +100,17 @@ class BaseConnector(ABC):
 
     # ── Optional overrides ────────────────────────────────────────────────────
 
-    def quota_status(self) -> Dict[str, Any]:
+    def quota_status(self) -> dict[str, Any]:
         """Return current quota / rate-limit information.  Override if relevant."""
         return {"available": True, "note": "quota tracking not implemented"}
 
     def fetch_and_normalize(
         self,
-        geometry: Dict[str, Any],
+        geometry: dict[str, Any],
         start_time: datetime,
         end_time: datetime,
         **kwargs: Any,
-    ) -> Tuple[List[CanonicalEvent], List[str]]:
+    ) -> tuple[list[CanonicalEvent], list[str]]:
         """Convenience: fetch raw records, normalize each, collect warnings.
 
         Returns:
@@ -118,8 +118,8 @@ class BaseConnector(ABC):
             normalization errors so callers can log without aborting.
         """
         raws = self.fetch(geometry, start_time, end_time, **kwargs)
-        events: List[CanonicalEvent] = []
-        warnings: List[str] = []
+        events: list[CanonicalEvent] = []
+        warnings: list[str] = []
         for raw in raws:
             try:
                 events.append(self.normalize(raw))

@@ -1,11 +1,11 @@
 """Rate limiting configuration and middleware (P2-5 — /api/analyze rate limit)."""
 from __future__ import annotations
 
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 # Create limiter instance with remote address key (supports proxies)
 limiter = Limiter(key_func=get_remote_address)

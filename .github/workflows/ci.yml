@@ -7,7 +7,7 @@ on:
     branches: [main, develop]
 
 env:
-  PYTHON_VERSION: "3.11"
+  PYTHON_VERSION: "3.12"
 
 jobs:
   test:
@@ -34,8 +34,8 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
       - run: pip install -r requirements-dev.txt
-      - name: Lint with ruff (non-blocking)
-        run: ruff check app/ src/ tests/ || true
+      - name: Lint with ruff
+        run: ruff check app/ src/ tests/
       - name: Tests — Unit
         env:
           APP_MODE: ${{ matrix.app_mode }}
@@ -55,14 +55,14 @@ jobs:
           --cov-report=term-missing
           --cov-report=html:htmlcov/${{ matrix.app_mode }}
           -q
-      - name: Check Coverage Threshold (>20%)
+      - name: Check Coverage Threshold (>60%)
         env:
           APP_MODE: ${{ matrix.app_mode }}
         run: >
           python -m pytest tests/unit/
           --cov=app
           --cov=src
-          --cov-fail-under=20
+          --cov-fail-under=60
           -q
       - name: Upload Coverage (HTML)
         uses: actions/upload-artifact@v4

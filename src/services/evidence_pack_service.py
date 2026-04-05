@@ -10,10 +10,9 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
-from uuid import uuid4
+from datetime import UTC, datetime
 
+from src.models.canonical_event import CanonicalEvent
 from src.models.evidence_pack import (
     EvidencePack,
     EvidencePackFormat,
@@ -23,10 +22,8 @@ from src.models.evidence_pack import (
     ProvenanceRecord,
     TimelineEntry,
 )
-from src.models.canonical_event import CanonicalEvent
 from src.services.event_store import get_default_event_store
 from src.services.investigation_service import get_default_investigation_store
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -35,7 +32,7 @@ from src.services.investigation_service import get_default_investigation_store
 
 def _event_to_timeline_entry(event: CanonicalEvent) -> TimelineEntry:
     """Convert a CanonicalEvent to a TimelineEntry."""
-    summary_parts: List[str] = []
+    summary_parts: list[str] = []
     if event.attributes:
         if "headline" in event.attributes and event.attributes["headline"]:
             summary_parts.append(str(event.attributes["headline"]))
@@ -55,14 +52,14 @@ def _event_to_timeline_entry(event: CanonicalEvent) -> TimelineEntry:
     )
 
 
-def _build_layer_summaries(events: List[CanonicalEvent]) -> List[LayerSummaryEntry]:
+def _build_layer_summaries(events: list[CanonicalEvent]) -> list[LayerSummaryEntry]:
     """Group events by event_type and produce a LayerSummaryEntry per group."""
-    groups: Dict[str, List[CanonicalEvent]] = {}
+    groups: dict[str, list[CanonicalEvent]] = {}
     for e in events:
         key = e.event_type.value
         groups.setdefault(key, []).append(e)
 
-    summaries: List[LayerSummaryEntry] = []
+    summaries: list[LayerSummaryEntry] = []
     for layer_name, layer_events in sorted(groups.items()):
         times = [e.event_time for e in layer_events]
         sources = sorted({e.source for e in layer_events})
@@ -79,9 +76,9 @@ def _build_layer_summaries(events: List[CanonicalEvent]) -> List[LayerSummaryEnt
     return summaries
 
 
-def _build_provenance_records(events: List[CanonicalEvent]) -> List[ProvenanceRecord]:
+def _build_provenance_records(events: list[CanonicalEvent]) -> list[ProvenanceRecord]:
     """Extract unique (source, source_type) pairs and count their events."""
-    groups: Dict[str, Dict] = {}
+    groups: dict[str, dict] = {}
     for e in events:
         key = f"{e.source}::{e.source_type.value}"
         if key not in groups:
@@ -99,7 +96,7 @@ def _build_provenance_records(events: List[CanonicalEvent]) -> List[ProvenanceRe
             source_type=v["source_type"],
             event_count=v["event_count"],
             license=v["license"],
-            retrieval_timestamp=datetime.now(timezone.utc),
+            retrieval_timestamp=datetime.now(UTC),
         )
         for v in sorted(groups.values(), key=lambda x: x["source_name"])
     ]
@@ -114,7 +111,7 @@ class EvidencePackService:
     """Thread-safe in-memory store and generator for EvidencePack instances."""
 
     def __init__(self) -> None:
-        self._packs: Dict[str, EvidencePack] = {}
+        self._packs: dict[str, EvidencePack] = {}
         self._lock = threading.Lock()
 
     # ── Generation ────────────────────────────────────────────────────────────
@@ -131,9 +128,9 @@ class EvidencePackService:
         event_store = get_default_event_store()
 
         # Resolve the event pool
-        resolved_ids: Optional[List[str]] = None
-        inv_evidence_links: List[dict] = []
-        inv_notes: List[str] = []
+        resolved_ids: list[str] | None = None
+        inv_evidence_links: list[dict] = []
+        inv_notes: list[str] = []
 
         if req.event_ids is not None:
             resolved_ids = list(req.event_ids)
@@ -146,7 +143,7 @@ class EvidencePackService:
                 inv_notes = [n.content for n in inv.notes]
 
         # Fetch canonical events
-        events: List[CanonicalEvent] = []
+        events: list[CanonicalEvent] = []
         if resolved_ids is not None:
             for eid in resolved_ids:
                 ev = event_store.get(eid)
@@ -162,9 +159,9 @@ class EvidencePackService:
             events = search_resp.events
 
         # Build sections
-        timeline: List[TimelineEntry] = []
-        layer_summaries: List[LayerSummaryEntry] = []
-        provenance_records: List[ProvenanceRecord] = []
+        timeline: list[TimelineEntry] = []
+        layer_summaries: list[LayerSummaryEntry] = []
+        provenance_records: list[ProvenanceRecord] = []
 
         if req.include_timeline and EvidencePackSection.TIMELINE in req.sections:
             timeline = sorted(
@@ -210,11 +207,11 @@ class EvidencePackService:
 
     # ── CRUD ─────────────────────────────────────────────────────────────────
 
-    def get_pack(self, pack_id: str) -> Optional[EvidencePack]:
+    def get_pack(self, pack_id: str) -> EvidencePack | None:
         with self._lock:
             return self._packs.get(pack_id)
 
-    def list_packs(self, investigation_id: Optional[str] = None) -> List[EvidencePack]:
+    def list_packs(self, investigation_id: str | None = None) -> list[EvidencePack]:
         with self._lock:
             items = list(self._packs.values())
         if investigation_id is not None:
@@ -252,7 +249,7 @@ class EvidencePackService:
 
     @staticmethod
     def _render_markdown(pack: EvidencePack) -> bytes:
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append(f"# Evidence Pack: {pack.title}")
         lines.append("")
         lines.append(f"Generated: {pack.created_at.isoformat()}")
@@ -318,7 +315,7 @@ class EvidencePackService:
     @staticmethod
     def _render_geojson(pack: EvidencePack) -> bytes:
         """Build a GeoJSON FeatureCollection from evidence links and timeline geometries."""
-        features: List[dict] = []
+        features: list[dict] = []
 
         # Extract any geometry from evidence_links
         for link in pack.evidence_links:
@@ -350,7 +347,7 @@ class EvidencePackService:
 # Process-wide singleton
 # ──────────────────────────────────────────────────────────────────────────────
 
-_default_service: Optional[EvidencePackService] = None
+_default_service: EvidencePackService | None = None
 _singleton_lock = threading.Lock()
 
 

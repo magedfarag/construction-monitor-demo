@@ -6,11 +6,10 @@ warnings so callers can audit quality without aborting ingestion.
 """
 from __future__ import annotations
 
-import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -23,8 +22,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PipelineResult:
     """The outcome of running a batch of raw records through the pipeline."""
-    events: List[CanonicalEvent] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    events: list[CanonicalEvent] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
     error_count: int = 0
     raw_count: int = 0
 
@@ -53,12 +52,12 @@ class NormalizationPipeline:
     def __init__(
         self,
         connector: BaseConnector,
-        store_fn: Optional[Callable[[CanonicalEvent], None]] = None,
+        store_fn: Callable[[CanonicalEvent], None] | None = None,
     ) -> None:
         self._connector = connector
         self._store_fn = store_fn
 
-    def run(self, raw_records: List[Dict[str, Any]]) -> PipelineResult:
+    def run(self, raw_records: list[dict[str, Any]]) -> PipelineResult:
         """Process a batch of raw records and return aggregated results."""
         result = PipelineResult(raw_count=len(raw_records))
         for raw in raw_records:
