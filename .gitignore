@@ -44,6 +44,7 @@ Thumbs.db
 # Rasterio temp
 tmp/
 temp/
+demo/
 
 # Nested repo clone (broken submodule artifact)
 argus-intel/

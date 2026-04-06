@@ -22,6 +22,8 @@ GET  /api/v1/playback/entities/{entity_id} — entity-specific track query (P3-3
 # ─────────────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from datetime import datetime
 
@@ -124,8 +126,36 @@ def query_playback(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="end_time must be after start_time",
         )
+    # Build a stable cache key from the request fields that affect results.
+    # Round start/end to the nearest minute so near-duplicate requests hit the cache.
+    start_m = req.start_time.replace(second=0, microsecond=0)
+    end_m = req.end_time.replace(second=0, microsecond=0)
+    key_obj = {
+        "s": start_m.isoformat(),
+        "e": end_m.isoformat(),
+        "aoi": req.aoi_id,
+        "et": sorted(et.value for et in (req.event_types or [])),
+        "st": sorted(st.value for st in (req.source_types or [])),
+        "src": sorted(req.sources or []),
+        "lim": req.limit,
+        "late": req.include_late_arrivals,
+    }
+    cache_key = "pb:q:" + hashlib.md5(  # noqa: S324  (non-crypto, cache key only)
+        json.dumps(key_obj, sort_keys=True).encode()
+    ).hexdigest()
+
+    cache = get_query_cache()
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    window_days = (req.end_time - req.start_time).total_seconds() / 86_400
+    ttl = ttl_for_window(window_days)
+
     svc = get_playback_service()
-    return svc.query(req)
+    result = svc.query(req)
+    cache.set(cache_key, result, ttl=ttl)
+    return result
 
 
 @router.post(
@@ -154,9 +184,12 @@ def materialize_playback(
 @router.get(
     "/jobs/{job_id}",
     response_model=PlaybackJobStatus,
-    summary="Check the status of a materialization job",
+    summary="Check status/results of an async materialization job",
 )
-def get_playback_job(job_id: str) -> PlaybackJobStatus:
+def get_job(
+    job_id: str,
+    _rl: None = Depends(heavy_endpoint_rate_limit),
+) -> PlaybackJobStatus:
     svc = get_playback_service()
     result = svc.get_job(job_id)
     if result is None:
