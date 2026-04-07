@@ -47,10 +47,11 @@ const CORE_EVENT_TYPES: import("./api/types").EventType[] = [
 
 /**
  * Minimum ms between React state updates during track animation.
- * ~20 fps is intentionally used to keep replay smooth under headless recording
- * and heavy map rendering loads (prevents narration/video desync).
+ * 60 fps in demo mode for smooth cinematic recording; 30 fps otherwise
+ * to balance performance under heavy map rendering loads.
  */
-const ANIM_FRAME_MS = 50;
+const IS_DEMO_MODE = typeof window !== 'undefined' && window.location.search.includes('demoMode=true');
+const ANIM_FRAME_MS = IS_DEMO_MODE ? 16 : 33;
 
 // ── Event detail helpers ─────────────────────────────────────────────────────
 function formatEventType(et: string): string {
@@ -270,6 +271,7 @@ function AppShell() {
     animRafRef.current = requestAnimationFrame(tick);
     return () => { if (animRafRef.current !== null) { cancelAnimationFrame(animRafRef.current); animRafRef.current = null; } };
   }, [isAnimating]); // eslint-disable-line react-hooks/exhaustive-deps
+  
   const [layers, setLayers] = useLocalStorage("layers", {
     showAois: true, showImagery: true, showEvents: true,
     showGdelt: true, showShips: true, showAircraft: true,
@@ -280,11 +282,18 @@ function AppShell() {
     showAirspace: false,
     showJamming: false,
     showStrikes: false,
-    showTerrain: false,
+    showTerrain: false, // Disabled due to CORS issues with public terrain tiles
     show3dBuildings: false,
     showDetections: false,
     showSignals: true,
   });
+
+  // Migration: Force terrain off due to CORS errors (one-time fix for existing users)
+  useEffect(() => {
+    if (layers.showTerrain === true) {
+      setLayers({ ...layers, showTerrain: false });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // P2-5.2: fetch all AOIs to render on globe
   const aoiQuery = useAois();
@@ -341,10 +350,10 @@ function AppShell() {
   const detectionsQuery = useDetectionLayer();
 
   // Timeline filtering — keeps MapView and GlobeView temporally consistent
-  const { setCurrentTime, currentTimeUnix, filteredJammingEvents, filteredStrikes, filteredAirspaceRestrictions } = useTimelineSync();
-  useEffect(() => {
-    setCurrentTime(playbackTime ? new Date(playbackTime * 1000) : new Date(endTime));
-  }, [playbackTime, endTime]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: We DON'T update timeline on every playbackTime change (that's 30fps!)
+  // Timeline is only for operational layers (jamming, strikes, airspace) showing "last 24h"
+  // GDELT/Events use playbackTime directly in their own filtering logic
+  const { currentTimeUnix, filteredJammingEvents, filteredStrikes, filteredAirspaceRestrictions } = useTimelineSync();
 
   // Derive AOI center for satellite pass queries
   const aoiCenter = useMemo(() => {
@@ -390,17 +399,40 @@ function AppShell() {
   const tracksCurrentTime = playbackTime ?? (Date.parse(endTime) / 1000);
   // Keep only very recent tails visible to prevent map-spanning artifacts
   // during high-speed replay.
-  const tracksTrailLength = 5 * 60;
+  const tracksTrailLength = 60 * 60;  // 60-minute trails for ships (longer context)
 
   // ── Memoize all layer data arrays ─────────────────────────────────────────
   // Each `?? []` fallback would create a new array reference on every render,
   // causing MapView/GlobeView effects (setData, setProps) to run unnecessarily.
-  const coreEventData   = useMemo(() => coreEventSearch.data ?? [], [coreEventSearch.data]);
-  const gdeltData       = useMemo(() => gdeltSearch.data ?? [], [gdeltSearch.data]);
+  // Time-filter events: show events for 2 days after they occur (analyst requirement)
+  const TWO_DAYS_SEC = 172800; // 2 days in seconds
+  const coreEventData   = useMemo(() => {
+    const all = coreEventSearch.data ?? [];
+    if (!playbackTime) return all;
+    return all.filter(evt => {
+      const eventTime = new Date(evt.event_time).getTime() / 1000;
+      return playbackTime >= eventTime && playbackTime <= (eventTime + TWO_DAYS_SEC);
+    });
+  }, [coreEventSearch.data, playbackTime]);
+  const gdeltData       = useMemo(() => {
+    const all = gdeltSearch.data ?? [];
+    if (!playbackTime) return all;
+    return all.filter(evt => {
+      const eventTime = new Date(evt.event_time).getTime() / 1000;
+      return playbackTime >= eventTime && playbackTime <= (eventTime + TWO_DAYS_SEC);
+    });
+  }, [gdeltSearch.data, playbackTime]);
   const imageryData     = useMemo(() => imagerySearch.data ?? [], [imagerySearch.data]);
   const orbitPassData   = useMemo(() => passesQuery.passes ?? [], [passesQuery.passes]);
   const detectionsData  = useMemo(() => detectionsQuery.detections ?? [], [detectionsQuery.detections]);
-  const signalData      = useMemo(() => signalsSearch.data ?? [], [signalsSearch.data]);
+  const signalData      = useMemo(() => {
+    const all = signalsSearch.data ?? [];
+    if (!playbackTime) return all;
+    return all.filter(evt => {
+      const eventTime = new Date(evt.event_time).getTime() / 1000;
+      return playbackTime >= eventTime && playbackTime <= (eventTime + TWO_DAYS_SEC);
+    });
+  }, [signalsSearch.data, playbackTime]);
   const jammingRaw      = useMemo(() => jammingQuery.events ?? [], [jammingQuery.events]);
   const strikesRaw      = useMemo(() => strikesQuery.strikes ?? [], [strikesQuery.strikes]);
   const airspaceRaw     = useMemo(() => airspaceQuery.restrictions ?? [], [airspaceQuery.restrictions]);
@@ -681,6 +713,7 @@ function AppShell() {
                 showAircraftLayer={layers.showAircraft}
                 currentTime={tracksCurrentTime}
                 trailLength={tracksTrailLength}
+                isAnimating={isAnimating}
                 showOrbitsLayer={layers.showOrbits}
                 orbitPasses={orbitPassData}
                 showAirspaceLayer={layers.showAirspace}

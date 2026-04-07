@@ -8,7 +8,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { TripsLayer, Tile3DLayer } from "@deck.gl/geo-layers";
-import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { PathLayer, ScatterplotLayer, IconLayer } from "@deck.gl/layers";
 import { useScenePerformance } from "../../hooks/useScenePerformance";
 import type { Aoi, CanonicalEvent } from "../../api/types";
 import type { Trip, TrackWaypoint } from "../../hooks/useTracks";
@@ -23,7 +23,6 @@ import { RENDER_MODE_CONFIGS } from "../../types/renderModes";
 /** Globe always uses vector tiles — raster styles break the globe projection */
 const GLOBE_STYLE_URL = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 const TRACK_LAYER_REFRESH_MS = 120;
-const ENTITY_SOURCE_REFRESH_MS = 180;
 
 interface TrackHead {
   id: string;
@@ -88,9 +87,14 @@ function getTrackHeads(trips: Trip[], t: number): TrackHead[] {
 function computeEntityPositions(trips: Trip[], t: number): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (const head of getTrackHeads(trips, t)) {
+    // Aircraft icons rendered at altitude, ships at sea level
+    const coordinates = head.entityType === "aircraft" 
+      ? [head.lng, head.lat, head.altitudeM]
+      : [head.lng, head.lat];
+    
     features.push({
       type: "Feature",
-      geometry: { type: "Point", coordinates: [head.lng, head.lat] },
+      geometry: { type: "Point", coordinates },
       properties: {
         id: head.id,
         entityType: head.entityType,
@@ -161,6 +165,7 @@ interface Props {
   showAircraftLayer?: boolean;
   currentTime?: number;   // Unix seconds — drives TripsLayer animation position
   trailLength?: number;   // seconds of visible trail
+  isAnimating?: boolean;  // true = continuous playback, false = viewing specific point in time
   // Phase 2 operational layers
   showOrbitsLayer?: boolean;
   orbitPasses?: SatellitePass[];
@@ -210,6 +215,7 @@ export function GlobeView({
   showShipsLayer = true, showAircraftLayer = true,
   currentTime,
   trailLength = 86400 * 35,
+  isAnimating = false,
   showOrbitsLayer = false, orbitPasses = [],
   showAirspaceLayer = false, airspaceRestrictions = [],
   showJammingLayer = false, jammingEvents = [],
@@ -238,8 +244,23 @@ export function GlobeView({
   const buildingsLayerRef = useRef<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const detectionsLayerRef = useRef<any[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const aircraftIconLayerRef = useRef<any[]>([]);
   const lastTrackLayerBuildMsRef = useRef<number>(0);
-  const lastEntitySourceUpdateMsRef = useRef<number>(0);
+
+  /** Single point of truth for deck.gl setProps — merges all Deck.gl layer buckets. */
+  function flushOverlay() {
+    const overlay = deckRef.current;
+    if (!overlay) return;
+    overlay.setProps({ layers: [
+      ...tripsLayersRef.current,
+      ...orbitLayersRef.current,
+      ...jammingLayersRef.current,
+      ...buildingsLayerRef.current,
+      ...detectionsLayerRef.current,
+      ...aircraftIconLayerRef.current,
+    ]});
+  }
   // Capture showTerrainLayer at mount time — MapLibre terrain requires style reload to toggle
   const showTerrainAtMountRef = useRef(showTerrainLayer);
 
@@ -255,6 +276,7 @@ export function GlobeView({
     () => [...shipTrips, ...aircraftTrips],
     [shipTrips, aircraftTrips],
   );
+
 
   // P6: fetch chokepoints + dark ships for overlay layers
   const { data: cpData } = useQuery({ queryKey: ["chokepoints"], queryFn: () => chokepointsApi.list(), staleTime: 60_000 });
@@ -282,29 +304,74 @@ export function GlobeView({
     deckRef.current = overlay;
 
     // Ensure the canvas adapts whenever the container is resized (flex/window resize)
-    const ro = new ResizeObserver(() => map.resize());
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.resize();
+        }
+      }, 100);
+    };
+    const ro = new ResizeObserver(handleResize);
     ro.observe(containerRef.current!);
+    
+    // Backup: Also listen to window resize events
+    window.addEventListener('resize', handleResize);
 
     map.on("load", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any).setProjection({ type: "globe" });
 
+      // Ensure map is properly sized after load
+      requestAnimationFrame(() => {
+        map.resize();
+      });
+
       // Track B — DEM terrain elevation (opt-in via showTerrainLayer at mount)
+      // Terrain now available in all modes (analyst request - removed demo mode restriction)
+      const demUrl = import.meta.env.VITE_DEM_TILES_URL as string | undefined;
+      // Use Terrarium terrain tiles (free, reliable, hosted on AWS)
+      const defaultTerrainSource = {
+        type: "raster-dem" as const,
+        tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+        minzoom: 0,
+        maxzoom: 15,
+        tileSize: 256,
+        encoding: "terrarium" as const,
+      };
+      
       if (showTerrainAtMountRef.current) {
-        const demUrl = (import.meta.env.VITE_DEM_TILES_URL as string | undefined)
-          ?? "https://demotiles.maplibre.org/terrain-tiles/tiles.json";
-        map.addSource("dem", { type: "raster-dem", url: demUrl, tileSize: 256 });
-        map.setTerrain({ source: "dem", exaggeration: 1.5 });
-        map.addLayer({
-          id: "terrain-hillshade",
-          type: "hillshade",
-          source: "dem",
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          paint: { "hillshade-shadow-color": "#122A2A", "hillshade-intensity": 0.5 } as any,
-        });
+        try {
+          if (demUrl) {
+            // Use custom DEM URL if provided
+            map.addSource("dem", { type: "raster-dem", url: demUrl, tileSize: 256 });
+          } else {
+            // Use Terrarium tiles as default
+            map.addSource("dem", defaultTerrainSource);
+          }
+          map.setTerrain({ source: "dem", exaggeration: 1.5 });
+          map.addLayer({
+            id: "terrain-hillshade",
+            type: "hillshade",
+            source: "dem",
+            paint: { "hillshade-shadow-color": "#122A2A", "hillshade-exaggeration": 0.5 },
+          });
+          console.log('[GlobeView] Terrain enabled with 1.5x exaggeration using', demUrl ? 'custom DEM' : 'Terrarium tiles');
+        } catch (err) {
+          console.warn('[GlobeView] Terrain layer failed, continuing without terrain:', err);
+        }
       }
 
       setStyleLoaded(true);
+
+      // Clean up stale layers/sources from previous code versions (e.g. old unified g-entity-positions)
+      const staleLayers = ["g-entity-halo", "g-entity-aircraft", "g-entity-positions"];
+      for (const id of staleLayers) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource("g-entity-positions")) map.removeSource("g-entity-positions");
+
       // Expose map instance for Playwright demo recording (dev / demo mode only)
       (window as Window & { __argusMap?: maplibregl.Map }).__argusMap = map;
 
@@ -326,6 +393,8 @@ export function GlobeView({
     });
 
     return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
       ro.disconnect();
       setStyleLoaded(false);
       deckRef.current = null;
@@ -399,39 +468,61 @@ export function GlobeView({
     });
   }, [aois, styleLoaded]);
 
-  // Event circles (amber)
+  // Event circles (amber) — create once, update data in-place to prevent flashing
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleLoaded) return;
 
-    if (map.getLayer("g-events")) map.removeLayer("g-events");
-    if (map.getSource("g-events")) map.removeSource("g-events");
+    // Create layer only if it doesn't exist
+    if (!map.getSource("g-events")) {
+      map.addSource("g-events", { type: "geojson", data: toFeatureCollection([]) });
+      map.addLayer({
+        id: "g-events", type: "circle", source: "g-events",
+        paint: { "circle-radius": 5, "circle-color": "#f59e0b", "circle-stroke-width": 1.5, "circle-stroke-color": "#fff" },
+      });
+    }
 
+    // Update data in-place without recreating layer
     const features = showEventLayer
       ? events
           .filter(e => e.geometry?.type === "Point")
           .map(e => ({
             type: "Feature" as const,
             geometry: e.geometry as GeoJSON.Point,
-            properties: { label: e.event_type.replace(/_/g, " ") + " · " + new Date(e.event_time).toLocaleDateString() },
+            properties: {
+              event_id: e.event_id,
+              event_type: e.event_type,
+              event_time: e.event_time,
+              source: e.source,
+              confidence: e.confidence ?? 0.5,
+              title: (e.attributes as Record<string, unknown> | undefined)?.title ?? null,
+              description: (e.attributes as Record<string, unknown> | undefined)?.description ?? null,
+              headline: (e.attributes as Record<string, unknown> | undefined)?.headline ?? null,
+              url: (e.attributes as Record<string, unknown> | undefined)?.url ?? null,
+            },
           }))
       : [];
 
-    map.addSource("g-events", { type: "geojson", data: toFeatureCollection(features) });
-    map.addLayer({
-      id: "g-events", type: "circle", source: "g-events",
-      paint: { "circle-radius": 5, "circle-color": "#f59e0b", "circle-stroke-width": 1.5, "circle-stroke-color": "#fff" },
-    });
+    const src = map.getSource("g-events") as maplibregl.GeoJSONSource;
+    if (src) src.setData(toFeatureCollection(features));
   }, [events, showEventLayer, styleLoaded]);
 
   // GDELT circles (purple)
+  // GDELT layer — create once, update data in-place to prevent flashing
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleLoaded) return;
 
-    if (map.getLayer("g-gdelt")) map.removeLayer("g-gdelt");
-    if (map.getSource("g-gdelt")) map.removeSource("g-gdelt");
+    // Create layer only if it doesn't exist
+    if (!map.getSource("g-gdelt")) {
+      map.addSource("g-gdelt", { type: "geojson", data: toFeatureCollection([]) });
+      map.addLayer({
+        id: "g-gdelt", type: "circle", source: "g-gdelt",
+        paint: { "circle-radius": 4, "circle-color": "#c084fc", "circle-stroke-width": 1, "circle-stroke-color": "#fff" },
+      });
+    }
 
+    // Update data in-place without recreating layer
     const features = showGdeltLayer
       ? gdeltEvents
           .filter(e => e.geometry?.type === "Point")
@@ -444,25 +535,50 @@ export function GlobeView({
               type: e.event_type,
               date: e.event_time,
               confidence: e.confidence ?? 0.5,
+              headline: (e.attributes as Record<string, unknown> | undefined)?.headline ?? null,
+              url: (e.attributes as Record<string, unknown> | undefined)?.url ?? null,
+              source_publication: (e.attributes as Record<string, unknown> | undefined)?.source_publication ?? null,
             },
           }))
       : [];
 
-    map.addSource("g-gdelt", { type: "geojson", data: toFeatureCollection(features) });
-    map.addLayer({
-      id: "g-gdelt", type: "circle", source: "g-gdelt",
-      paint: { "circle-radius": 4, "circle-color": "#c084fc", "circle-stroke-width": 1, "circle-stroke-color": "#fff" },
-    });
-  }, [gdeltEvents, showGdeltLayer, styleLoaded]);
+    const src = map.getSource("g-gdelt") as maplibregl.GeoJSONSource;
+    if (src) src.setData(toFeatureCollection(features));
+  }, [gdeltEvents, showGdeltLayer, styleLoaded, mapRef]);
 
   // Intel signal circles — seismic, hazard, weather, conflict, maritime warning, military, thermal, space weather, AQ
+  // Intel signals layer — create once, update data in-place to prevent flashing
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !styleLoaded) return;
 
-    if (map.getLayer("g-signals")) map.removeLayer("g-signals");
-    if (map.getSource("g-signals")) map.removeSource("g-signals");
+    // Create layer only if it doesn't exist
+    if (!map.getSource("g-signals")) {
+      map.addSource("g-signals", { type: "geojson", data: toFeatureCollection([]) });
+      map.addLayer({
+        id: "g-signals", type: "circle", source: "g-signals",
+        paint: {
+          "circle-radius": 5,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#fff",
+          "circle-color": [
+            "case",
+            ["==", ["get", "type"], "seismic_event"],            "#ef4444",
+            ["==", ["get", "type"], "natural_hazard_event"],     "#f97316",
+            ["==", ["get", "type"], "weather_observation"],      "#3b82f6",
+            ["==", ["get", "type"], "conflict_event"],           "#dc2626",
+            ["==", ["get", "type"], "maritime_warning"],         "#06b6d4",
+            ["==", ["get", "type"], "military_site_observation"],"#7c3aed",
+            ["==", ["get", "type"], "thermal_anomaly_event"],    "#ea580c",
+            ["==", ["get", "type"], "space_weather_event"],      "#8b5cf6",
+            ["==", ["get", "type"], "air_quality_observation"],  "#22c55e",
+            "#22d3ee",
+          ],
+        },
+      });
+    }
 
+    // Update data in-place without recreating layer
     const features = showSignalsLayer
       ? signalEvents
           .filter(e => e.geometry?.type === "Point")
@@ -479,28 +595,8 @@ export function GlobeView({
           }))
       : [];
 
-    map.addSource("g-signals", { type: "geojson", data: toFeatureCollection(features) });
-    map.addLayer({
-      id: "g-signals", type: "circle", source: "g-signals",
-      paint: {
-        "circle-radius": 5,
-        "circle-stroke-width": 1,
-        "circle-stroke-color": "#fff",
-        "circle-color": [
-          "case",
-          ["==", ["get", "type"], "seismic_event"],            "#ef4444",
-          ["==", ["get", "type"], "natural_hazard_event"],     "#f97316",
-          ["==", ["get", "type"], "weather_observation"],      "#3b82f6",
-          ["==", ["get", "type"], "conflict_event"],           "#dc2626",
-          ["==", ["get", "type"], "maritime_warning"],         "#06b6d4",
-          ["==", ["get", "type"], "military_site_observation"],"#7c3aed",
-          ["==", ["get", "type"], "thermal_anomaly_event"],    "#ea580c",
-          ["==", ["get", "type"], "space_weather_event"],      "#8b5cf6",
-          ["==", ["get", "type"], "air_quality_observation"],  "#22c55e",
-          "#22d3ee",
-        ],
-      },
-    });
+    const src = map.getSource("g-signals") as maplibregl.GeoJSONSource;
+    if (src) src.setData(toFeatureCollection(features));
   }, [signalEvents, showSignalsLayer, styleLoaded]);
 
   // Ship / aircraft tracks via deck.gl TripsLayer — glow halo + bright core (3D neon effect)
@@ -515,6 +611,16 @@ export function GlobeView({
       || nowMs - lastTrackLayerBuildMsRef.current >= TRACK_LAYER_REFRESH_MS;
 
     if (!shouldRebuildLayers) {
+      // When animation stops, currentTime stops changing so this effect only fires once more.
+      // If we hit the fast path with !isAnimating, trails must be cleared immediately — otherwise
+      // they persist forever (no more currentTime changes = no more effect triggers).
+      if (!isAnimating) {
+        if (tripsLayersRef.current.length > 0) {
+          tripsLayersRef.current = [];
+          flushOverlay();
+        }
+        return;
+      }
       const updatedLayers = tripsLayersRef.current.map(layer => {
         const id = String((layer as { id?: string }).id ?? "");
         if (id.includes("-trips") || id.includes("-glow")) {
@@ -523,129 +629,105 @@ export function GlobeView({
         return layer;
       });
       tripsLayersRef.current = updatedLayers;
-      overlay.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });
+      flushOverlay();
       return;
     }
 
     lastTrackLayerBuildMsRef.current = nowMs;
-    const shipHeads = getTrackHeads(shipTrips, t);
-    const aircraftHeads = getTrackHeads(aircraftTrips, t);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layers: any[] = [];
-    if (shipTrips.length) {
-      // Ships rendered at sea level — paths sit on the water surface and track with entity icons.
-      layers.push(new TripsLayer({
-        id: "g-ships-trips", data: shipTrips,
-        getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1], 0] as [number, number, number]),
-        getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
-        getColor: [20, 186, 140] as [number, number, number], opacity: 0.9,
-        widthMinPixels: 2, capRounded: true, jointRounded: true,
-        trailLength, currentTime: t,
-      }));
-      layers.push(new ScatterplotLayer<TrackHead>({
-        id: "g-ships-head-core",
-        data: shipHeads,
-        getPosition: (d) => [d.lng, d.lat, 0] as [number, number, number],
-        getRadius: 1_650,
-        getFillColor: [132, 255, 212, 240] as [number, number, number, number],
-        stroked: true,
-        getLineColor: [240, 255, 255, 220] as [number, number, number, number],
-        lineWidthMinPixels: 1,
-        radiusUnits: "meters",
-      }));
-    }
-    if (aircraftTrips.length) {
-      // Aircraft trails are rendered on-surface for operational clarity.
-      layers.push(new TripsLayer({
-        id: "g-aircraft-trips", data: aircraftTrips,
-        getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1], 0] as [number, number, number]),
-        getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
-        getColor: [255, 100, 50] as [number, number, number], opacity: 0.9,
-        widthMinPixels: 2, capRounded: true, jointRounded: true,
-        trailLength, currentTime: t,
-      }));
-      layers.push(new ScatterplotLayer<TrackHead>({
-        id: "g-aircraft-head-core",
-        data: aircraftHeads,
-        getPosition: (d) => [d.lng, d.lat, 0] as [number, number, number],
-        getRadius: 3_250,
-        getFillColor: [255, 231, 179, 250] as [number, number, number, number],
-        stroked: true,
-        getLineColor: [255, 255, 255, 230] as [number, number, number, number],
-        lineWidthMinPixels: 1.5,
-        radiusUnits: "meters",
-      }));
+    
+    // Trails only shown when animating (moving)
+    if (isAnimating) {
+      if (shipTrips.length) {
+        // Ships rendered at sea level — omit Z to drape paths on the map surface.
+        layers.push(new TripsLayer({
+          id: "g-ships-trips", data: shipTrips,
+          getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]),
+          getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
+          getColor: [20, 186, 140] as [number, number, number], opacity: 0.9,
+          widthMinPixels: 3,
+          capRounded: true,
+          jointRounded: true,
+          trailLength, currentTime: t,
+        }));
+      }
+      if (aircraftTrips.length) {
+        // Aircraft trails rendered on-surface — omit Z to drape on map surface.
+        layers.push(new TripsLayer({
+          id: "g-aircraft-trips", data: aircraftTrips,
+          getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]),
+          getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
+          getColor: [255, 100, 50] as [number, number, number], opacity: 0.9,
+          widthMinPixels: 3,
+          capRounded: true,
+          jointRounded: true,
+          trailLength, currentTime: t,
+        }));
+      }
     }
     tripsLayersRef.current = layers;
-    overlay.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });
-  }, [shipTrips, aircraftTrips, currentTime, trailLength]);
+    // Always include aircraft icon layers in the overlay update
+    flushOverlay();
+  }, [shipTrips, aircraftTrips, currentTime, trailLength, isAnimating]);
 
   // Entity position arrows on the globe (directional icons at track head)
+  // Ships use MapLibre Symbol layer (2D), Aircraft use Deck.gl IconLayer (3D with altitude)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !styleLoaded) return;
+    const overlay = deckRef.current;
+    if (!map || !overlay || !styleLoaded) return;
     const t = currentTime ?? Date.now() / 1000;
-    const nowMs = performance.now();
-    const shouldRefreshData =
-      nowMs - lastEntitySourceUpdateMsRef.current >= ENTITY_SOURCE_REFRESH_MS;
 
-    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(255, 255, 255));
-    if (!map.hasImage("aircraft-arrow")) map.addImage("aircraft-arrow", makeArrowImageData(255, 220, 50));
+    if (!map.hasImage("ship-arrow")) map.addImage("ship-arrow", makeArrowImageData(20, 186, 140));  // Teal to match legend
 
-    const src = map.getSource("g-entity-positions") as maplibregl.GeoJSONSource | undefined;
+    // MapLibre Symbol layer for ships (2D positioning at sea level)
+    // Always visible regardless of animation state
+    const shipPositions = computeEntityPositions(activeTrips.filter(t => t.entityType === "ship"), t);
+    const src = map.getSource("g-entity-ships") as maplibregl.GeoJSONSource | undefined;
     if (src) {
-      if (shouldRefreshData) {
-        src.setData(computeEntityPositions(activeTrips, t));
-        lastEntitySourceUpdateMsRef.current = nowMs;
-      }
-      const shipsVis    = (showShipsLayer    ?? true) ? "visible" : "none";
-      const aircraftVis = (showAircraftLayer ?? true) ? "visible" : "none";
-      const haloVis     = ((showShipsLayer ?? true) || (showAircraftLayer ?? true)) ? "visible" : "none";
-      if (map.getLayer("g-entity-halo"))     map.setLayoutProperty("g-entity-halo",     "visibility", haloVis);
-      if (map.getLayer("g-entity-ships"))    map.setLayoutProperty("g-entity-ships",    "visibility", shipsVis);
-      if (map.getLayer("g-entity-aircraft")) map.setLayoutProperty("g-entity-aircraft", "visibility", aircraftVis);
+      src.setData(shipPositions);
+      const shipsVis = (showShipsLayer ?? true) ? "visible" : "none";
+      if (map.getLayer("g-entity-ships")) map.setLayoutProperty("g-entity-ships", "visibility", shipsVis);
     } else {
-      const data = computeEntityPositions(activeTrips, t);
-      lastEntitySourceUpdateMsRef.current = nowMs;
-      map.addSource("g-entity-positions", { type: "geojson", data });
-      // Pulse halo ring behind the directional arrow
+      map.addSource("g-entity-ships", { type: "geojson", data: shipPositions });
       map.addLayer({
-        id: "g-entity-halo", type: "circle", source: "g-entity-positions",
-        paint: {
-          "circle-radius": 16,
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": ["case", ["==", ["get", "entityType"], "ship"], "#00e5ff", "#ff5722"],
-          "circle-opacity": 0,
-          "circle-stroke-opacity": 0.45,
-        },
-      });
-      map.addLayer({
-        id: "g-entity-ships", type: "symbol", source: "g-entity-positions",
-        filter: ["==", ["get", "entityType"], "ship"],
+        id: "g-entity-ships", type: "symbol", source: "g-entity-ships",
         layout: {
           "icon-image": "ship-arrow",
           "icon-rotate": ["get", "heading"],
           "icon-rotation-alignment": "map",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": 1.1,
-        },
-      });
-      map.addLayer({
-        id: "g-entity-aircraft", type: "symbol", source: "g-entity-positions",
-        filter: ["==", ["get", "entityType"], "aircraft"],
-        layout: {
-          "icon-image": "aircraft-arrow",
-          "icon-rotate": ["get", "heading"],
-          "icon-rotation-alignment": "map",
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-          "icon-size": 1.1,
+          "icon-size": 1.2,
         },
       });
     }
-  }, [activeTrips, currentTime, showShipsLayer, showAircraftLayer, styleLoaded]);
+
+    // Deck.gl IconLayer for aircraft (3D positioning with altitude)
+    // Always visible regardless of animation state
+    const aircraftHeads = getTrackHeads(activeTrips.filter(t => t.entityType === "aircraft"), t);
+    const aircraftIconLayers: any[] = [];
+    if ((showAircraftLayer ?? true) && aircraftHeads.length > 0) {
+      aircraftIconLayers.push(new IconLayer({
+        id: "g-aircraft-icons",
+        data: aircraftHeads,
+        getPosition: (d) => [d.lng, d.lat, d.altitudeM || 0],  // 3D position at altitude
+        getIcon: () => ({ url: "data:image/svg+xml;base64," + btoa(`
+          <svg width="26" height="26" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="13,3 18,20 13,16 8,20" fill="rgb(255,220,50)" stroke="rgb(200,170,30)" stroke-width="1.5"/>
+          </svg>
+        `), width: 26, height: 26, anchorY: 13 }),
+        getSize: 52,  // Doubled for visibility
+        getAngle: (d) => -d.heading,  // Deck.gl rotates clockwise from north
+        billboard: false,  // Icons rotate with map, not camera
+        sizeUnits: "pixels",
+        pickable: true,
+      }));
+    }
+    aircraftIconLayerRef.current = aircraftIconLayers;
+    flushOverlay();
+  }, [activeTrips, currentTime, showShipsLayer, showAircraftLayer, styleLoaded, isAnimating]);
 
   // Entity interactions — click popup + hover cursors (re-attaches on style reload)
   useEffect(() => {
@@ -670,9 +752,34 @@ export function GlobeView({
       if (!feat || feat.geometry.type !== "Point") return;
       const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
       const p = feat.properties as Record<string, unknown>;
-      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+      
+      // Show analyst-useful information: title > headline > event type
+      const displayTitle = String(p.title || p.headline || p.event_type || "Event").replace(/_/g, " ");
+      const eventType = String(p.event_type || "").replace(/_/g, " ").toUpperCase();
+      const eventTime = p.event_time ? new Date(String(p.event_time)).toLocaleString() : "—";
+      const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "—";
+      const description = p.description ? String(p.description).slice(0, 200) : null;
+      const url = p.url ? String(p.url) : null;
+      
+      let content = `<div class="entity-popup">
+        <div class="entity-popup-header">⚡ INTEL EVENT</div>
+        <div class="entity-popup-id">${displayTitle}</div>
+        <div class="entity-popup-grid">
+          <span class="ep-label">Type</span><span class="ep-val">${eventType}</span>
+          <span class="ep-label">Time</span><span class="ep-val">${eventTime}</span>
+          <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>`;
+      
+      if (description) {
+        content += `<span class="ep-label">Details</span><span class="ep-val">${description}</span>`;
+      }
+      if (url) {
+        content += `<span class="ep-label">Source</span><span class="ep-val"><a href="${url}" target="_blank" style="color:#00d4ff;">Link</a></span>`;
+      }
+      content += `</div></div>`;
+      
+      new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
         .setLngLat([lng, lat])
-        .setHTML(`<div class="entity-popup"><div class="entity-popup-header">⚡ INTEL EVENT</div><div class="entity-popup-id">${String(p.label ?? "")}</div></div>`)
+        .setHTML(content)
         .addTo(map);
     };
     const handleGdeltClick = (e: maplibregl.MapLayerMouseEvent) => {
@@ -680,10 +787,32 @@ export function GlobeView({
       if (!feat || feat.geometry.type !== "Point") return;
       const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
       const p = feat.properties as Record<string, unknown>;
-      const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
-      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+      
+      // Show analyst-useful information: headline, publication, URL
+      const headline = String(p.headline || "News Article");
+      const publication = p.source_publication ? String(p.source_publication) : null;
+      const eventTime = p.date ? new Date(String(p.date)).toLocaleString() : "—";
+      const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "—";
+      const url = p.url ? String(p.url) : null;
+      
+      let content = `<div class="entity-popup">
+        <div class="entity-popup-header">📄 GDELT NEWS</div>
+        <div class="entity-popup-id">${headline}</div>
+        <div class="entity-popup-grid">
+          <span class="ep-label">Time</span><span class="ep-val">${eventTime}</span>
+          <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>`;
+      
+      if (publication) {
+        content += `<span class="ep-label">Publication</span><span class="ep-val">${publication}</span>`;
+      }
+      if (url) {
+        content += `<span class="ep-label">Source</span><span class="ep-val"><a href="${url}" target="_blank" style="color:#00d4ff;">Read Article</a></span>`;
+      }
+      content += `</div></div>`;
+      
+      new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
         .setLngLat([lng, lat])
-        .setHTML(`<div class="entity-popup"><div class="entity-popup-header">\uD83D\uDCC4 GDELT EVENT</div><div class="entity-popup-id">${String(p.id ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span><span class="ep-label">Confidence</span><span class="ep-val">${conf}</span></div></div>`)
+        .setHTML(content)
         .addTo(map);
     };
     const handleSignalClick = (e: maplibregl.MapLayerMouseEvent) => {
@@ -882,7 +1011,7 @@ export function GlobeView({
     });
   }, [showAirspaceLayer, airspaceRestrictions, styleLoaded]);
 
-  // Jamming events — deck.gl ScatterplotLayer (radius in meters)
+  // Jamming events — deck.gl ScatterplotLayer (radius in meters) - now clickable!
   useEffect(() => {
     jammingLayersRef.current = showJammingLayer && jammingEvents.length
       ? [new ScatterplotLayer<GpsJammingEvent>({
@@ -895,22 +1024,45 @@ export function GlobeView({
           stroked: true,
           getLineColor: [255, 100, 100, 220] as [number, number, number, number],
           lineWidthMinPixels: 1,
+          pickable: true,
+          onClick: (info) => {
+            if (!info.object || !mapRef.current) return;
+            const evt = info.object as GpsJammingEvent;
+            new (maplibregl as typeof import('maplibre-gl')).Popup({ closeButton: true, maxWidth: "300px" })
+              .setLngLat([evt.location_lon, evt.location_lat])
+              .setHTML(`<div class="entity-popup">
+                <div class="entity-popup-header">📡 GPS JAMMING</div>
+                <div class="entity-popup-grid">
+                  <span class="ep-label">Type</span><span class="ep-val">${evt.jamming_type}</span>
+                  <span class="ep-label">Radius</span><span class="ep-val">${evt.radius_km ?? 50} km</span>
+                  <span class="ep-label">Confidence</span><span class="ep-val">${Math.round(evt.confidence * 100)}%</span>
+                  <span class="ep-label">Method</span><span class="ep-val">${evt.detection_method}</span>
+                  <span class="ep-label">Detected</span><span class="ep-val">${new Date(evt.detected_at).toLocaleString()}</span>
+                </div>
+              </div>`)
+              .addTo(mapRef.current);
+            return true;
+          },
         })]
       : [];
     deckRef.current?.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });
   }, [showJammingLayer, jammingEvents]);
 
   // Track B — 3D Buildings via deck.gl Tile3DLayer
+  // DISABLED: Google 3D Tiles API requires API key (403 Forbidden without VITE_3D_TILES_URL)
   useEffect(() => {
-    const tile3dUrl = (import.meta.env.VITE_3D_TILES_URL as string | undefined)
-      ?? "https://tile.googleapis.com/v1/3dtiles/root.json";
-    buildingsLayerRef.current = show3dBuildingsLayer
+    const tile3dUrl = import.meta.env.VITE_3D_TILES_URL as string | undefined;
+    // Only enable if explicit URL provided (no fallback to public Google API)
+    buildingsLayerRef.current = (show3dBuildingsLayer && tile3dUrl)
       ? [new Tile3DLayer({
           id: "buildings-3d-tiles",
           data: tile3dUrl,
           opacity: 0.8,
           onTilesetLoad: () => {
-            // deck.gl Tile3DLayer handles camera automatically
+            console.log('[GlobeView] 3D tiles loaded');
+          },
+          onTileError: (err) => {
+            console.warn('[GlobeView] 3D tile error (non-fatal):', err);
           },
         })]
       : [];
@@ -953,7 +1105,7 @@ export function GlobeView({
     });
   }, [showStrikesLayer, strikeEvents, selectedEntityId, styleLoaded]);
 
-  // Phase 4 Track D — AI detection overlay (deck.gl ScatterplotLayer)
+  // Phase 4 Track D — AI detection overlay (deck.gl ScatterplotLayer) - now clickable!
   useEffect(() => {
     detectionsLayerRef.current = showDetectionsLayer && detections.length
       ? [new ScatterplotLayer<DetectionOverlay>({
@@ -967,6 +1119,24 @@ export function GlobeView({
           getLineColor: [255, 255, 255, 180] as [number, number, number, number],
           lineWidthMinPixels: 1,
           radiusUnits: "meters",
+          pickable: true,
+          onClick: (info) => {
+            if (!info.object || !mapRef.current) return;
+            const det = info.object as DetectionOverlay;
+            new (maplibregl as typeof import('maplibre-gl')).Popup({ closeButton: true, maxWidth: "300px" })
+              .setLngLat([det.geo_location!.lon, det.geo_location!.lat])
+              .setHTML(`<div class="entity-popup">
+                <div class="entity-popup-header">🤖 AI DETECTION</div>
+                <div class="entity-popup-grid">
+                  <span class="ep-label">Type</span><span class="ep-val">${det.detection_type.replace(/_/g, ' ')}</span>
+                  <span class="ep-label">Confidence</span><span class="ep-val">${Math.round(det.confidence * 100)}%</span>
+                  <span class="ep-label">Source</span><span class="ep-val">${det.source}</span>
+                  <span class="ep-label">Detected</span><span class="ep-val">${new Date(det.detected_at).toLocaleString()}</span>
+                </div>
+              </div>`)
+              .addTo(mapRef.current);
+            return true;
+          },
         })]
       : [];
     deckRef.current?.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });

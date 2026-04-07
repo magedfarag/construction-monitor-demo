@@ -526,11 +526,11 @@ body {
 /* ── Map Legend ─────────────────────────────────────────────────────────── */
 .map-legend {
   position: absolute;
-  bottom: 58px; left: 10px;
+  bottom: 80px; left: 10px;  /* Increased from 58px to 80px to stay above chokepoint metrics bar */
   z-index: 10;
   min-width: 130px;
   max-width: 220px;
-  max-height: calc(100% - 90px);
+  max-height: calc(100% - 130px);  /* Adjusted to account for higher bottom position */
   overflow-y: auto;
   background: rgba(14,28,48,0.92);
   border: 1px solid var(--border);

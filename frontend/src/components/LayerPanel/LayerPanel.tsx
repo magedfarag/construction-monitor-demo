@@ -29,7 +29,7 @@ const LAYERS: { key: keyof LayerState; label: string; color: string }[] = [
   { key: "showImagery", label: "Imagery Footprints", color: "#4caf50" },
   { key: "showEvents",  label: "Events",             color: "#f59e0b" },
   { key: "showGdelt",   label: "GDELT Context",      color: "#9c27b0" },
-  { key: "showShips",   label: "Maritime (AIS)",     color: "#00bcd4" },
+  { key: "showShips",   label: "Maritime (AIS)",     color: "#14ba8c" },
   { key: "showAircraft",label: "Aviation (ADS-B)",   color: "#ff5722" },
   { key: "showOrbits",        label: "Satellite Orbits",   color: "#00ff88" },
   { key: "showAirspace",      label: "Airspace NFZ/TFR",   color: "#ff4444" },

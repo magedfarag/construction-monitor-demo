@@ -215,11 +215,31 @@ export function MapView({
 
     // Ensure the canvas adapts whenever the container is resized (flex/window resize)
     const container = containerRef.current!;
-    const ro = new ResizeObserver(() => mapRef.current?.resize());
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.resize();
+        }
+      }, 100);
+    };
+    const ro = new ResizeObserver(handleResize);
     ro.observe(container);
+    
+    // Backup: Also listen to window resize events
+    window.addEventListener('resize', handleResize);
 
     // Signal that all base layers are ready, so data-dependent effects can add sources
-    map.on("load", () => setStyleLoaded(true));
+    map.on("load", () => {
+      setStyleLoaded(true);
+      // Ensure map is properly sized after load
+      requestAnimationFrame(() => {
+        if (mapRef.current) {
+          mapRef.current.resize();
+        }
+      });
+    });
 
     // P3-3.7: hide trip layers at low zoom; preserve orbit/jamming layers
     map.on("zoom", () => {
@@ -235,6 +255,8 @@ export function MapView({
     });
 
     return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
       ro.disconnect();
       setStyleLoaded(false);
       try { map.removeControl(overlay as unknown as maplibregl.IControl); } catch { /* ignore */ }
@@ -445,7 +467,15 @@ export function MapView({
             .map(evt => ({
               type: "Feature",
               geometry: evt.geometry as GeoJSON.Geometry,
-              properties: { id: evt.event_id, source: evt.source, confidence: evt.confidence ?? 0.5 },
+              properties: { 
+                id: evt.event_id, 
+                source: evt.source, 
+                confidence: evt.confidence ?? 0.5,
+                date: evt.event_time,
+                headline: (evt.attributes as Record<string, unknown> | undefined)?.headline ?? null,
+                url: (evt.attributes as Record<string, unknown> | undefined)?.url ?? null,
+                source_publication: (evt.attributes as Record<string, unknown> | undefined)?.source_publication ?? null,
+              },
             }))
         : [],
     };
@@ -483,17 +513,32 @@ export function MapView({
       map.on("click", "gdelt-point", (e) => {
         const p = e.features?.[0]?.properties;
         if (!p) return;
-        const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
-        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+        
+        // Show analyst-useful information: headline, publication, URL
+        const headline = String(p.headline || "News Article");
+        const publication = p.source_publication ? String(p.source_publication) : null;
+        const eventTime = p.date ? new Date(String(p.date)).toLocaleString() : "—";
+        const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "—";
+        const url = p.url ? String(p.url) : null;
+        
+        let content = `<div class="entity-popup">
+          <div class="entity-popup-header">📄 GDELT NEWS</div>
+          <div class="entity-popup-id">${headline}</div>
+          <div class="entity-popup-grid">
+            <span class="ep-label">Time</span><span class="ep-val">${eventTime}</span>
+            <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>`;
+        
+        if (publication) {
+          content += `<span class="ep-label">Publication</span><span class="ep-val">${publication}</span>`;
+        }
+        if (url) {
+          content += `<span class="ep-label">Source</span><span class="ep-val"><a href="${url}" target="_blank" style="color:#00d4ff;">Read Article</a></span>`;
+        }
+        content += `</div></div>`;
+        
+        new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
           .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
-            <div class="entity-popup-header">\uD83D\uDCC4 GDELT EVENT</div>
-            <div class="entity-popup-id">${String(p.id ?? "unknown")}</div>
-            <div class="entity-popup-grid">
-              <span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span>
-              <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>
-            </div>
-          </div>`)
+          .setHTML(content)
           .addTo(map);
       });
       map.on("click", "gdelt-clusters", (e) => {
@@ -530,6 +575,11 @@ export function MapView({
                 source: evt.source,
                 type: evt.event_type,
                 confidence: evt.confidence ?? 0.5,
+                event_time: evt.event_time,
+                title: (evt.attributes as Record<string, unknown> | undefined)?.title ?? null,
+                description: (evt.attributes as Record<string, unknown> | undefined)?.description ?? null,
+                headline: (evt.attributes as Record<string, unknown> | undefined)?.headline ?? null,
+                url: (evt.attributes as Record<string, unknown> | undefined)?.url ?? null,
               },
             }))
         : [],
@@ -587,18 +637,33 @@ export function MapView({
       map.on("click", "signals-point", (e) => {
         const p = e.features?.[0]?.properties;
         if (!p) return;
+        
+        // Show analyst-useful information: title > headline > event type
+        const displayTitle = String(p.title || p.headline || p.type || "Event").replace(/_/g, " ");
         const label = String(p.type ?? "").replace(/_/g, " ").toUpperCase();
-        const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
-        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
+        const eventTime = p.event_time ? new Date(String(p.event_time)).toLocaleString() : "—";
+        const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "—";
+        const description = p.description ? String(p.description).slice(0, 200) : null;
+        const url = p.url ? String(p.url) : null;
+        
+        let content = `<div class="entity-popup">
+          <div class="entity-popup-header">⚡ ${label}</div>
+          <div class="entity-popup-id">${displayTitle}</div>
+          <div class="entity-popup-grid">
+            <span class="ep-label">Time</span><span class="ep-val">${eventTime}</span>
+            <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>`;
+        
+        if (description) {
+          content += `<span class="ep-label">Details</span><span class="ep-val">${description}</span>`;
+        }
+        if (url) {
+          content += `<span class="ep-label">Source</span><span class="ep-val"><a href="${url}" target="_blank" style="color:#00d4ff;">Link</a></span>`;
+        }
+        content += `</div></div>`;
+        
+        new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
           .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
-            <div class="entity-popup-header">\u26A1 ${label}</div>
-            <div class="entity-popup-id">${String(p.id ?? "unknown")}</div>
-            <div class="entity-popup-grid">
-              <span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span>
-              <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>
-            </div>
-          </div>`)
+          .setHTML(content)
           .addTo(map);
         // Propagate to event detail panel
         const evt = signalEvents.find(ev => ev.event_id === String(p.id));
@@ -628,8 +693,9 @@ export function MapView({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layers: any[] = [];
 
-    // ── TripsLayer (ships + aircraft, zoom-gated) ──
-    if (map.getZoom() >= TRACKS_MIN_ZOOM) {
+    // ── TripsLayer (ships + aircraft, zoom-gated OR demo mode) ──
+    const demoMode = typeof window !== 'undefined' && window.location.search.includes('demoMode=true');
+    if (demoMode || map.getZoom() >= TRACKS_MIN_ZOOM) {
       const t = currentTime ?? Date.now() / 1000;
       const tl = trailLength;
       const shipTrips = trips.filter(tr => tr.entityType === "ship");
@@ -926,8 +992,8 @@ export function MapView({
     const data = computeEntityPositions(active, t);
 
     // Register arrow images (idempotent — no-op if already added)
-    // White ship arrows stand out clearly from the teal trail; yellow aircraft from the orange trail
-    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(255, 255, 255));
+    // Teal ship arrows match legend color; bright yellow aircraft for visibility
+    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(20, 186, 140));  // Teal to match legend
     if (!map.hasImage("aircraft-arrow")) map.addImage("aircraft-arrow", makeArrowImageData(255, 220, 50));
 
     const src = map.getSource("entity-positions") as maplibregl.GeoJSONSource | undefined;
@@ -941,7 +1007,7 @@ export function MapView({
       if (map.getLayer("entity-aircraft")) map.setLayoutProperty("entity-aircraft", "visibility", aircraftVis);
     } else {
       map.addSource("entity-positions", { type: "geojson", data });
-      // Pulse-halo ring rendered behind the directional arrow
+      // Pulse-halo ring rendered behind the directional arrow (DISABLED - was causing confusing shadow circles)
       map.addLayer({
         id: "entity-halo", type: "circle", source: "entity-positions",
         paint: {
@@ -950,7 +1016,7 @@ export function MapView({
           "circle-stroke-width": 1.5,
           "circle-stroke-color": ["case", ["==", ["get", "entityType"], "ship"], "#00e5ff", "#ff5722"],
           "circle-opacity": 0,
-          "circle-stroke-opacity": 0.45,
+          "circle-stroke-opacity": 0,  // Changed from 0.45 to 0 - removes confusing shadow circles
         },
       });
       map.addLayer({
@@ -962,7 +1028,7 @@ export function MapView({
           "icon-rotation-alignment": "map",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": 1.1,
+          "icon-size": 1.2,  // Increased from 1.1 for better visibility
           "visibility": (showShipsLayer ?? true) ? "visible" : "none",
         },
       });
@@ -975,7 +1041,7 @@ export function MapView({
           "icon-rotation-alignment": "map",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": 1.1,
+          "icon-size": 1.3,  // Increased from 1.1 - aircraft need more prominence
           "visibility": (showAircraftLayer ?? true) ? "visible" : "none",
         },
       });

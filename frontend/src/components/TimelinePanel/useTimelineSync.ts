@@ -2,7 +2,7 @@
 // Provides a shared time window and per-layer filter helpers so that
 // GlobeView, MapView, and all panel components stay temporally consistent.
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { GpsJammingEvent, StrikeEvent, AirspaceRestriction } from '../../types/operationalLayers';
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -28,8 +28,11 @@ export function useTimelineSync(): {
 } {
   const [currentTime, setCurrentTimeState] = useState<Date>(() => new Date());
 
-  const windowEnd = currentTime;
-  const windowStart = new Date(currentTime.getTime() - WINDOW_MS);
+  // Memoize window calculations to prevent infinite re-renders
+  const windowEnd = useMemo(() => currentTime, [currentTime]);
+  const windowStart = useMemo(() => new Date(currentTime.getTime() - WINDOW_MS), [currentTime]);
+  const windowStartMs = useMemo(() => windowStart.getTime(), [windowStart]);
+  const windowEndMs = useMemo(() => windowEnd.getTime(), [windowEnd]);
 
   const timelineState: TimelineState = { currentTime, windowStart, windowEnd };
 
@@ -42,10 +45,9 @@ export function useTimelineSync(): {
   const isEventVisible = useCallback(
     (eventTime: string): boolean => {
       const t = new Date(eventTime).getTime();
-      return t >= windowStart.getTime() && t <= windowEnd.getTime();
+      return t >= windowStartMs && t <= windowEndMs;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [windowStart.getTime(), windowEnd.getTime()],
+    [windowStartMs, windowEndMs],
   );
 
   const filteredJammingEvents = useCallback(
@@ -66,10 +68,9 @@ export function useTimelineSync(): {
         const from = new Date(r.valid_from).getTime();
         const to = r.valid_to ? new Date(r.valid_to).getTime() : Infinity;
         // Include restriction if its validity window overlaps with [windowStart, windowEnd]
-        return from <= windowEnd.getTime() && to >= windowStart.getTime();
+        return from <= windowEndMs && to >= windowStartMs;
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [windowStart.getTime(), windowEnd.getTime()],
+    [windowStartMs, windowEndMs],
   );
 
   return {
