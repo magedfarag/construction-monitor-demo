@@ -29,6 +29,7 @@ try:
         "construction_monitor",
         broker=broker or "redis://localhost:6379/0",
         backend=backend or "redis://localhost:6379/0",
+        include=["app.workers.tasks"],
     )
 
     # P5-2.2: Three queues with explicit priority order.

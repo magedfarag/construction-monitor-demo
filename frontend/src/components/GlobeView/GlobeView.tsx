@@ -19,6 +19,7 @@ import { darkShipsApi } from "../../api/client";
 import { MapLegend } from "../Map/MapLegend";
 import type { RenderMode } from "../../types/renderModes";
 import { RENDER_MODE_CONFIGS } from "../../types/renderModes";
+import { normalizeEntityAltitudeM } from "../../utils/entityAltitude";
 
 /** Globe always uses vector tiles — raster styles break the globe projection */
 const GLOBE_STYLE_URL = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
@@ -70,12 +71,13 @@ function getTrackHeads(trips: Trip[], t: number): TrackHead[] {
         speedKts = Math.round((distKm / dt) * 3600 / 1.852 * 10) / 10;
       }
     }
+    const altitudeM = normalizeEntityAltitudeM(trip.entityType, last[3]);
     heads.push({
       id: trip.id,
       entityType: trip.entityType,
       lng: last[0],
       lat: last[1],
-      altitudeM: last[3] ?? 0,
+      altitudeM,
       heading: Math.round(heading),
       speedKts,
       lastSeenUnix: last[2],
@@ -106,6 +108,29 @@ function computeEntityPositions(trips: Trip[], t: number): GeoJSON.FeatureCollec
     });
   }
   return { type: "FeatureCollection", features };
+}
+
+function resolveTripDisplayAltitudeM(
+  trip: Trip,
+  activeHeadAltitudesM: ReadonlyMap<string, number>,
+): number {
+  const headAltitudeM = activeHeadAltitudesM.get(trip.id);
+  if (headAltitudeM != null) return headAltitudeM;
+
+  const lastWaypoint = trip.waypoints[trip.waypoints.length - 1];
+  return normalizeEntityAltitudeM(trip.entityType, lastWaypoint?.[3]);
+}
+
+function getAircraftDisplayPath(
+  trip: Trip,
+  activeHeadAltitudesM: ReadonlyMap<string, number>,
+): [number, number, number][] {
+  const altitudeM = resolveTripDisplayAltitudeM(trip, activeHeadAltitudesM);
+  return trip.waypoints.map((waypoint): [number, number, number] => [
+    waypoint[0],
+    waypoint[1],
+    altitudeM,
+  ]);
 }
 
 function makeArrowImageData(r: number, g: number, b: number): ImageData {
@@ -636,6 +661,9 @@ export function GlobeView({
     lastTrackLayerBuildMsRef.current = nowMs;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layers: any[] = [];
+    const aircraftHeadAltitudesM = new Map(
+      getTrackHeads(aircraftTrips, t).map((head) => [head.id, head.altitudeM] as const),
+    );
     
     // Trails only shown when animating (moving)
     if (isAnimating) {
@@ -643,7 +671,7 @@ export function GlobeView({
         // Ships rendered at sea level — omit Z to drape paths on the map surface.
         layers.push(new TripsLayer({
           id: "g-ships-trips", data: shipTrips,
-          getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]),
+          getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
           getColor: [20, 186, 140] as [number, number, number], opacity: 0.9,
           widthMinPixels: 3,
@@ -653,10 +681,10 @@ export function GlobeView({
         }));
       }
       if (aircraftTrips.length) {
-        // Aircraft trails rendered on-surface — omit Z to drape on map surface.
+        // Keep the trail on the same altitude plane as the aircraft arrowhead.
         layers.push(new TripsLayer({
           id: "g-aircraft-trips", data: aircraftTrips,
-          getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]),
+          getPath: (d: Trip) => getAircraftDisplayPath(d, aircraftHeadAltitudesM) as [number, number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
           getColor: [255, 100, 50] as [number, number, number], opacity: 0.9,
           widthMinPixels: 3,
@@ -720,7 +748,7 @@ export function GlobeView({
         `), width: 26, height: 26, anchorY: 13 }),
         getSize: 52,  // Doubled for visibility
         getAngle: (d) => -d.heading,  // Deck.gl rotates clockwise from north
-        billboard: false,  // Icons rotate with map, not camera
+        billboard: true,  // Keep the arrowhead facing the camera so it stays readable.
         sizeUnits: "pixels",
         pickable: true,
       }));
@@ -975,7 +1003,7 @@ export function GlobeView({
           widthMinPixels: 1,
         })]
       : [];
-    deckRef.current?.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });
+    flushOverlay();
   }, [showOrbitsLayer, orbitPasses]);
 
   // Airspace restrictions — MapLibre fill + dashed line layers
@@ -1045,7 +1073,7 @@ export function GlobeView({
           },
         })]
       : [];
-    deckRef.current?.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });
+    flushOverlay();
   }, [showJammingLayer, jammingEvents]);
 
   // Track B — 3D Buildings via deck.gl Tile3DLayer
@@ -1066,7 +1094,7 @@ export function GlobeView({
           },
         })]
       : [];
-    deckRef.current?.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });
+    flushOverlay();
   }, [show3dBuildingsLayer]);
 
   // Strike events — MapLibre circle layer (type-coloured, zoom-scaled radius)
@@ -1139,7 +1167,7 @@ export function GlobeView({
           },
         })]
       : [];
-    deckRef.current?.setProps({ layers: [...tripsLayersRef.current, ...orbitLayersRef.current, ...jammingLayersRef.current, ...buildingsLayerRef.current, ...detectionsLayerRef.current] });
+    flushOverlay();
   }, [showDetectionsLayer, detections]);
 
   // Phase 4 Track C — fly to camera focus point

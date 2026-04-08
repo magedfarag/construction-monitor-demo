@@ -14,6 +14,7 @@ import type { DetectionOverlay } from "../../types/sensorFusion";
 import { MapLegend } from "./MapLegend";
 import type { RenderMode } from "../../types/renderModes";
 import { RENDER_MODE_CONFIGS } from "../../types/renderModes";
+import { normalizeEntityAltitudeM } from "../../utils/entityAltitude";
 
 /** Minimum zoom level below which TripsLayer trails are hidden (P3-3.7). */
 const TRACKS_MIN_ZOOM = 7;
@@ -40,6 +41,7 @@ function computeEntityPositions(trips: Trip[], t: number): GeoJSON.FeatureCollec
         speedKts = Math.round((distKm / dt) * 3600 / 1.852 * 10) / 10;
       }
     }
+    const altitudeM = normalizeEntityAltitudeM(trip.entityType, last[3]);
     features.push({
       type: "Feature",
       geometry: { type: "Point", coordinates: [last[0], last[1]] },
@@ -49,7 +51,7 @@ function computeEntityPositions(trips: Trip[], t: number): GeoJSON.FeatureCollec
         heading: Math.round(heading),
         speedKts,
         lastSeenUnix: last[2],
-        altitudeM: last[3] ?? 0,
+        altitudeM,
       },
     });
   }

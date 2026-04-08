@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { playbackApi } from "../api/client";
 import type { CanonicalEvent } from "../api/types";
+import { normalizeEntityAltitudeM } from "../utils/entityAltitude";
 
 /** A track trip in deck.gl TripsLayer format. */
 export type TrackWaypoint = [number, number, number, number];
@@ -27,8 +28,6 @@ function readFiniteNumber(...values: unknown[]): number | null {
 }
 
 function resolveWaypointAltitude(event: CanonicalEvent, entityType: Trip["entityType"]): number {
-  if (entityType === "ship") return 0;
-
   const attrs = (event.attributes ?? {}) as Record<string, unknown>;
   const sourceAltitude = readFiniteNumber(
     event.altitude_m,
@@ -37,7 +36,7 @@ function resolveWaypointAltitude(event: CanonicalEvent, entityType: Trip["entity
     attrs.altitude_m,
   );
 
-  return Math.max(sourceAltitude ?? AIRCRAFT_MIN_ALTITUDE_M, AIRCRAFT_MIN_ALTITUDE_M);
+  return normalizeEntityAltitudeM(entityType, sourceAltitude, AIRCRAFT_MIN_ALTITUDE_M);
 }
 
 function haversineKm(a: TrackWaypoint, b: TrackWaypoint): number {
