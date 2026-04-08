@@ -9,8 +9,10 @@ interface LegendItem {
 }
 
 const LEGEND_ITEMS: LegendItem[] = [
-  { key: "ships",    label: "Ships",        color: "#14ba8c", shape: "arrow",  description: "AIS vessel positions and track trails. Click an arrow on the map for heading, speed, and last-seen time." },
-  { key: "aircraft", label: "Aircraft",     color: "#ff5722", shape: "arrow",  description: "ADS-B aircraft positions and track trails. Click an arrow for flight details and speed." },
+  { key: "ships-civilian",    label: "Ships (Civilian)",        color: "#14ba8c", shape: "arrow",  description: "Civilian vessel positions and track trails (teal). Click an arrow on the map for heading, speed, and last-seen time." },
+  { key: "ships-military",    label: "Ships (Military)",        color: "#dc1e1e", shape: "arrow",  description: "Military vessel positions and track trails (red). Click an arrow on the map for heading, speed, and last-seen time." },
+  { key: "aircraft-civilian", label: "Aircraft (Civilian)",     color: "#ff5722", shape: "arrow",  description: "Civilian aircraft positions and track trails (orange). Click an arrow for flight details and speed." },
+  { key: "aircraft-military", label: "Aircraft (Military)",     color: "#c85000", shape: "arrow",  description: "Military aircraft positions and track trails (dark orange). Click an arrow for flight details and speed." },
   { key: "events",   label: "Intel Events", color: "#f59e0b", shape: "circle", description: "Canonical intelligence events (permits, inspections, detections). Click a marker for event details." },
   { key: "gdelt",    label: "GDELT Events", color: "#c084fc", shape: "circle", description: "Open-source news and contextual events from GDELT. Click for source and confidence." },
   { key: "imagery",  label: "Imagery",      color: "#4caf50", shape: "dashed", description: "Satellite imagery footprints. Click a footprint for scene ID, collection, and cloud cover." },
@@ -41,8 +43,10 @@ export function MapLegend({ showShips, showAircraft, showEvents, showGdelt, show
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
   const visible = LEGEND_ITEMS.filter(({ key }) => {
-    if (key === "ships")    return showShips;
-    if (key === "aircraft") return showAircraft;
+    if (key === "ships-civilian")    return showShips;
+    if (key === "ships-military")    return showShips;
+    if (key === "aircraft-civilian") return showAircraft;
+    if (key === "aircraft-military") return showAircraft;
     if (key === "events")   return showEvents;
     if (key === "gdelt")    return showGdelt;
     if (key === "imagery")  return showImagery;

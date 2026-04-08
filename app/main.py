@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 
 from app import dependencies
 from app.audit_log import AuditLoggingMiddleware, configure_audit_logger
 from app.cache.client import CacheClient
-from app.config import get_settings
+from app.config import AppMode, get_settings
 from app.logging_config import configure_logging
 from app.performance_budgets import PerformanceBudgetMiddleware
 from app.providers.demo import DemoProvider
@@ -27,7 +29,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     configure_logging(level=settings.log_level, fmt=settings.log_format)
     configure_audit_logger()
     registry = ProviderRegistry()
-    registry.register(DemoProvider())
+    if settings.app_mode != AppMode.PRODUCTION:
+        registry.register(DemoProvider())
     if settings.sentinel2_is_configured():
         try:
             from app.providers.sentinel2 import Sentinel2Provider
@@ -142,13 +145,14 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         _log.getLogger(__name__).warning("OpenMeteoConnector: %s", exc)
     # Military / Gulf-specific data sources ─────────────────────────────────
-    # ACLED Armed Conflict Location & Event Data (free API key + email required)
+    # ACLED Armed Conflict Location & Event Data (OAuth2 authentication required)
     if settings.acled_is_configured():
         try:
             from src.connectors.acled import AcledConnector
             v2_registry.register(AcledConnector(
-                api_key=settings.acled_api_key,
                 email=settings.acled_email,
+                password=settings.acled_password,
+                token_url=settings.acled_token_url,
                 api_url=settings.acled_api_url,
             ))
         except Exception as exc:
@@ -225,20 +229,29 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     _set_playback_store(_shared_store)
     _set_analytics_store(_shared_store)
 
-    # Seed the in-memory stores with synthetic demo data so the UI has
-    # ship tracks, flight tracks, GDELT context, imagery, and an AOI on first load.
+    # Keep in-memory stores mode-clean across reloads. In demo mode we seed
+    # deterministic data; in staging/production we explicitly clear any prior
+    # synthetic state so live-only validation is trustworthy.
     try:
         from src.api.aois import _store as _aoi_store
-        from src.services.demo_seeder import seed_aoi_store as _seed_aoi
-        from src.services.demo_seeder import seed_event_store as _seed
-        # Defensive reset: lifespan can run multiple times in the same process
-        # (dev reload / test harness). Always reseed from a clean in-memory state
-        # so stale AOI IDs and legacy telemetry cannot leak into playback.
         _aoi_store.clear()
         _shared_store.clear()
-        _demo_aoi_id = _seed_aoi(_aoi_store)
-        _seed_count = _seed(_shared_store, aoi_id=_demo_aoi_id)
-        _log.getLogger(__name__).info("Demo seeder: AOI %s + %d events ingested", _demo_aoi_id, _seed_count)
+        if settings.app_mode == AppMode.DEMO:
+            from src.services.demo_seeder import seed_aoi_store as _seed_aoi
+            from src.services.demo_seeder import seed_event_store as _seed
+
+            _demo_aoi_id = _seed_aoi(_aoi_store)
+            _seed_count = _seed(_shared_store, aoi_id=_demo_aoi_id)
+            _log.getLogger(__name__).info(
+                "Demo seeder: AOI %s + %d events ingested",
+                _demo_aoi_id,
+                _seed_count,
+            )
+        else:
+            _log.getLogger(__name__).info(
+                "Demo seeder disabled in %s mode; in-memory AOI/event stores cleared",
+                settings.app_mode.value,
+            )
     except Exception as _seed_exc:
         _log.getLogger(__name__).warning("Demo seeder failed: %s", _seed_exc)
 
@@ -348,6 +361,13 @@ app = FastAPI(
     description="Multi-domain surveillance: ships, aircraft, satellites, events, and signals intelligence.",
     lifespan=lifespan,
 )
+
+_STATIC_ROOT = Path(__file__).resolve().parent / "static"
+_STATIC_ROOT.mkdir(parents=True, exist_ok=True)
+(_STATIC_ROOT / "assets").mkdir(parents=True, exist_ok=True)
+(_STATIC_ROOT / "demo" / "clips").mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=_STATIC_ROOT), name="static")
+app.mount("/demo", StaticFiles(directory=_STATIC_ROOT / "demo"), name="demo")
 
 # Rate limiter — mount on app state so slowapi can access it
 app.state.limiter = limiter

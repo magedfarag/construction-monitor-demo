@@ -38,6 +38,8 @@ from src.models.canonical_event import (
     SourceType,
     make_event_id,
 )
+from src.services.entity_classification import classify_vessel
+from src.services.vessel_registry import get_vessel_by_mmsi
 
 log = logging.getLogger(__name__)
 
@@ -200,6 +202,20 @@ class VesselDataConnector(BaseConnector):
         event_id = make_event_id("vessel-data", mmsi or f"{lat},{lon}", event_time.isoformat())
         geometry_out = {"type": "Point", "coordinates": [lon, lat]}
 
+        # Classify vessel as military or civilian
+        vessel_profile = get_vessel_by_mmsi(mmsi) if mmsi else None
+        if vessel_profile:
+            classification = classify_vessel(
+                vessel_type=vessel_profile.vessel_type.value,
+                owner=vessel_profile.owner,
+                operator=vessel_profile.operator,
+                vessel_name=name,
+            )
+        else:
+            # Fallback to name-based classification if not in registry
+            classification = classify_vessel(None, None, None, name)
+        is_military = classification == "military"
+
         attrs = ShipPositionAttributes(
             mmsi=mmsi or None,
             imo=imo or None,
@@ -208,6 +224,7 @@ class VesselDataConnector(BaseConnector):
             heading_deg=heading if heading >= 0 else None,
             course_deg=course if course >= 0 else None,
             nav_status=str(nav_status) if nav_status else None,
+            is_military=is_military,
         )
         attrs_dict = attrs.model_dump(exclude_none=True)
         if flag:

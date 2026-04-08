@@ -1000,6 +1000,12 @@ _IMAGERY_SCENES = [
     ("Landsat-9", "usgs-landsat", "landsat-c2-l2", 55.40, 26.62, 0.34, 0.22, "Western Gulf Approaches"),
 ]
 
+_DEMO_IMAGERY_PREVIEWS = {
+    "copernicus-cdse": "/static/assets/demo-imagery/sentinel-2.jpg",
+    "earth-search": "/static/assets/demo-imagery/earth-search.jpg",
+    "usgs-landsat": "/static/assets/demo-imagery/landsat-9.jpg",
+}
+
 def _imagery_events() -> list[CanonicalEvent]:
     events: list[CanonicalEvent] = []
     rng = random.Random(55)
@@ -1028,7 +1034,7 @@ def _imagery_events() -> list[CanonicalEvent]:
                 "gsd_m": 10.0 if "Sentinel" in platform else 30.0,
                 "processing_level": "L2A",
                 "bands_available": ["B02", "B03", "B04", "B08"] if "Sentinel" in platform else ["B2", "B3", "B4", "B5"],
-                "scene_url": f"https://example.com/scenes/{eid}",
+                "scene_url": _DEMO_IMAGERY_PREVIEWS.get(source, "/static/assets/demo-imagery/default-scene.jpg"),
                 "scene_label": label,
             },
             normalization=_NORM,

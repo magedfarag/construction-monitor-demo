@@ -1,0 +1,169 @@
+{
+  "timestamp": "2026-04-08T09:53:49Z",
+  "report_version": "1.0",
+  "production_readiness": "READY_WITH_WARNINGS",
+  "summary": {
+    "total_sources": 23,
+    "healthy": 14,
+    "unavailable": 3,
+    "not_configured": 6
+  },
+  "infrastructure": {
+    "redis": {
+      "status": "not_configured",
+      "impact": "high",
+      "required_for": ["job_queuing", "caching", "circuit_breakers"]
+    },
+    "postgresql": {
+      "status": "not_configured",
+      "impact": "high",
+      "required_for": ["job_history", "audit_logs"]
+    },
+    "object_storage": {
+      "status": "not_configured",
+      "impact": "medium",
+      "required_for": ["payload_storage", "artifacts"]
+    }
+  },
+  "v1_providers": {
+    "demo": { "status": "healthy", "resolution_m": null },
+    "sentinel2": { "status": "invalid_credentials", "resolution_m": 10, "issue": "401_unauthorized" },
+    "landsat": { "status": "healthy", "resolution_m": 30 },
+    "maxar": { "status": "not_configured", "resolution_m": 0.4 },
+    "planet": { "status": "not_configured", "resolution_m": 3 }
+  },
+  "v2_connectors": {
+    "earth_search": { "status": "healthy", "auth_required": false },
+    "planetary_computer": { "status": "healthy", "auth_required": false },
+    "landsat_usgs": { "status": "healthy", "auth_required": false },
+    "gdelt": { "status": "healthy", "auth_required": false },
+    "ais_stream": { "status": "not_configured", "auth_required": true },
+    "opensky": { "status": "healthy", "auth_required": false },
+    "usgs_earthquake": { "status": "healthy", "auth_required": false },
+    "nasa_eonet": { "status": "healthy", "auth_required": false },
+    "open_meteo": { "status": "healthy", "auth_required": false },
+    "acled": { "status": "not_configured", "auth_required": true },
+    "nga_msi": { "status": "healthy", "auth_required": false },
+    "osm_military": { "status": "temporarily_unavailable", "auth_required": false, "issue": "504_gateway_timeout" },
+    "nasa_firms": { "status": "invalid_credentials", "auth_required": true, "issue": "401_unauthorized" },
+    "noaa_swpc": { "status": "healthy", "auth_required": false },
+    "openaq": { "status": "requires_api_key", "auth_required": true }
+  },
+  "critical_blockers": [
+    {
+      "priority": 1,
+      "item": "Sentinel-2 credentials invalid",
+      "action": "Obtain new OAuth2 credentials from dataspace.copernicus.eu",
+      "timeline": "immediate"
+    },
+    {
+      "priority": 2,
+      "item": "Redis not configured",
+      "action": "Deploy Redis instance and configure REDIS_URL",
+      "timeline": "before_production"
+    },
+    {
+      "priority": 3,
+      "item": "PostgreSQL not configured",
+      "action": "Deploy PostgreSQL and configure DATABASE_URL",
+      "timeline": "before_production"
+    }
+  ],
+  "high_priority_items": [
+    {
+      "item": "AISStream API key",
+      "action": "Register at aisstream.io",
+      "impact": "maritime_surveillance"
+    },
+    {
+      "item": "NASA FIRMS MAP_KEY",
+      "action": "Register at firms.modaps.eosdis.nasa.gov/api",
+      "impact": "fire_detection"
+    },
+    {
+      "item": "Object Storage",
+      "action": "Configure S3, Azure Blob, or MinIO",
+      "impact": "data_retention"
+    },
+    {
+      "item": "ACLED API key",
+      "action": "Register at developer.acleddata.com",
+      "impact": "conflict_intelligence"
+    }
+  ],
+  "next_steps": {
+    "phase1_critical": [
+      "Deploy Redis cluster",
+      "Deploy PostgreSQL database",
+      "Obtain new Sentinel-2 OAuth2 credentials",
+      "Configure APP_MODE=production",
+      "Set strong API_KEY and JWT_SECRET",
+      "Configure CORS for production domains"
+    ],
+    "phase2_high_priority": [
+      "Register for AISStream API key",
+      "Register for NASA FIRMS MAP_KEY",
+      "Deploy object storage",
+      "Register for ACLED API access",
+      "Configure production logging",
+      "Set up monitoring and alerting"
+    ],
+    "phase3_optimization": [
+      "Register for OpenAQ API key",
+      "Register OpenSky credentials",
+      "Configure Planetary Computer subscription",
+      "Evaluate commercial provider needs",
+      "Tune rate limits and cost guardrails",
+      "Load testing and performance optimization"
+    ],
+    "phase4_validation": [
+      "Run comprehensive integration tests",
+      "Verify all health checks pass",
+      "Test failover scenarios",
+      "Validate audit logging",
+      "Confirm RBAC role enforcement",
+      "Performance benchmarking"
+    ]
+  },
+  "estimated_costs_monthly_usd": {
+    "redis_managed": { "min": 50, "max": 200 },
+    "postgresql_managed": { "min": 100, "max": 300 },
+    "object_storage_1tb": { "min": 20, "max": 50 },
+    "total_infrastructure": { "min": 170, "max": 550 },
+    "data_sources_free_tier": 0,
+    "data_sources_commercial": "TBD",
+    "estimated_total_essential": { "min": 170, "max": 550 }
+  },
+  "risk_assessment": {
+    "overall_risk": "medium",
+    "risks": {
+      "data_loss": "high",
+      "service_interruption": "low",
+      "credential_security": "medium",
+      "rate_limiting": "low",
+      "cost_overrun": "low"
+    }
+  },
+  "current_capabilities": {
+    "working": [
+      "Landsat 30m imagery",
+      "Earth Search STAC",
+      "Planetary Computer STAC",
+      "GDELT contextual events",
+      "NGA MSI maritime warnings",
+      "OpenSky aviation tracking",
+      "USGS earthquake monitoring",
+      "NASA EONET natural events",
+      "Open-Meteo weather",
+      "NOAA space weather"
+    ],
+    "missing": [
+      "High-resolution Sentinel-2 (credentials invalid)",
+      "Real-time vessel tracking (AISStream)",
+      "Active fire detection (NASA FIRMS)",
+      "Conflict intelligence (ACLED)",
+      "Persistent storage (Redis/PostgreSQL)"
+    ]
+  },
+  "recommendation": "Proceed with infrastructure deployment (Phase 1) while continuing to use APP_MODE=staging with available data sources. Platform can operate in degraded mode immediately using Landsat and free data sources."
+}

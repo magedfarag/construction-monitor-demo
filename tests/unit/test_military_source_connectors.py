@@ -269,67 +269,81 @@ def _acled_record(
 
 def _acled_connector() -> AcledConnector:
     return AcledConnector(
-        api_key="test-key",
         email="test@example.com",
-        api_url="https://api.acleddata.com/acled/read.php",
+        password="test-password",
+        token_url="https://acleddata.com/oauth/token",
+        api_url="https://acleddata.com/api/acled/read",
     )
 
 
 class TestAcledConnector:
-    def test_init_raises_without_api_key(self):
-        with pytest.raises(ValueError, match="API key"):
-            AcledConnector(api_key="", email="test@example.com")
-
     def test_init_raises_without_email(self):
         with pytest.raises(ValueError, match="email"):
-            AcledConnector(api_key="k", email="")
+            AcledConnector(email="", password="test-password")
+
+    def test_init_raises_without_password(self):
+        with pytest.raises(ValueError, match="password"):
+            AcledConnector(email="test@example.com", password="")
 
     def test_connect_ok(self):
-        mock_resp = _mock_response({"status": 200, "data": [_acled_record()]})
-        with patch("httpx.get", return_value=mock_resp):
+        mock_token_resp = _mock_response({"access_token": "test-token", "expires_in": 86400})
+        mock_api_resp = _mock_response({"status": 200, "data": [_acled_record()]})
+        with patch("httpx.post", return_value=mock_token_resp), \
+             patch("httpx.get", return_value=mock_api_resp):
             _acled_connector().connect()
 
     def test_connect_raises_on_http_error(self):
         import httpx
-        with patch("httpx.get", side_effect=httpx.ConnectError("refused")):
+        with patch("httpx.post", side_effect=httpx.ConnectError("refused")):
             with pytest.raises(ConnectorUnavailableError):
                 _acled_connector().connect()
 
     def test_connect_raises_on_api_error_status(self):
-        mock_resp = _mock_response({"status": 403, "message": "Invalid API key"})
-        with patch("httpx.get", return_value=mock_resp):
+        mock_token_resp = _mock_response({"access_token": "test-token", "expires_in": 86400})
+        mock_api_resp = _mock_response({"status": 403, "message": "Invalid credentials"})
+        with patch("httpx.post", return_value=mock_token_resp), \
+             patch("httpx.get", return_value=mock_api_resp):
             with pytest.raises(ConnectorUnavailableError, match="auth failed"):
                 _acled_connector().connect()
 
-    def test_fetch_includes_auth_params(self):
-        mock_resp = _mock_response({"status": 200, "data": []})
-        with patch("httpx.get", return_value=mock_resp) as mock_get:
+    def test_fetch_includes_bearer_token(self):
+        mock_token_resp = _mock_response({"access_token": "test-token-123", "expires_in": 86400})
+        mock_api_resp = _mock_response({"status": 200, "data": []})
+        with patch("httpx.post", return_value=mock_token_resp), \
+             patch("httpx.get", return_value=mock_api_resp) as mock_get:
             _acled_connector().fetch(_polygon(50.0, 25.0), _T0, _T1)
-            params = mock_get.call_args[1]["params"]
-            assert params["key"] == "test-key"
-            assert params["email"] == "test@example.com"
-            assert params["terms"] == "accept"
+            # Check that Bearer token is in headers
+            headers = mock_get.call_args[1]["headers"]
+            assert "Authorization" in headers
+            assert headers["Authorization"] == "Bearer test-token-123"
 
     def test_fetch_includes_geo_and_date_params(self):
-        mock_resp = _mock_response({"status": 200, "data": []})
-        with patch("httpx.get", return_value=mock_resp) as mock_get:
+        mock_token_resp = _mock_response({"access_token": "test-token", "expires_in": 86400})
+        mock_api_resp = _mock_response({"status": 200, "data": []})
+        with patch("httpx.post", return_value=mock_token_resp), \
+             patch("httpx.get", return_value=mock_api_resp) as mock_get:
             _acled_connector().fetch(_polygon(50.0, 25.0), _T0, _T1)
             params = mock_get.call_args[1]["params"]
             assert "latitude" in params
             assert "longitude" in params
             assert "radius" in params
             assert "event_date" in params
+            assert params["_format"] == "json"
 
     def test_fetch_raises_on_http_error(self):
         import httpx
-        with patch("httpx.get", side_effect=httpx.HTTPStatusError("500", request=MagicMock(), response=MagicMock())):
+        mock_token_resp = _mock_response({"access_token": "test-token", "expires_in": 86400})
+        with patch("httpx.post", return_value=mock_token_resp), \
+             patch("httpx.get", side_effect=httpx.HTTPStatusError("500", request=MagicMock(), response=MagicMock())):
             with pytest.raises(ConnectorUnavailableError):
                 _acled_connector().fetch(_polygon(), _T0, _T1)
 
     def test_fetch_returns_list(self):
+        mock_token_resp = _mock_response({"access_token": "test-token", "expires_in": 86400})
         records = [_acled_record("YEM1234"), _acled_record("YEM5678", event_date="2026-03-14")]
-        mock_resp = _mock_response({"status": 200, "data": records})
-        with patch("httpx.get", return_value=mock_resp):
+        mock_api_resp = _mock_response({"status": 200, "data": records})
+        with patch("httpx.post", return_value=mock_token_resp), \
+             patch("httpx.get", return_value=mock_api_resp):
             result = _acled_connector().fetch(_polygon(), _T0, _T1)
         assert len(result) == 2
 

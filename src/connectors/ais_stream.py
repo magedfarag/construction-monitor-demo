@@ -46,6 +46,8 @@ from src.models.canonical_event import (
     SourceType,
     make_event_id,
 )
+from src.services.entity_classification import classify_vessel
+from src.services.vessel_registry import get_vessel_by_mmsi
 
 log = logging.getLogger(__name__)
 
@@ -319,6 +321,25 @@ class AisStreamConnector(BaseConnector):
             event_id = make_event_id("ais-stream", mmsi, event_time.isoformat())
             geometry = {"type": "Point", "coordinates": [lon, lat]}
 
+            # Lookup vessel in registry for classification
+            vessel_profile = get_vessel_by_mmsi(mmsi)
+            is_military = False
+            if vessel_profile:
+                is_military = classify_vessel(
+                    vessel_type=vessel_profile.vessel_type.value,
+                    owner=vessel_profile.owner,
+                    operator=vessel_profile.operator,
+                    vessel_name=vessel_profile.name,
+                ) == "military"
+            else:
+                # Fallback: classify based on available AIS data
+                is_military = classify_vessel(
+                    vessel_type=None,
+                    owner=None,
+                    operator=None,
+                    vessel_name=vessel_name,
+                ) == "military"
+
             attribs = ShipPositionAttributes(
                 mmsi=mmsi,
                 vessel_name=vessel_name or None,
@@ -327,6 +348,7 @@ class AisStreamConnector(BaseConnector):
                 speed_kn=float(speed) if speed is not None else None,
                 heading_deg=float(heading) if heading not in (None, 511) else None,
                 nav_status=_NAV_STATUS.get(int(nav_code), "Undefined"),
+                is_military=is_military,
             )
 
             warnings: list[str] = []

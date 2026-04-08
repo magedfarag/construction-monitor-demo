@@ -7,6 +7,9 @@ import { RenderModeSelectorPage } from "./pages";
  * and round-trip toggling.
  */
 
+// Run render mode tests serially due to GPU-intensive rendering operations
+test.describe.configure({ mode: 'serial' });
+
 test.describe("RenderModeSelector — visibility", () => {
   let rm: RenderModeSelectorPage;
 
