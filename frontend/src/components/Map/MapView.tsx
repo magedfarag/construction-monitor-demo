@@ -48,6 +48,7 @@ function computeEntityPositions(trips: Trip[], t: number): GeoJSON.FeatureCollec
       properties: {
         id: trip.id,
         entityType: trip.entityType,
+        isMilitary: trip.isMilitary ?? false,
         heading: Math.round(heading),
         speedKts,
         lastSeenUnix: last[2],
@@ -83,6 +84,7 @@ function makeArrowImageData(r: number, g: number, b: number): ImageData {
 function buildEntityPopupHtml(
   id: string, entityType: string, heading: number,
   speedKts: number, lastSeenUnix: number, lng: number, lat: number, altitudeM = 0,
+  isMilitary = false,
 ): string {
   const icon = entityType === "ship" ? "\u{1F6A2}" : "\u2708\uFE0F";
   const typeClass = entityType === "ship" ? "entity-popup-ship" : "entity-popup-aircraft";
@@ -92,8 +94,11 @@ function buildEntityPopupHtml(
   const speedLabel = entityType === "ship" ? `${speedKts} kts` : `${Math.round(speedKts * 1.852)} km/h`;
   const latStr = `${Math.abs(lat).toFixed(4)}\u00B0${lat >= 0 ? "N" : "S"}`;
   const lngStr = `${Math.abs(lng).toFixed(4)}\u00B0${lng >= 0 ? "E" : "W"}`;
+  const militaryBadge = isMilitary 
+    ? '<span style="background:#dc143c;color:#fff;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:bold;margin-left:6px;">MILITARY</span>'
+    : '';
   return `<div class="entity-popup ${typeClass}">
-    <div class="entity-popup-header">${icon} ${entityType.toUpperCase()}</div>
+    <div class="entity-popup-header">${icon} ${entityType.toUpperCase()}${militaryBadge}</div>
     <div class="entity-popup-id">${id}</div>
     <div class="entity-popup-grid">
       <span class="ep-label">Heading</span><span class="ep-val">${heading}\u00B0</span>
@@ -214,6 +219,9 @@ export function MapView({
     const overlay = new MapboxOverlay({ layers: [], interleaved: true });
     map.addControl(overlay as unknown as maplibregl.IControl);
     deckOverlayRef.current = overlay;
+    // Expose the map immediately so automation can detect the 2D view switch
+    // before style-dependent sources and layers have finished loading.
+    (window as Window & { __argusMap?: MaplibreMap }).__argusMap = map;
 
     // Ensure the canvas adapts whenever the container is resized (flex/window resize)
     const container = containerRef.current!;
@@ -235,6 +243,8 @@ export function MapView({
     // Signal that all base layers are ready, so data-dependent effects can add sources
     map.on("load", () => {
       setStyleLoaded(true);
+      // Expose map instance for Playwright demo recording (dev / demo mode only)
+      (window as Window & { __argusMap?: MaplibreMap }).__argusMap = map;
       // Ensure map is properly sized after load
       requestAnimationFrame(() => {
         if (mapRef.current) {
@@ -263,6 +273,7 @@ export function MapView({
       setStyleLoaded(false);
       try { map.removeControl(overlay as unknown as maplibregl.IControl); } catch { /* ignore */ }
       deckOverlayRef.current = null;
+      delete (window as Window & { __argusMap?: MaplibreMap }).__argusMap;
       map.remove();
       mapRef.current = null;
     };
@@ -347,7 +358,13 @@ export function MapView({
       features: showImageryLayer ? imageryItems.map(item => ({
         type: "Feature",
         geometry: item.geometry as GeoJSON.Geometry,
-        properties: { id: item.item_id, collection: item.collection, cloud_cover: item.cloud_cover },
+        properties: {
+          id: item.item_id,
+          collection: item.collection,
+          cloud_cover: item.cloud_cover,
+          thumbnail_url: item.thumbnail_url,
+          full_image_url: item.full_image_url ?? item.thumbnail_url,
+        },
       })) : [],
     };
     if (src) {
@@ -374,14 +391,27 @@ export function MapView({
         const p = e.features?.[0]?.properties;
         if (!p) return;
         const cc = p.cloud_cover != null ? `${Number(p.cloud_cover).toFixed(1)}%` : "\u2014";
+        const previewUrl = p.thumbnail_url ? String(p.thumbnail_url) : null;
+        const fullImageUrl = p.full_image_url ? String(p.full_image_url) : previewUrl;
+        const preview = previewUrl
+          ? `<a class="imagery-popup-preview-link" href="${fullImageUrl ?? previewUrl}" target="_blank" rel="noopener noreferrer">
+              <img class="imagery-popup-preview" src="${previewUrl}" alt="Imagery preview for ${String(p.id ?? "unknown")}" loading="lazy" />
+            </a>`
+          : `<div class="imagery-popup-preview imagery-popup-preview--empty">No preview available</div>`;
         new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
           .setLngLat(e.lngLat)
           .setHTML(`<div class="entity-popup">
             <div class="entity-popup-header">\uD83D\uDEF0\uFE0F IMAGERY FOOTPRINT</div>
             <div class="entity-popup-id">${String(p.id ?? "unknown")}</div>
+            ${preview}
             <div class="entity-popup-grid">
               <span class="ep-label">Collection</span><span class="ep-val">${String(p.collection ?? "\u2014")}</span>
               <span class="ep-label">Cloud cover</span><span class="ep-val">${cc}</span>
+              <span class="ep-label">Scene</span><span class="ep-val">${
+                fullImageUrl
+                  ? `<a href="${fullImageUrl}" target="_blank" rel="noopener noreferrer" style="color:#00d4ff;">Open full image</a>`
+                  : "\u2014"
+              }</span>
             </div>
           </div>`)
           .addTo(map);
@@ -700,13 +730,18 @@ export function MapView({
     if (demoMode || map.getZoom() >= TRACKS_MIN_ZOOM) {
       const t = currentTime ?? Date.now() / 1000;
       const tl = trailLength;
-      const shipTrips = trips.filter(tr => tr.entityType === "ship");
-      const aircraftTrips = trips.filter(tr => tr.entityType === "aircraft");
-      if (showShipsLayer && shipTrips.length > 0) {
-        // Bright core trail
+      
+      // Separate military from civilian entities
+      const civilianShips = trips.filter(tr => tr.entityType === "ship" && !tr.isMilitary);
+      const militaryShips = trips.filter(tr => tr.entityType === "ship" && tr.isMilitary);
+      const civilianAircraft = trips.filter(tr => tr.entityType === "aircraft" && !tr.isMilitary);
+      const militaryAircraft = trips.filter(tr => tr.entityType === "aircraft" && tr.isMilitary);
+      
+      if (showShipsLayer && civilianShips.length > 0) {
+        // Civilian ships - bright teal trail
         layers.push(new TripsLayer({
-          id: "ships-trips",
-          data: shipTrips,
+          id: "ships-trips-civilian",
+          data: civilianShips,
           getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
           getColor: [20, 186, 140] as [number, number, number],
@@ -715,16 +750,45 @@ export function MapView({
           trailLength: tl, currentTime: t,
         }));
       }
-      if (showAircraftLayer && aircraftTrips.length > 0) {
-        // Bright core trail
+      
+      if (showShipsLayer && militaryShips.length > 0) {
+        // Military ships - red trail
         layers.push(new TripsLayer({
-          id: "aircraft-trips",
-          data: aircraftTrips,
+          id: "ships-trips-military",
+          data: militaryShips,
+          getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]) as [number, number][],
+          getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
+          getColor: [220, 30, 30] as [number, number, number],
+          opacity: 0.9,
+          widthMinPixels: 2.5, capRounded: true, jointRounded: true,
+          trailLength: tl, currentTime: t,
+        }));
+      }
+      
+      if (showAircraftLayer && civilianAircraft.length > 0) {
+        // Civilian aircraft - bright orange trail
+        layers.push(new TripsLayer({
+          id: "aircraft-trips-civilian",
+          data: civilianAircraft,
           getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]) as [number, number][],
           getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
           getColor: [255, 100, 50] as [number, number, number],
           opacity: 0.85,
           widthMinPixels: 2, capRounded: true, jointRounded: true,
+          trailLength: tl, currentTime: t,
+        }));
+      }
+      
+      if (showAircraftLayer && militaryAircraft.length > 0) {
+        // Military aircraft - dark orange/amber trail
+        layers.push(new TripsLayer({
+          id: "aircraft-trips-military",
+          data: militaryAircraft,
+          getPath: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => [w[0], w[1]]) as [number, number][],
+          getTimestamps: (d: Trip) => d.waypoints.map((w: TrackWaypoint) => w[2]),
+          getColor: [200, 80, 0] as [number, number, number],
+          opacity: 0.9,
+          widthMinPixels: 2.5, capRounded: true, jointRounded: true,
           trailLength: tl, currentTime: t,
         }));
       }
@@ -994,9 +1058,12 @@ export function MapView({
     const data = computeEntityPositions(active, t);
 
     // Register arrow images (idempotent — no-op if already added)
-    // Teal ship arrows match legend color; bright yellow aircraft for visibility
-    if (!map.hasImage("ship-arrow"))     map.addImage("ship-arrow",     makeArrowImageData(20, 186, 140));  // Teal to match legend
-    if (!map.hasImage("aircraft-arrow")) map.addImage("aircraft-arrow", makeArrowImageData(255, 220, 50));
+    // Civilian entities - teal ships, bright yellow aircraft
+    if (!map.hasImage("ship-arrow-civilian"))     map.addImage("ship-arrow-civilian",     makeArrowImageData(20, 186, 140));
+    if (!map.hasImage("aircraft-arrow-civilian")) map.addImage("aircraft-arrow-civilian", makeArrowImageData(255, 220, 50));
+    // Military entities - red ships, dark orange aircraft
+    if (!map.hasImage("ship-arrow-military"))     map.addImage("ship-arrow-military",     makeArrowImageData(220, 30, 30));
+    if (!map.hasImage("aircraft-arrow-military")) map.addImage("aircraft-arrow-military", makeArrowImageData(200, 80, 0));
 
     const src = map.getSource("entity-positions") as maplibregl.GeoJSONSource | undefined;
     if (src) {
@@ -1004,9 +1071,11 @@ export function MapView({
       const shipsVis    = (showShipsLayer    ?? true) ? "visible" : "none";
       const aircraftVis = (showAircraftLayer ?? true) ? "visible" : "none";
       const haloVis     = ((showShipsLayer ?? true) || (showAircraftLayer ?? true)) ? "visible" : "none";
-      if (map.getLayer("entity-halo"))     map.setLayoutProperty("entity-halo",     "visibility", haloVis);
-      if (map.getLayer("entity-ships"))    map.setLayoutProperty("entity-ships",    "visibility", shipsVis);
-      if (map.getLayer("entity-aircraft")) map.setLayoutProperty("entity-aircraft", "visibility", aircraftVis);
+      if (map.getLayer("entity-halo"))              map.setLayoutProperty("entity-halo",              "visibility", haloVis);
+      if (map.getLayer("entity-ships-civilian"))    map.setLayoutProperty("entity-ships-civilian",    "visibility", shipsVis);
+      if (map.getLayer("entity-ships-military"))    map.setLayoutProperty("entity-ships-military",    "visibility", shipsVis);
+      if (map.getLayer("entity-aircraft-civilian")) map.setLayoutProperty("entity-aircraft-civilian", "visibility", aircraftVis);
+      if (map.getLayer("entity-aircraft-military")) map.setLayoutProperty("entity-aircraft-military", "visibility", aircraftVis);
     } else {
       map.addSource("entity-positions", { type: "geojson", data });
       // Pulse-halo ring rendered behind the directional arrow (DISABLED - was causing confusing shadow circles)
@@ -1016,34 +1085,73 @@ export function MapView({
           "circle-radius": 16,
           "circle-color": "rgba(0,0,0,0)",
           "circle-stroke-width": 1.5,
-          "circle-stroke-color": ["case", ["==", ["get", "entityType"], "ship"], "#00e5ff", "#ff5722"],
+          "circle-stroke-color": [
+            "case",
+            ["get", "isMilitary"], "#dc143c",  // crimson for military
+            ["==", ["get", "entityType"], "ship"], "#00e5ff",  // cyan for civilian ships
+            "#ff5722"  // orange for civilian aircraft
+          ],
           "circle-opacity": 0,
           "circle-stroke-opacity": 0,  // Changed from 0.45 to 0 - removes confusing shadow circles
         },
       });
+      
+      // Civilian ships layer
       map.addLayer({
-        id: "entity-ships", type: "symbol", source: "entity-positions",
-        filter: ["==", ["get", "entityType"], "ship"],
+        id: "entity-ships-civilian", type: "symbol", source: "entity-positions",
+        filter: ["all", ["==", ["get", "entityType"], "ship"], ["!=", ["get", "isMilitary"], true]],
         layout: {
-          "icon-image": "ship-arrow",
+          "icon-image": "ship-arrow-civilian",
           "icon-rotate": ["get", "heading"],
           "icon-rotation-alignment": "map",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": 1.2,  // Increased from 1.1 for better visibility
+          "icon-size": 1.2,
           "visibility": (showShipsLayer ?? true) ? "visible" : "none",
         },
       });
+      
+      // Military ships layer
       map.addLayer({
-        id: "entity-aircraft", type: "symbol", source: "entity-positions",
-        filter: ["==", ["get", "entityType"], "aircraft"],
+        id: "entity-ships-military", type: "symbol", source: "entity-positions",
+        filter: ["all", ["==", ["get", "entityType"], "ship"], ["==", ["get", "isMilitary"], true]],
         layout: {
-          "icon-image": "aircraft-arrow",
+          "icon-image": "ship-arrow-military",
           "icon-rotate": ["get", "heading"],
           "icon-rotation-alignment": "map",
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
-          "icon-size": 1.3,  // Increased from 1.1 - aircraft need more prominence
+          "icon-size": 1.3,  // Slightly larger for military entities
+          "visibility": (showShipsLayer ?? true) ? "visible" : "none",
+        },
+      });
+      
+      // Civilian aircraft layer
+      map.addLayer({
+        id: "entity-aircraft-civilian", type: "symbol", source: "entity-positions",
+        filter: ["all", ["==", ["get", "entityType"], "aircraft"], ["!=", ["get", "isMilitary"], true]],
+        layout: {
+          "icon-image": "aircraft-arrow-civilian",
+          "icon-rotate": ["get", "heading"],
+          "icon-rotation-alignment": "map",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-size": 1.3,
+          "visibility": (showAircraftLayer ?? true) ? "visible" : "none",
+        },
+      });
+      
+      // Military aircraft layer
+      map.addLayer({
+        id: "entity-aircraft-military", type: "symbol", source: "entity-positions",
+        filter: ["all", ["==", ["get", "entityType"], "aircraft"], ["==", ["get", "isMilitary"], true]],
+        layout: {
+          "icon-image": "aircraft-arrow-military",
+          "icon-rotate": ["get", "heading"],
+          "icon-rotation-alignment": "map",
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-size": 1.4,  // Slightly larger for military entities
           "visibility": (showAircraftLayer ?? true) ? "visible" : "none",
         },
       });
@@ -1065,17 +1173,24 @@ export function MapView({
           String(p.id ?? ""), String(p.entityType ?? ""),
           Number(p.heading ?? 0), Number(p.speedKts ?? 0),
           Number(p.lastSeenUnix ?? 0), lng, lat, Number(p.altitudeM ?? 0),
+          Boolean(p.isMilitary ?? false),
         ))
         .addTo(map);
     };
     const cursorOn  = () => { map.getCanvas().style.cursor = "pointer"; };
     const cursorOff = () => { if (drawMode === "none") map.getCanvas().style.cursor = ""; };
-    map.on("click",      "entity-ships",    handleEntityClick);
-    map.on("click",      "entity-aircraft", handleEntityClick);
-    map.on("mouseenter", "entity-ships",    cursorOn);
-    map.on("mouseleave", "entity-ships",    cursorOff);
-    map.on("mouseenter", "entity-aircraft", cursorOn);
-    map.on("mouseleave", "entity-aircraft", cursorOff);
+    
+    // Entity layers - both civilian and military
+    const entityLayers = [
+      "entity-ships-civilian", "entity-ships-military",
+      "entity-aircraft-civilian", "entity-aircraft-military"
+    ];
+    entityLayers.forEach(layer => {
+      map.on("click",      layer, handleEntityClick);
+      map.on("mouseenter", layer, cursorOn);
+      map.on("mouseleave", layer, cursorOff);
+    });
+    
     map.on("mouseenter", "events-circle",   cursorOn);
     map.on("mouseleave", "events-circle",   cursorOff);
     map.on("mouseenter", "aois-fill",       cursorOn);
@@ -1093,12 +1208,11 @@ export function MapView({
     map.on("mouseenter", "detections-circle", cursorOn);
     map.on("mouseleave", "detections-circle", cursorOff);
     return () => {
-      map.off("click",      "entity-ships",    handleEntityClick);
-      map.off("click",      "entity-aircraft", handleEntityClick);
-      map.off("mouseenter", "entity-ships",    cursorOn);
-      map.off("mouseleave", "entity-ships",    cursorOff);
-      map.off("mouseenter", "entity-aircraft", cursorOn);
-      map.off("mouseleave", "entity-aircraft", cursorOff);
+      entityLayers.forEach(layer => {
+        map.off("click",      layer, handleEntityClick);
+        map.off("mouseenter", layer, cursorOn);
+        map.off("mouseleave", layer, cursorOff);
+      });
       map.off("mouseenter", "events-circle",   cursorOn);
       map.off("mouseleave", "events-circle",   cursorOff);
       map.off("mouseenter", "aois-fill",       cursorOn);

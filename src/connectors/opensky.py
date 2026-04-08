@@ -50,6 +50,7 @@ from src.models.canonical_event import (
     SourceType,
     make_event_id,
 )
+from src.services.entity_classification import classify_aircraft
 
 log = logging.getLogger(__name__)
 
@@ -315,6 +316,14 @@ class OpenSkyConnector(BaseConnector):
             event_id = make_event_id("opensky", icao24, event_time.isoformat())
             geometry = {"type": "Point", "coordinates": [lon, lat]}
 
+            # Classify aircraft as military or civilian
+            classification = classify_aircraft(
+                callsign=callsign,
+                origin_country=origin_country,
+                icao24=icao24,
+            )
+            is_military = classification == "military"
+
             attribs = AircraftAttributes(
                 icao24=icao24,
                 callsign=callsign,
@@ -326,6 +335,7 @@ class OpenSkyConnector(BaseConnector):
                 vertical_rate_ms=float(vertical_rate) if vertical_rate is not None else None,
                 on_ground=bool(on_ground) if on_ground is not None else None,
                 squawk=str(squawk) if squawk else None,
+                is_military=is_military,
             )
 
             return CanonicalEvent(

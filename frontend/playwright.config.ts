@@ -5,16 +5,18 @@ export default defineConfig({
   globalSetup: "./e2e/global-setup.ts",
   /* Ignore the legacy monolithic spec backup */
   testIgnore: ["**/*.bak"],
-  fullyParallel: false,
-  /* Single worker — WebGL map rendering saturates GPU with parallel instances */
-  workers: 1,
+  /* Enable parallel execution - GPU-heavy tests can opt out per-suite */
+  fullyParallel: true,
+  /* 
+   * Moderate parallelism to balance speed with GPU resource constraints.
+   * - CI: Use sharding instead of high worker count (set via --shard flag)
+   * - Local: 2-4 workers based on available CPU cores
+   * GPU-intensive suites should use test.describe.configure({ mode: 'serial' })
+   */
+  workers: process.env.CI ? "50%" : undefined, // CI: 50%, local: CPU count
   /* Extend timeouts for GPU operations and worker teardown cleanup */
   timeout: 480_000,
   expect: { timeout: 15_000 },
-  /* Allow sufficient time for WebGL cleanup fixture to run */
-  webServer: undefined, // No built-in server; app runs separately
-  /* Extended worker teardown timeout for GPU cleanup */
-  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
   /* HTML report for demo walkthroughs; list for console progress */

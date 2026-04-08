@@ -161,6 +161,7 @@ class ShipPositionAttributes(BaseModel):
     beam_m: float | None = None
     destination: str | None = None
     eta: str | None = None
+    is_military: bool = Field(default=False, description="True if classified as military vessel")
 
 
 class AircraftAttributes(BaseModel):
@@ -175,6 +176,7 @@ class AircraftAttributes(BaseModel):
     vertical_rate_ms: float | None = None
     on_ground: bool | None = None
     squawk: str | None = None
+    is_military: bool = Field(default=False, description="True if classified as military aircraft")
 
 
 class PermitAttributes(BaseModel):

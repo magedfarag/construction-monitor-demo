@@ -67,8 +67,9 @@ function ObservationRow({ obs, isNearest }: { obs: CameraObservation; isNearest?
   );
 }
 
-function ClipPlayer({ clip, isNearest, onJump }: { clip: MediaClipRef; cameraId: string; isNearest?: boolean; onJump?: () => void }) {
+function ClipPlayer({ clip, isNearest, onJump }: { clip: MediaClipRef; isNearest?: boolean; onJump?: () => void }) {
   const [playing, setPlaying] = useState(false);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
 
   return (
     <div className={`cam-clip-card${isNearest ? ' cam-clip-card--nearest' : ''}`}>
@@ -80,22 +81,51 @@ function ClipPlayer({ clip, isNearest, onJump }: { clip: MediaClipRef; cameraId:
         </span>
       </div>
       {playing ? (
-        <div className="cam-clip-demo" aria-label={`Demo clip ${clip.clip_id}`}>
-          <span className="cam-clip-demo-label">
-            DEMO CLIP — {clip.clip_id} ({clip.duration_sec}s)
-          </span>
-          <button
-            className="btn btn-xs"
-            onClick={() => setPlaying(false)}
-            title="Stop"
+        <div className="cam-clip-player">
+          <video
+            className="cam-video"
+            controls
+            autoPlay
+            playsInline
+            preload="metadata"
+            loop={clip.is_loopable}
+            onError={() => setPlaybackError(`Unable to load ${clip.clip_id}`)}
           >
-            ⏹ Stop
-          </button>
+            <source src={clip.url} type={clip.media_type || 'video/mp4'} />
+            Your browser does not support the video tag.
+          </video>
+          <div className="cam-clip-actions">
+            <button
+              className="btn btn-xs"
+              onClick={() => {
+                setPlaying(false);
+                setPlaybackError(null);
+              }}
+              title="Stop"
+            >
+              ⏹ Stop
+            </button>
+            <a
+              className="btn btn-xs"
+              href={clip.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={`Open ${clip.clip_id} in a new tab`}
+            >
+              ↗ Open clip
+            </a>
+          </div>
+          {playbackError && (
+            <p className="error">{playbackError}</p>
+          )}
         </div>
       ) : (
         <button
           className="btn btn-xs cam-clip-play-btn"
-          onClick={() => setPlaying(true)}
+          onClick={() => {
+            setPlaybackError(null);
+            setPlaying(true);
+          }}
           title={`Play ${clip.clip_id}`}
         >
           ▶ PLAY
@@ -185,7 +215,6 @@ function CameraDetail({
             <ClipPlayer
               key={clip.clip_id}
               clip={clip}
-              cameraId={camera.camera_id}
               isNearest={clip.clip_id === nearestClipRef}
               onJump={
                 onJumpToLocation

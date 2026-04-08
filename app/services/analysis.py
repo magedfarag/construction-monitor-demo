@@ -187,7 +187,13 @@ class AnalysisService:
         mode = self._settings.app_mode
         priority, _desc = self._registry.select_provider_by_mode(mode)
 
-        if mode == AppMode.DEMO or requested == "demo":
+        if mode == AppMode.DEMO:
+            return self._demo, True, []
+        if requested == "demo":
+            if mode == AppMode.PRODUCTION:
+                raise ProviderUnavailableError(
+                    "Production mode: demo provider is disabled."
+                )
             return self._demo, True, []
 
         # Try requested provider first, then fall through priority chain

@@ -1,14 +1,15 @@
 """ACLED Armed Conflict Location & Event Data connector.
 
-Implements BaseConnector backed by the ACLED REST API v1.
+Implements BaseConnector backed by the ACLED REST API using OAuth2 authentication.
 
 connector_id: ``acled``
 source_type:  ``public_record``
 
-API: https://developer.acleddata.com/rehd/cms/views/acled_api/documents/API-User-Guide.pdf
-Free account required at https://developer.acleddata.com/
+API: https://acleddata.com/api-documentation/getting-started
+Free account required at https://acleddata.com/
 
 Features:
+- OAuth2 password grant authentication with Bearer token
 - Geographic queries via centroid + radius derived from AOI geometry.
 - Date-range filtering aligned with the fetch() time window.
 - Normalises ACLED event records → ``conflict_event`` CanonicalEvents.
@@ -21,9 +22,10 @@ Features:
     Strategic developments               → 0.75
 
 Configure via environment variables:
-  ACLED_API_KEY   — API key from developer.acleddata.com (required)
-  ACLED_EMAIL     — Registered email for the API key (required)
-  ACLED_API_URL   — Override endpoint (default: https://api.acleddata.com/acled/read.php)
+  ACLED_EMAIL      — Registered email for ACLED account (required)
+  ACLED_PASSWORD   — Password for ACLED account (required)
+  ACLED_TOKEN_URL  — OAuth2 token endpoint (default: https://acleddata.com/oauth/token)
+  ACLED_API_URL    — API endpoint (default: https://acleddata.com/api/acled/read)
 
 Non-commercial use clause: ACLED data is free for non-commercial research.
 Commercial use requires a separate agreement with ACLED.
@@ -33,7 +35,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -59,7 +61,8 @@ from src.models.canonical_event import (
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_API_URL = "https://api.acleddata.com/acled/read.php"
+_DEFAULT_TOKEN_URL = "https://acleddata.com/oauth/token"
+_DEFAULT_API_URL = "https://acleddata.com/api/acled/read"
 
 _LICENSE = LicenseRecord(
     access_tier="public",
@@ -135,6 +138,8 @@ class AcledConnector(BaseConnector):
     air/drone strikes, explosions, and civilian violence. Highly relevant
     for MENA/Gulf intelligence: covers Yemen, Iraq, Syria, Lebanon,
     Saudi Arabia, UAE, and surrounding regions.
+    
+    Uses OAuth2 password grant flow for authentication.
     """
 
     connector_id = "acled"
@@ -144,41 +149,95 @@ class AcledConnector(BaseConnector):
     def __init__(
         self,
         *,
-        api_key: str,
         email: str,
+        password: str,
+        token_url: str = _DEFAULT_TOKEN_URL,
         api_url: str = _DEFAULT_API_URL,
         http_timeout: float = 30.0,
     ) -> None:
-        if not api_key:
-            raise ValueError("ACLED requires an API key")
         if not email:
             raise ValueError("ACLED requires a registered email")
-        self._api_key = api_key
+        if not password:
+            raise ValueError("ACLED requires a password")
         self._email = email
+        self._password = password
+        self._token_url = token_url
         self._api_url = api_url
         self._http_timeout = http_timeout
+        self._access_token: str | None = None
+        self._token_expires_at: datetime | None = None
 
-    def _auth_params(self) -> dict[str, str]:
+    def _get_access_token(self) -> str:
+        """Get OAuth2 access token using password grant flow.
+        
+        Caches token until it expires (24 hours per ACLED docs).
+        """
+        # Return cached token if still valid
+        if self._access_token and self._token_expires_at:
+            if datetime.now(UTC) < self._token_expires_at:
+                return self._access_token
+        
+        # Request new access token
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+        data = {
+            "username": self._email,
+            "password": self._password,
+            "grant_type": "password",
+            "client_id": "acled",
+        }
+        
+        try:
+            resp = httpx.post(self._token_url, headers=headers, data=data, timeout=15.0)
+            resp.raise_for_status()
+            token_data = resp.json()
+            
+            access_token = token_data["access_token"]
+            self._access_token = access_token
+            # Token expires in 86400 seconds (24 hours), refresh 5 minutes early
+            expires_in = token_data.get("expires_in", 86400)
+            self._token_expires_at = datetime.now(UTC).replace(
+                microsecond=0
+            ) + timedelta(seconds=expires_in - 300)
+            
+            return access_token
+        except httpx.HTTPError as exc:
+            raise ConnectorUnavailableError(
+                f"Failed to get ACLED access token: {exc}"
+            ) from exc
+        except (KeyError, ValueError) as exc:
+            raise ConnectorUnavailableError(
+                f"Invalid ACLED token response: {exc}"
+            ) from exc
+
+    def _auth_headers(self) -> dict[str, str]:
+        """Return headers with Bearer token for authenticated requests."""
+        token = self._get_access_token()
         return {
-            "key": self._api_key,
-            "email": self._email,
-            "terms": "accept",
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
         }
 
     # ── BaseConnector interface ───────────────────────────────────────────────
 
     def connect(self) -> None:
-        """Verify ACLED credentials with a minimal query (limit=1)."""
+        """Verify ACLED OAuth2 credentials with a minimal query (limit=1)."""
         params: dict[str, Any] = {
-            **self._auth_params(),
+            "_format": "json",
             "limit": 1,
             "fields": "event_id_cnty|event_date",
         }
         try:
-            resp = httpx.get(self._api_url, params=params, timeout=15.0)
+            resp = httpx.get(
+                self._api_url,
+                params=params,
+                headers=self._auth_headers(),
+                timeout=15.0,
+            )
             resp.raise_for_status()
             data = resp.json()
-            if "error" in data or data.get("status", 200) != 200:
+            if data.get("status") != 200:
                 raise ConnectorUnavailableError(
                     f"ACLED auth failed: {data.get('message', data)}"
                 )
@@ -210,7 +269,7 @@ class AcledConnector(BaseConnector):
         date_to = end_time.strftime("%Y-%m-%d")
 
         params: dict[str, Any] = {
-            **self._auth_params(),
+            "_format": "json",
             "latitude": round(lat, 6),
             "longitude": round(lon, 6),
             "radius": round(radius_km, 1),
@@ -227,6 +286,7 @@ class AcledConnector(BaseConnector):
             resp = httpx.get(
                 self._api_url,
                 params=params,
+                headers=self._auth_headers(),
                 timeout=self._http_timeout,
             )
             resp.raise_for_status()
@@ -234,7 +294,7 @@ class AcledConnector(BaseConnector):
             raise ConnectorUnavailableError(f"ACLED fetch failed: {exc}") from exc
 
         payload = resp.json()
-        if payload.get("status", 200) != 200:
+        if payload.get("status") != 200:
             raise ConnectorUnavailableError(
                 f"ACLED API error: {payload.get('message', payload)}"
             )
@@ -330,11 +390,16 @@ class AcledConnector(BaseConnector):
     def health(self) -> ConnectorHealthStatus:
         """Lightweight health probe — minimal authenticated query."""
         try:
-            params = {**self._auth_params(), "limit": 1, "fields": "event_id_cnty"}
-            resp = httpx.get(self._api_url, params=params, timeout=10.0)
+            params = {"_format": "json", "limit": 1, "fields": "event_id_cnty"}
+            resp = httpx.get(
+                self._api_url,
+                params=params,
+                headers=self._auth_headers(),
+                timeout=10.0,
+            )
             resp.raise_for_status()
             payload = resp.json()
-            if payload.get("status", 200) != 200:
+            if payload.get("status") != 200:
                 return ConnectorHealthStatus(
                     connector_id=self.connector_id,
                     healthy=False,

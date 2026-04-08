@@ -554,7 +554,7 @@ try:
 
         settings = get_settings()
         if not settings.acled_is_configured():
-            log.debug("poll_acled_events: ACLED_API_KEY/ACLED_EMAIL not configured, skipping")
+            log.debug("poll_acled_events: ACLED_EMAIL/ACLED_PASSWORD not configured, skipping")
             return {"polled_at": datetime.now(UTC).isoformat(), "skipped": True}
 
         from src.connectors.acled import AcledConnector
@@ -564,8 +564,9 @@ try:
         polled_at = datetime.now(UTC).isoformat()
         health_svc = get_health_service()
         connector = AcledConnector(
-            api_key=settings.acled_api_key,
             email=settings.acled_email,
+            password=settings.acled_password,
+            token_url=settings.acled_token_url,
             api_url=settings.acled_api_url,
         )
         aoi_store = AoiStore()

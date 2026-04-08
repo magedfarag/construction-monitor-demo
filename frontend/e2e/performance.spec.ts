@@ -16,6 +16,9 @@ const INTERACTIVE_BUDGET_MS = 8_000;
 const LAYER_TOGGLE_BUDGET_MS = 3_000;
 const SEARCH_RENDER_BUDGET_MS = 5_000;
 
+// Run performance tests serially to get accurate measurements
+test.describe.configure({ mode: 'serial' });
+
 test.describe("Performance — page load", () => {
   test("page reaches interactive state within budget", async ({ page }) => {
     const base = new BasePage(page);

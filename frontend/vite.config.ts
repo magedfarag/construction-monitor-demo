@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   // the dev proxy — keeps the key out of the browser bundle entirely.
   const env = loadEnv(mode, process.cwd(), '')
   const apiKey = env.API_KEY ?? ''
+  const backendTarget = env.ARGUS_BACKEND_TARGET || 'http://127.0.0.1:8000'
   // Explicit type annotation avoids the `{ Authorization?: undefined }` union
   // that breaks Vite's ProxyOptions header signature.
   const proxyHeaders: Record<string, string> = apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
@@ -24,9 +25,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': { target: 'http://localhost:8000', changeOrigin: true, headers: proxyHeaders },
-        '/healthz': { target: 'http://localhost:8000', changeOrigin: true },
-        '/readyz': { target: 'http://localhost:8000', changeOrigin: true },
+        '/api': { target: backendTarget, changeOrigin: true, headers: proxyHeaders },
+        '/demo': { target: backendTarget, changeOrigin: true },
+        '/static': { target: backendTarget, changeOrigin: true },
+        '/healthz': { target: backendTarget, changeOrigin: true },
+        '/readyz': { target: backendTarget, changeOrigin: true },
       },
     },
   }

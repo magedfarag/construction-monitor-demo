@@ -261,17 +261,21 @@ class AppSettings(BaseSettings):
     )
 
     # ACLED Armed Conflict Location & Event Data (free with registration)
-    # Register at: https://developer.acleddata.com
-    acled_api_key: str = Field(
-        default="",
-        description="ACLED API key from developer.acleddata.com",
-    )
+    # Register at: https://acleddata.com (OAuth2 authentication)
     acled_email: str = Field(
         default="",
-        description="Registered email associated with the ACLED API key",
+        description="Registered email for ACLED account",
+    )
+    acled_password: str = Field(
+        default="",
+        description="Password for ACLED account",
+    )
+    acled_token_url: str = Field(
+        default="https://acleddata.com/oauth/token",
+        description="ACLED OAuth2 token endpoint",
     )
     acled_api_url: str = Field(
-        default="https://api.acleddata.com/acled/read.php",
+        default="https://acleddata.com/api/acled/read",
         description="ACLED REST API endpoint",
     )
 
@@ -296,8 +300,8 @@ class AppSettings(BaseSettings):
     )
 
     def acled_is_configured(self) -> bool:
-        """Return True when both ACLED API key and email are present."""
-        return bool(self.acled_api_key and self.acled_email)
+        """Return True when both ACLED email and password are present."""
+        return bool(self.acled_email and self.acled_password)
 
     # NASA FIRMS Active Fire / Thermal Anomaly (free MAP_KEY from NASA FIRMS)
     nasa_firms_api_url: str = Field(

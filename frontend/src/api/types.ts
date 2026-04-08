@@ -104,6 +104,7 @@ export interface ImageryItem {
   cloud_cover?: number;
   geometry: GeoJsonGeometry;
   thumbnail_url?: string;
+  full_image_url?: string;
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────────

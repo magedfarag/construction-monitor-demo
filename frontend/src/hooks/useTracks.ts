@@ -11,6 +11,7 @@ export interface Trip {
   /** Ordered waypoints: [longitude, latitude, unix_seconds, altitude_m] */
   waypoints: TrackWaypoint[];
   entityType: "ship" | "aircraft";
+  isMilitary?: boolean; // True if classified as military vessel/aircraft
 }
 
 const TRACK_QUERY_LIMIT = 4_000;
@@ -103,7 +104,7 @@ export function useTracks(
 
       const entityMap = new Map<
         string,
-        { waypoints: TrackWaypoint[]; type: "ship" | "aircraft" }
+        { waypoints: TrackWaypoint[]; type: "ship" | "aircraft"; isMilitary: boolean }
       >();
 
       for (const frame of response.frames) {
@@ -113,8 +114,13 @@ export function useTracks(
         const [lng, lat] = coords;
         const t = new Date(event.event_time).getTime() / 1000;
         const type = event.event_type === "ship_position" ? "ship" : "aircraft";
+        
+        // Extract military classification from attributes
+        const attrs = (event.attributes ?? {}) as Record<string, unknown>;
+        const isMilitary = Boolean(attrs.is_military);
+        
         if (!entityMap.has(event.entity_id)) {
-          entityMap.set(event.entity_id, { waypoints: [], type });
+          entityMap.set(event.entity_id, { waypoints: [], type, isMilitary });
         }
         entityMap.get(event.entity_id)!.waypoints.push([
           lng,
@@ -128,12 +134,13 @@ export function useTracks(
         const sorted = data.waypoints.sort((a, b) => a[2] - b[2]);
         const segments = splitTrackSegments(sorted, data.type);
         if (segments.length <= 1) {
-          return [{ id, waypoints: sorted, entityType: data.type }];
+          return [{ id, waypoints: sorted, entityType: data.type, isMilitary: data.isMilitary }];
         }
         return segments.map((segment, index) => ({
           id: `${id}#${index + 1}`,
           waypoints: segment,
           entityType: data.type,
+          isMilitary: data.isMilitary,
         }));
       });
     },

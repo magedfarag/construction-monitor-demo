@@ -114,6 +114,7 @@ export const imageryApi = {
       cloud_cover: i.cloud_cover_pct,
       geometry: i.geometry as ImageryItem['geometry'],
       thumbnail_url: i.scene_url,
+      full_image_url: i.scene_url,
     }));
   },
   providers: () => request<ProviderStatus[]>('/api/v1/imagery/providers'),

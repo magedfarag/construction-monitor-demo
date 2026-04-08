@@ -1692,6 +1692,30 @@
         "documentation": {}
     },
     {
+        "label": "annotations",
+        "importPath": "__future__",
+        "description": "__future__",
+        "isExtraImport": true,
+        "detail": "__future__",
+        "documentation": {}
+    },
+    {
+        "label": "annotations",
+        "importPath": "__future__",
+        "description": "__future__",
+        "isExtraImport": true,
+        "detail": "__future__",
+        "documentation": {}
+    },
+    {
+        "label": "annotations",
+        "importPath": "__future__",
+        "description": "__future__",
+        "isExtraImport": true,
+        "detail": "__future__",
+        "documentation": {}
+    },
+    {
         "label": "op",
         "importPath": "alembic",
         "description": "alembic",
@@ -2488,6 +2512,14 @@
         "documentation": {}
     },
     {
+        "label": "Literal",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
         "label": "Any",
         "importPath": "typing",
         "description": "typing",
@@ -2865,6 +2897,14 @@
     },
     {
         "label": "List",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
         "importPath": "typing",
         "description": "typing",
         "isExtraImport": true,
@@ -3250,6 +3290,14 @@
         "documentation": {}
     },
     {
+        "label": "timedelta",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
         "label": "UTC",
         "importPath": "datetime",
         "description": "datetime",
@@ -4931,6 +4979,38 @@
     },
     {
         "label": "timezone",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "datetime",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "datetime",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "datetime",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "timedelta",
         "importPath": "datetime",
         "description": "datetime",
         "isExtraImport": true,
@@ -6069,6 +6149,14 @@
         "documentation": {}
     },
     {
+        "label": "AppMode",
+        "importPath": "app.config",
+        "description": "app.config",
+        "isExtraImport": true,
+        "detail": "app.config",
+        "documentation": {}
+    },
+    {
         "label": "get_settings",
         "importPath": "app.config",
         "description": "app.config",
@@ -6166,6 +6254,22 @@
     },
     {
         "label": "AppSettings",
+        "importPath": "app.config",
+        "description": "app.config",
+        "isExtraImport": true,
+        "detail": "app.config",
+        "documentation": {}
+    },
+    {
+        "label": "AppMode",
+        "importPath": "app.config",
+        "description": "app.config",
+        "isExtraImport": true,
+        "detail": "app.config",
+        "documentation": {}
+    },
+    {
+        "label": "get_settings",
         "importPath": "app.config",
         "description": "app.config",
         "isExtraImport": true,
@@ -7278,6 +7382,14 @@
     },
     {
         "label": "JSONResponse",
+        "importPath": "fastapi.responses",
+        "description": "fastapi.responses",
+        "isExtraImport": true,
+        "detail": "fastapi.responses",
+        "documentation": {}
+    },
+    {
+        "label": "Response",
         "importPath": "fastapi.responses",
         "description": "fastapi.responses",
         "isExtraImport": true,
@@ -9379,11 +9491,67 @@
         "documentation": {}
     },
     {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
         "label": "CORSMiddleware",
         "importPath": "fastapi.middleware.cors",
         "description": "fastapi.middleware.cors",
         "isExtraImport": true,
         "detail": "fastapi.middleware.cors",
+        "documentation": {}
+    },
+    {
+        "label": "StaticFiles",
+        "importPath": "fastapi.staticfiles",
+        "description": "fastapi.staticfiles",
+        "isExtraImport": true,
+        "detail": "fastapi.staticfiles",
         "documentation": {}
     },
     {
@@ -9741,19 +9909,188 @@
         "documentation": {}
     },
     {
-        "label": "Path",
-        "importPath": "pathlib",
-        "description": "pathlib",
+        "label": "random",
+        "kind": 6,
         "isExtraImport": true,
-        "detail": "pathlib",
+        "importPath": "random",
+        "description": "random",
+        "detail": "random",
         "documentation": {}
     },
     {
-        "label": "Path",
-        "importPath": "pathlib",
-        "description": "pathlib",
+        "label": "Point",
+        "importPath": "shapely.geometry",
+        "description": "shapely.geometry",
         "isExtraImport": true,
-        "detail": "pathlib",
+        "detail": "shapely.geometry",
+        "documentation": {}
+    },
+    {
+        "label": "box",
+        "importPath": "shapely.geometry",
+        "description": "shapely.geometry",
+        "isExtraImport": true,
+        "detail": "shapely.geometry",
+        "documentation": {}
+    },
+    {
+        "label": "shape",
+        "importPath": "shapely.geometry",
+        "description": "shapely.geometry",
+        "isExtraImport": true,
+        "detail": "shapely.geometry",
+        "documentation": {}
+    },
+    {
+        "label": "Point",
+        "importPath": "shapely.geometry",
+        "description": "shapely.geometry",
+        "isExtraImport": true,
+        "detail": "shapely.geometry",
+        "documentation": {}
+    },
+    {
+        "label": "Polygon",
+        "importPath": "shapely.geometry",
+        "description": "shapely.geometry",
+        "isExtraImport": true,
+        "detail": "shapely.geometry",
+        "documentation": {}
+    },
+    {
+        "label": "unary_union",
+        "importPath": "shapely.ops",
+        "description": "shapely.ops",
+        "isExtraImport": true,
+        "detail": "shapely.ops",
+        "documentation": {}
+    },
+    {
+        "label": "_LON_MAX",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_LON_MIN",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_LAT_MAX",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_LAT_MIN",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_NORTHBOUND_TEMPLATE",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_SOUTHBOUND_TEMPLATE",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_OMAN_COASTAL_TEMPLATE",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_NORTHBOUND_MIN_LAT",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_NORTHBOUND_EASTERN_MAX_LAT",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_SOUTHBOUND_MIN_LAT",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_SOUTHBOUND_MUSANDAM_MAX_LAT",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_OMAN_COAST_MIN_LAT",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_OMAN_COAST_MAX_LAT",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_SHIP_ROUTES",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_interp_route",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_deterministic_lane_route",
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "isExtraImport": true,
+        "detail": "src.services.demo_seeder",
         "documentation": {}
     },
     {
@@ -14286,15 +14623,6 @@
         "documentation": {}
     },
     {
-        "label": "random",
-        "kind": 6,
-        "isExtraImport": true,
-        "importPath": "random",
-        "description": "random",
-        "detail": "random",
-        "documentation": {}
-    },
-    {
         "label": "EventSearchRequest",
         "importPath": "src.models.event_search",
         "description": "src.models.event_search",
@@ -16359,6 +16687,30 @@
         "documentation": {}
     },
     {
+        "label": "get_vessel_by_mmsi",
+        "importPath": "src.services.vessel_registry",
+        "description": "src.services.vessel_registry",
+        "isExtraImport": true,
+        "detail": "src.services.vessel_registry",
+        "documentation": {}
+    },
+    {
+        "label": "get_vessel_by_mmsi",
+        "importPath": "src.services.vessel_registry",
+        "description": "src.services.vessel_registry",
+        "isExtraImport": true,
+        "detail": "src.services.vessel_registry",
+        "documentation": {}
+    },
+    {
+        "label": "get_vessel_by_mmsi",
+        "importPath": "src.services.vessel_registry",
+        "description": "src.services.vessel_registry",
+        "isExtraImport": true,
+        "detail": "src.services.vessel_registry",
+        "documentation": {}
+    },
+    {
         "label": "SanctionsStatus",
         "importPath": "src.services.vessel_registry",
         "description": "src.services.vessel_registry",
@@ -16404,6 +16756,38 @@
         "description": "src.services.vessel_registry",
         "isExtraImport": true,
         "detail": "src.services.vessel_registry",
+        "documentation": {}
+    },
+    {
+        "label": "classify_vessel",
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "isExtraImport": true,
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "classify_aircraft",
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "isExtraImport": true,
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "classify_vessel",
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "isExtraImport": true,
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "classify_vessel",
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "isExtraImport": true,
+        "detail": "src.services.entity_classification",
         "documentation": {}
     },
     {
@@ -17180,22 +17564,6 @@
         "documentation": {}
     },
     {
-        "label": "Point",
-        "importPath": "shapely.geometry",
-        "description": "shapely.geometry",
-        "isExtraImport": true,
-        "detail": "shapely.geometry",
-        "documentation": {}
-    },
-    {
-        "label": "Polygon",
-        "importPath": "shapely.geometry",
-        "description": "shapely.geometry",
-        "isExtraImport": true,
-        "detail": "shapely.geometry",
-        "documentation": {}
-    },
-    {
         "label": "demo_seeder",
         "importPath": "src.services",
         "description": "src.services",
@@ -17723,6 +18091,15 @@
         "importPath": "traceback",
         "description": "traceback",
         "detail": "traceback",
+        "documentation": {}
+    },
+    {
+        "label": "subprocess",
+        "kind": 6,
+        "isExtraImport": true,
+        "importPath": "subprocess",
+        "description": "subprocess",
+        "detail": "subprocess",
         "documentation": {}
     },
     {
@@ -19224,7 +19601,16 @@
         "kind": 5,
         "importPath": "app.main",
         "description": "app.main",
-        "peekOfCode": "app = FastAPI(\n    title=\"ARGUS — Multi-Domain Surveillance Intelligence\",\n    version=\"2.0.0\",\n    description=\"Multi-domain surveillance: ships, aircraft, satellites, events, and signals intelligence.\",\n    lifespan=lifespan,\n)\n# Rate limiter — mount on app state so slowapi can access it\napp.state.limiter = limiter\napp.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)\n# CORS Configuration: Restrict to configured origins; deny by default.",
+        "peekOfCode": "app = FastAPI(\n    title=\"ARGUS — Multi-Domain Surveillance Intelligence\",\n    version=\"2.0.0\",\n    description=\"Multi-domain surveillance: ships, aircraft, satellites, events, and signals intelligence.\",\n    lifespan=lifespan,\n)\n_STATIC_ROOT = Path(__file__).resolve().parent / \"static\"\n_STATIC_ROOT.mkdir(parents=True, exist_ok=True)\n(_STATIC_ROOT / \"assets\").mkdir(parents=True, exist_ok=True)\n(_STATIC_ROOT / \"demo\" / \"clips\").mkdir(parents=True, exist_ok=True)",
+        "detail": "app.main",
+        "documentation": {}
+    },
+    {
+        "label": "_STATIC_ROOT",
+        "kind": 5,
+        "importPath": "app.main",
+        "description": "app.main",
+        "peekOfCode": "_STATIC_ROOT = Path(__file__).resolve().parent / \"static\"\n_STATIC_ROOT.mkdir(parents=True, exist_ok=True)\n(_STATIC_ROOT / \"assets\").mkdir(parents=True, exist_ok=True)\n(_STATIC_ROOT / \"demo\" / \"clips\").mkdir(parents=True, exist_ok=True)\napp.mount(\"/static\", StaticFiles(directory=_STATIC_ROOT), name=\"static\")\napp.mount(\"/demo\", StaticFiles(directory=_STATIC_ROOT / \"demo\"), name=\"demo\")\n# Rate limiter — mount on app state so slowapi can access it\napp.state.limiter = limiter\napp.add_exception_handler(RateLimitExceeded, rate_limit_error_handler)\n# CORS Configuration: Restrict to configured origins; deny by default.",
         "detail": "app.main",
         "documentation": {}
     },
@@ -19514,6 +19900,60 @@
         "description": "scripts.validate_ships",
         "peekOfCode": "def main():\n    # Load playback response\n    data = json.loads(Path(\"playback_response.json\").read_text())\n    # Extract all events from frames\n    all_events = []\n    for frame in data['frames']:\n        all_events.extend(frame['events'])\n    print(f\"Total events: {len(all_events)}\")\n    print(f\"Total frames: {data['total_frames']}\")\n    # Filter for flagged MMSIs",
         "detail": "scripts.validate_ships",
+        "documentation": {}
+    },
+    {
+        "label": "verify",
+        "kind": 2,
+        "importPath": "scripts.verify_ships_no_land",
+        "description": "scripts.verify_ships_no_land",
+        "peekOfCode": "def verify() -> int:\n    \"\"\"Return 0 if all ships clear land, 1 if any violation found.\"\"\"\n    all_positions = _all_ship_positions()\n    total_ships = len(all_positions)\n    total_points = sum(len(v) for v in all_positions.values())\n    print(f\"\\nChecking {total_ships} ships × {total_points // total_ships} positions \"\n          f\"= {total_points} points against land …\\n\")\n    violations: dict[str, list[tuple[int, float, float]]] = {}  # mmsi → [(idx, lon, lat)]\n    for mmsi, positions in all_positions.items():\n        ship_violations: list[tuple[int, float, float]] = []",
+        "detail": "scripts.verify_ships_no_land",
+        "documentation": {}
+    },
+    {
+        "label": "ROOT",
+        "kind": 5,
+        "importPath": "scripts.verify_ships_no_land",
+        "description": "scripts.verify_ships_no_land",
+        "peekOfCode": "ROOT = Path(__file__).resolve().parent.parent\nsys.path.insert(0, str(ROOT))\nfrom src.services.demo_seeder import (\n    _LON_MAX,\n    _LON_MIN,\n    _LAT_MAX,\n    _LAT_MIN,\n    _NORTHBOUND_TEMPLATE,\n    _SOUTHBOUND_TEMPLATE,\n    _OMAN_COASTAL_TEMPLATE,",
+        "detail": "scripts.verify_ships_no_land",
+        "documentation": {}
+    },
+    {
+        "label": "GEOJSON_PATH",
+        "kind": 5,
+        "importPath": "scripts.verify_ships_no_land",
+        "description": "scripts.verify_ships_no_land",
+        "peekOfCode": "GEOJSON_PATH = ROOT / \"ne_10m_land.geojson\"\nif not GEOJSON_PATH.exists():\n    print(\"ERROR: ne_10m_land.geojson not found in project root.\")\n    print(\"  Download with:\")\n    print(\"  python -c \\\"import urllib.request; urllib.request.urlretrieve(\")\n    print(\"    'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_land.geojson',\")\n    print(\"    'ne_10m_land.geojson')\\\"\")\n    sys.exit(1)\n_MARGIN = 0.1          # Small margin outside AOI so we don't clip coastlines at the exact boundary\nAOI_BOX = box(",
+        "detail": "scripts.verify_ships_no_land",
+        "documentation": {}
+    },
+    {
+        "label": "_MARGIN",
+        "kind": 5,
+        "importPath": "scripts.verify_ships_no_land",
+        "description": "scripts.verify_ships_no_land",
+        "peekOfCode": "_MARGIN = 0.1          # Small margin outside AOI so we don't clip coastlines at the exact boundary\nAOI_BOX = box(\n    _LON_MIN - _MARGIN,\n    _LAT_MIN - _MARGIN,\n    _LON_MAX + _MARGIN,\n    _LAT_MAX + _MARGIN,\n)\nprint(\"Loading Natural Earth land polygons …\")\nraw = json.loads(GEOJSON_PATH.read_text(encoding=\"utf-8\"))\nland_parts: list = []",
+        "detail": "scripts.verify_ships_no_land",
+        "documentation": {}
+    },
+    {
+        "label": "AOI_BOX",
+        "kind": 5,
+        "importPath": "scripts.verify_ships_no_land",
+        "description": "scripts.verify_ships_no_land",
+        "peekOfCode": "AOI_BOX = box(\n    _LON_MIN - _MARGIN,\n    _LAT_MIN - _MARGIN,\n    _LON_MAX + _MARGIN,\n    _LAT_MAX + _MARGIN,\n)\nprint(\"Loading Natural Earth land polygons …\")\nraw = json.loads(GEOJSON_PATH.read_text(encoding=\"utf-8\"))\nland_parts: list = []\nfor feat in raw[\"features\"]:",
+        "detail": "scripts.verify_ships_no_land",
+        "documentation": {}
+    },
+    {
+        "label": "raw",
+        "kind": 5,
+        "importPath": "scripts.verify_ships_no_land",
+        "description": "scripts.verify_ships_no_land",
+        "peekOfCode": "raw = json.loads(GEOJSON_PATH.read_text(encoding=\"utf-8\"))\nland_parts: list = []\nfor feat in raw[\"features\"]:\n    geom = shape(feat[\"geometry\"])\n    clipped = geom.intersection(AOI_BOX)\n    if not clipped.is_empty:\n        land_parts.append(clipped)\nif not land_parts:\n    print(\"WARNING: No land polygons found within the AOI extent. \"\n          \"The downloaded file may be a simplified/low-res version. \"",
+        "detail": "scripts.verify_ships_no_land",
         "documentation": {}
     },
     {
@@ -20880,7 +21320,7 @@
         "kind": 2,
         "importPath": "src.api.playback",
         "description": "src.api.playback",
-        "peekOfCode": "def query_playback(\n    req: PlaybackQueryRequest,\n    _rl: None = Depends(heavy_endpoint_rate_limit),\n) -> PlaybackQueryResponse:\n    if req.end_time <= req.start_time:\n        raise HTTPException(\n            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,\n            detail=\"end_time must be after start_time\",\n        )\n    svc = get_playback_service()",
+        "peekOfCode": "def query_playback(\n    req: PlaybackQueryRequest,\n    _rl: None = Depends(heavy_endpoint_rate_limit),\n) -> Response:\n    if req.end_time <= req.start_time:\n        raise HTTPException(\n            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,\n            detail=\"end_time must be after start_time\",\n        )\n    # Build a stable cache key from the request fields that affect results.",
         "detail": "src.api.playback",
         "documentation": {}
     },
@@ -20894,11 +21334,11 @@
         "documentation": {}
     },
     {
-        "label": "get_playback_job",
+        "label": "get_job",
         "kind": 2,
         "importPath": "src.api.playback",
         "description": "src.api.playback",
-        "peekOfCode": "def get_playback_job(job_id: str) -> PlaybackJobStatus:\n    svc = get_playback_service()\n    result = svc.get_job(job_id)\n    if result is None:\n        raise HTTPException(\n            status_code=status.HTTP_404_NOT_FOUND,\n            detail=f\"Playback job '{job_id}' not found.\",\n        )\n    return result\n@router.get(",
+        "peekOfCode": "def get_job(\n    job_id: str,\n    _rl: None = Depends(heavy_endpoint_rate_limit),\n) -> PlaybackJobStatus:\n    svc = get_playback_service()\n    result = svc.get_job(job_id)\n    if result is None:\n        raise HTTPException(\n            status_code=status.HTTP_404_NOT_FOUND,\n            detail=f\"Playback job '{job_id}' not found.\",",
         "detail": "src.api.playback",
         "documentation": {}
     },
@@ -21114,7 +21554,7 @@
         "kind": 6,
         "importPath": "src.connectors.acled",
         "description": "src.connectors.acled",
-        "peekOfCode": "class AcledConnector(BaseConnector):\n    \"\"\"ACLED Armed Conflict Location & Event Data connector.\n    Produces ``conflict_event`` CanonicalEvents for armed clashes,\n    air/drone strikes, explosions, and civilian violence. Highly relevant\n    for MENA/Gulf intelligence: covers Yemen, Iraq, Syria, Lebanon,\n    Saudi Arabia, UAE, and surrounding regions.\n    \"\"\"\n    connector_id = \"acled\"\n    display_name = \"ACLED (Armed Conflict Location & Event Data)\"\n    source_type = \"public_record\"",
+        "peekOfCode": "class AcledConnector(BaseConnector):\n    \"\"\"ACLED Armed Conflict Location & Event Data connector.\n    Produces ``conflict_event`` CanonicalEvents for armed clashes,\n    air/drone strikes, explosions, and civilian violence. Highly relevant\n    for MENA/Gulf intelligence: covers Yemen, Iraq, Syria, Lebanon,\n    Saudi Arabia, UAE, and surrounding regions.\n    Uses OAuth2 password grant flow for authentication.\n    \"\"\"\n    connector_id = \"acled\"\n    display_name = \"ACLED (Armed Conflict Location & Event Data)\"",
         "detail": "src.connectors.acled",
         "documentation": {}
     },
@@ -21123,7 +21563,16 @@
         "kind": 5,
         "importPath": "src.connectors.acled",
         "description": "src.connectors.acled",
-        "peekOfCode": "log = logging.getLogger(__name__)\n_DEFAULT_API_URL = \"https://api.acleddata.com/acled/read.php\"\n_LICENSE = LicenseRecord(\n    access_tier=\"public\",\n    commercial_use=\"allowed-with-terms\",\n    redistribution=\"check-provider-terms\",\n    attribution_required=True,\n)\n# ACLED sub-event-type → confidence scoring\n_SUB_TYPE_CONFIDENCE: dict[str, float] = {",
+        "peekOfCode": "log = logging.getLogger(__name__)\n_DEFAULT_TOKEN_URL = \"https://acleddata.com/oauth/token\"\n_DEFAULT_API_URL = \"https://acleddata.com/api/acled/read\"\n_LICENSE = LicenseRecord(\n    access_tier=\"public\",\n    commercial_use=\"allowed-with-terms\",\n    redistribution=\"check-provider-terms\",\n    attribution_required=True,\n)\n# ACLED sub-event-type → confidence scoring",
+        "detail": "src.connectors.acled",
+        "documentation": {}
+    },
+    {
+        "label": "_DEFAULT_TOKEN_URL",
+        "kind": 5,
+        "importPath": "src.connectors.acled",
+        "description": "src.connectors.acled",
+        "peekOfCode": "_DEFAULT_TOKEN_URL = \"https://acleddata.com/oauth/token\"\n_DEFAULT_API_URL = \"https://acleddata.com/api/acled/read\"\n_LICENSE = LicenseRecord(\n    access_tier=\"public\",\n    commercial_use=\"allowed-with-terms\",\n    redistribution=\"check-provider-terms\",\n    attribution_required=True,\n)\n# ACLED sub-event-type → confidence scoring\n_SUB_TYPE_CONFIDENCE: dict[str, float] = {",
         "detail": "src.connectors.acled",
         "documentation": {}
     },
@@ -21132,7 +21581,7 @@
         "kind": 5,
         "importPath": "src.connectors.acled",
         "description": "src.connectors.acled",
-        "peekOfCode": "_DEFAULT_API_URL = \"https://api.acleddata.com/acled/read.php\"\n_LICENSE = LicenseRecord(\n    access_tier=\"public\",\n    commercial_use=\"allowed-with-terms\",\n    redistribution=\"check-provider-terms\",\n    attribution_required=True,\n)\n# ACLED sub-event-type → confidence scoring\n_SUB_TYPE_CONFIDENCE: dict[str, float] = {\n    \"Air/drone strike\": 0.95,",
+        "peekOfCode": "_DEFAULT_API_URL = \"https://acleddata.com/api/acled/read\"\n_LICENSE = LicenseRecord(\n    access_tier=\"public\",\n    commercial_use=\"allowed-with-terms\",\n    redistribution=\"check-provider-terms\",\n    attribution_required=True,\n)\n# ACLED sub-event-type → confidence scoring\n_SUB_TYPE_CONFIDENCE: dict[str, float] = {\n    \"Air/drone strike\": 0.95,",
         "detail": "src.connectors.acled",
         "documentation": {}
     },
@@ -23553,7 +24002,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_CRITICAL_STRAIT_LON_MIN = 56.05\n_CRITICAL_STRAIT_LON_MAX = 56.78\n_NORTHBOUND_MIN_LAT = 26.44\n_SOUTHBOUND_MAX_LAT = 26.10\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 25.62\n_SOUTHBOUND_MIN_LAT = 25.50\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58",
+        "peekOfCode": "_CRITICAL_STRAIT_LON_MIN = 56.05\n_CRITICAL_STRAIT_LON_MAX = 56.78\n_NORTHBOUND_MIN_LAT = 26.44\n_SOUTHBOUND_MAX_LAT = 26.44          # upper bound — stays below northbound lane\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 26.28  # lower bound in crit. strait — must be north of Musandam\n_SOUTHBOUND_MIN_LAT = 25.40          # Gulf-of-Oman exit floor\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23562,7 +24011,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_CRITICAL_STRAIT_LON_MAX = 56.78\n_NORTHBOUND_MIN_LAT = 26.44\n_SOUTHBOUND_MAX_LAT = 26.10\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 25.62\n_SOUTHBOUND_MIN_LAT = 25.50\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0",
+        "peekOfCode": "_CRITICAL_STRAIT_LON_MAX = 56.78\n_NORTHBOUND_MIN_LAT = 26.44\n_SOUTHBOUND_MAX_LAT = 26.44          # upper bound — stays below northbound lane\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 26.28  # lower bound in crit. strait — must be north of Musandam\n_SOUTHBOUND_MIN_LAT = 25.40          # Gulf-of-Oman exit floor\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23571,7 +24020,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_NORTHBOUND_MIN_LAT = 26.44\n_SOUTHBOUND_MAX_LAT = 26.10\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 25.62\n_SOUTHBOUND_MIN_LAT = 25.50\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [",
+        "peekOfCode": "_NORTHBOUND_MIN_LAT = 26.44\n_SOUTHBOUND_MAX_LAT = 26.44          # upper bound — stays below northbound lane\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 26.28  # lower bound in crit. strait — must be north of Musandam\n_SOUTHBOUND_MIN_LAT = 25.40          # Gulf-of-Oman exit floor\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23580,7 +24029,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_SOUTHBOUND_MAX_LAT = 26.10\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 25.62\n_SOUTHBOUND_MIN_LAT = 25.50\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),",
+        "peekOfCode": "_SOUTHBOUND_MAX_LAT = 26.44          # upper bound — stays below northbound lane\n_SOUTHBOUND_MUSANDAM_MAX_LAT = 26.28  # lower bound in crit. strait — must be north of Musandam\n_SOUTHBOUND_MIN_LAT = 25.40          # Gulf-of-Oman exit floor\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23589,7 +24038,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_SOUTHBOUND_MUSANDAM_MAX_LAT = 25.62\n_SOUTHBOUND_MIN_LAT = 25.50\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),\n    (57.02, 26.53),",
+        "peekOfCode": "_SOUTHBOUND_MUSANDAM_MAX_LAT = 26.28  # lower bound in crit. strait — must be north of Musandam\n_SOUTHBOUND_MIN_LAT = 25.40          # Gulf-of-Oman exit floor\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)\n    (57.02, 26.53),",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23598,7 +24047,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_SOUTHBOUND_MIN_LAT = 25.50\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),\n    (57.02, 26.53),\n    (56.74, 26.54),",
+        "peekOfCode": "_SOUTHBOUND_MIN_LAT = 25.40          # Gulf-of-Oman exit floor\n_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)\n    (57.02, 26.53),\n    (56.74, 26.54),",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23607,7 +24056,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),",
+        "peekOfCode": "_OMAN_COAST_MAX_LAT = 25.62\n_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23616,7 +24065,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),",
+        "peekOfCode": "_OMAN_COAST_MIN_LAT = 25.50\n_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23625,7 +24074,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),\n    (55.58, 26.52),",
+        "peekOfCode": "_MUSANDAM_ROUNDING_MAX_LAT = 26.22\n_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),\n    (55.58, 26.52),",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23634,7 +24083,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),\n    (55.58, 26.52),\n]",
+        "peekOfCode": "_NORTHBOUND_EASTERN_MAX_LAT = 26.58\n_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),\n    (55.58, 26.52),\n]",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23643,7 +24092,7 @@
         "kind": 5,
         "importPath": "src.services.demo_seeder",
         "description": "src.services.demo_seeder",
-        "peekOfCode": "_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (57.30, 26.52),\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),\n    (55.58, 26.52),\n]\n_SOUTHBOUND_TEMPLATE: list[tuple[float, float]] = [",
+        "peekOfCode": "_AIRCRAFT_MIN_ALTITUDE_M = 4500.0\n_NORTHBOUND_TEMPLATE: list[tuple[float, float]] = [\n    (56.95, 26.52),  # moved west of Iranian coast (land east of ~57.08°E at this latitude)\n    (57.02, 26.53),\n    (56.74, 26.54),\n    (56.40, 26.56),\n    (56.00, 26.56),\n    (55.58, 26.52),\n]\n_SOUTHBOUND_TEMPLATE: list[tuple[float, float]] = [",
         "detail": "src.services.demo_seeder",
         "documentation": {}
     },
@@ -23699,6 +24148,87 @@
         "description": "src.services.demo_seeder",
         "peekOfCode": "_IMAGERY_SCENES = [\n    (\"Sentinel-2A\", \"copernicus-cdse\", \"sentinel-2-l2a\", 56.34, 26.56, 0.34, 0.22, \"Inbound TSS\"),\n    (\"Sentinel-2B\", \"copernicus-cdse\", \"sentinel-2-l2a\", 56.16, 25.98, 0.34, 0.22, \"Outbound TSS\"),\n    (\"Landsat-9\", \"usgs-landsat\", \"landsat-c2-l2\", 56.34, 25.14, 0.36, 0.24, \"Fujairah Port\"),\n    (\"Sentinel-2A\", \"earth-search\", \"sentinel-2-l2a\", 56.28, 27.06, 0.32, 0.22, \"Bandar Abbas\"),\n    (\"Sentinel-2B\", \"copernicus-cdse\", \"sentinel-2-l2a\", 56.74, 26.58, 0.34, 0.20, \"Qeshm South\"),\n    (\"Landsat-9\", \"usgs-landsat\", \"landsat-c2-l2\", 55.06, 25.08, 0.34, 0.24, \"Jebel Ali\"),\n    (\"Sentinel-2A\", \"earth-search\", \"sentinel-2-l2a\", 56.62, 25.96, 0.28, 0.18, \"Musandam Approaches\"),\n    (\"Sentinel-2B\", \"copernicus-cdse\", \"sentinel-2-l2a\", 56.46, 25.18, 0.28, 0.18, \"Fujairah Anchorage\"),\n    (\"Landsat-9\", \"usgs-landsat\", \"landsat-c2-l2\", 55.03, 25.88, 0.26, 0.18, \"Abu Musa\"),",
         "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "_DEMO_IMAGERY_PREVIEWS",
+        "kind": 5,
+        "importPath": "src.services.demo_seeder",
+        "description": "src.services.demo_seeder",
+        "peekOfCode": "_DEMO_IMAGERY_PREVIEWS = {\n    \"copernicus-cdse\": \"/static/assets/demo-imagery/sentinel-2.jpg\",\n    \"earth-search\": \"/static/assets/demo-imagery/earth-search.jpg\",\n    \"usgs-landsat\": \"/static/assets/demo-imagery/landsat-9.jpg\",\n}\ndef _imagery_events() -> list[CanonicalEvent]:\n    events: list[CanonicalEvent] = []\n    rng = random.Random(55)\n    for i, (platform, source, collection, cx, cy, hw, hh, label) in enumerate(_IMAGERY_SCENES):\n        _validate_point_in_aoi(label, cx, cy)",
+        "detail": "src.services.demo_seeder",
+        "documentation": {}
+    },
+    {
+        "label": "classify_vessel",
+        "kind": 2,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "def classify_vessel(\n    vessel_type: str | None,\n    owner: str | None = None,\n    operator: str | None = None,\n    vessel_name: str | None = None,\n) -> Literal[\"military\", \"civilian\"]:\n    \"\"\"\n    Classify a vessel as military or civilian based on type, owner, operator, and name.\n    Args:\n        vessel_type: Vessel type (e.g., \"VLCC\", \"Patrol Craft\")",
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "classify_aircraft",
+        "kind": 2,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "def classify_aircraft(\n    callsign: str | None,\n    origin_country: str | None = None,\n    icao24: str | None = None,\n) -> Literal[\"military\", \"civilian\", \"unknown\"]:\n    \"\"\"\n    Classify an aircraft as military or civilian based on callsign and origin.\n    Args:\n        callsign: Aircraft callsign\n        origin_country: Country of origin/registration",
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "classify_projectile",
+        "kind": 2,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "def classify_projectile(\n    projectile_type: str | None,\n    source: str | None = None,\n) -> Literal[\"military\", \"civilian\"]:\n    \"\"\"\n    Classify a projectile/missile (future implementation).\n    Args:\n        projectile_type: Type of projectile\n        source: Source/operator\n    Returns:",
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "MILITARY_VESSEL_TYPES",
+        "kind": 5,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "MILITARY_VESSEL_TYPES = {\n    \"Patrol Craft\",\n    \"Patrol\",\n    \"Corvette\",\n    \"Frigate\",\n    \"Destroyer\",\n    \"Cruiser\",\n    \"Submarine\",\n    \"Aircraft Carrier\",\n    \"Amphibious\",",
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "MILITARY_OPERATORS",
+        "kind": 5,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "MILITARY_OPERATORS = {\n    \"IRGC Navy\",\n    \"IRGC\",\n    \"Navy\",\n    \"Naval\",\n    \"Military\",\n    \"Defense\",\n    \"Coast Guard\",  # Paramilitary\n}\nMILITARY_OWNER_KEYWORDS = {",
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "MILITARY_OWNER_KEYWORDS",
+        "kind": 5,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "MILITARY_OWNER_KEYWORDS = {\n    \"Navy\",\n    \"IRGC\",\n    \"Military\",\n    \"Defense\",\n    \"Armed Forces\",\n    \"Coast Guard\",\n}\ndef classify_vessel(\n    vessel_type: str | None,",
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "MILITARY_AIRCRAFT_CALLSIGN_PREFIXES",
+        "kind": 5,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "MILITARY_AIRCRAFT_CALLSIGN_PREFIXES = {\n    # US Military\n    \"RCH\",      # Reach (USAF transport)\n    \"CNV\",      # Convoy (USAF transport)\n    \"EVAC\",     # Medical evacuation\n    \"RCHD\",     # Reach medical\n    \"BOXER\",    # C-17 callsign\n    \"PAT\",      # Patrol\n    \"SPAR\",     # Special Air Resource (USAF)\n    \"DAWG\",     # E-3 AWACS",
+        "detail": "src.services.entity_classification",
+        "documentation": {}
+    },
+    {
+        "label": "MILITARY_ORIGIN_COUNTRIES_WITH_MILITARY_ACTIVITY",
+        "kind": 5,
+        "importPath": "src.services.entity_classification",
+        "description": "src.services.entity_classification",
+        "peekOfCode": "MILITARY_ORIGIN_COUNTRIES_WITH_MILITARY_ACTIVITY = {\n    \"United States\",\n    \"Iran\",\n    \"Saudi Arabia\",\n    \"United Arab Emirates\",\n    \"Qatar\",\n    \"Bahrain\",\n    \"Oman\",\n    \"United Kingdom\",\n    \"France\",",
+        "detail": "src.services.entity_classification",
         "documentation": {}
     },
     {
@@ -28881,7 +29411,7 @@
         "kind": 6,
         "importPath": "tests.unit.test_military_source_connectors",
         "description": "tests.unit.test_military_source_connectors",
-        "peekOfCode": "class TestAcledConnector:\n    def test_init_raises_without_api_key(self):\n        with pytest.raises(ValueError, match=\"API key\"):\n            AcledConnector(api_key=\"\", email=\"test@example.com\")\n    def test_init_raises_without_email(self):\n        with pytest.raises(ValueError, match=\"email\"):\n            AcledConnector(api_key=\"k\", email=\"\")\n    def test_connect_ok(self):\n        mock_resp = _mock_response({\"status\": 200, \"data\": [_acled_record()]})\n        with patch(\"httpx.get\", return_value=mock_resp):",
+        "peekOfCode": "class TestAcledConnector:\n    def test_init_raises_without_email(self):\n        with pytest.raises(ValueError, match=\"email\"):\n            AcledConnector(email=\"\", password=\"test-password\")\n    def test_init_raises_without_password(self):\n        with pytest.raises(ValueError, match=\"password\"):\n            AcledConnector(email=\"test@example.com\", password=\"\")\n    def test_connect_ok(self):\n        mock_token_resp = _mock_response({\"access_token\": \"test-token\", \"expires_in\": 86400})\n        mock_api_resp = _mock_response({\"status\": 200, \"data\": [_acled_record()]})",
         "detail": "tests.unit.test_military_source_connectors",
         "documentation": {}
     },
@@ -31496,6 +32026,60 @@
         "documentation": {}
     },
     {
+        "label": "run_command",
+        "kind": 2,
+        "importPath": "generate_status_report",
+        "description": "generate_status_report",
+        "peekOfCode": "def run_command(cmd, timeout=10):\n    \"\"\"Run a command and return output.\"\"\"\n    try:\n        result = subprocess.run(\n            cmd,\n            capture_output=True,\n            text=True,\n            timeout=timeout,\n            shell=True\n        )",
+        "detail": "generate_status_report",
+        "documentation": {}
+    },
+    {
+        "label": "check_docker_status",
+        "kind": 2,
+        "importPath": "generate_status_report",
+        "description": "generate_status_report",
+        "peekOfCode": "def check_docker_status():\n    \"\"\"Check Docker engine and container status.\"\"\"\n    status = {\n        'engine': 'UNKNOWN',\n        'version': 'N/A',\n        'containers_running': 0,\n        'containers_total': 0,\n        'container_details': []\n    }\n    # Check Docker version",
+        "detail": "generate_status_report",
+        "documentation": {}
+    },
+    {
+        "label": "check_docker_compose_status",
+        "kind": 2,
+        "importPath": "generate_status_report",
+        "description": "generate_status_report",
+        "peekOfCode": "def check_docker_compose_status():\n    \"\"\"Check docker-compose services.\"\"\"\n    status = {\n        'services': [],\n        'status': 'UNKNOWN'\n    }\n    code, stdout, stderr = run_command('docker-compose ps --format json', timeout=10)\n    if code == 0 and stdout:\n        try:\n            services = [json.loads(line) for line in stdout.split('\\n') if line.strip()]",
+        "detail": "generate_status_report",
+        "documentation": {}
+    },
+    {
+        "label": "check_env_configuration",
+        "kind": 2,
+        "importPath": "generate_status_report",
+        "description": "generate_status_report",
+        "peekOfCode": "def check_env_configuration():\n    \"\"\"Check .env file configuration.\"\"\"\n    config = {\n        'file_exists': False,\n        'total_vars': 0,\n        'configured_vars': 0,\n        'key_apis': {}\n    }\n    env_file = Path('.env')\n    if env_file.exists():",
+        "detail": "generate_status_report",
+        "documentation": {}
+    },
+    {
+        "label": "generate_report",
+        "kind": 2,
+        "importPath": "generate_status_report",
+        "description": "generate_status_report",
+        "peekOfCode": "def generate_report():\n    \"\"\"Generate comprehensive status report.\"\"\"\n    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')\n    print(\"=\" * 100)\n    print(\" \" * 20 + \"ARGUS PLATFORM - COMPREHENSIVE SERVICES STATUS REPORT\")\n    print(\"=\" * 100)\n    print(f\"Generated: {timestamp}\")\n    print(f\"Report Type: Infrastructure & External Services Verification\")\n    print(\"=\" * 100)\n    print()",
+        "detail": "generate_status_report",
+        "documentation": {}
+    },
+    {
+        "label": "services",
+        "kind": 5,
+        "importPath": "status_check",
+        "description": "status_check",
+        "peekOfCode": "services = {\n    'redis': 'Redis Cache',\n    'db': 'PostgreSQL/PostGIS',\n    'minio': 'Object Storage',\n    'api': 'FastAPI Application',\n    'worker': 'Celery Worker',\n    'beat': 'Celery Scheduler'\n}\nfor svc, desc in services.items():\n    print(f'  {svc:12s} : {desc}')",
+        "detail": "status_check",
+        "documentation": {}
+    },
+    {
         "label": "BASE",
         "kind": 5,
         "importPath": "test_connectivity",
@@ -31601,6 +32185,24 @@
         "description": "test_connectivity",
         "peekOfCode": "dt = time.time() - t0\nif r3.ok:\n    d3 = r3.json()\n    print(f\"  OK ({dt:.1f}s) | Analysis: {d3['analysis_id'][:20]}... | Changes: {len(d3['changes'])}\")\n    for c in d3[\"changes\"]:\n        print(f\"    {c['change_type']} | confidence={c['confidence']}%\")\nelse:\n    print(f\"  FAIL ({r3.status_code}) {r3.text[:200]}\")\nprint(\"\\n\" + \"=\" * 60)\nprint(\"  DONE\")",
         "detail": "test_connectivity",
+        "documentation": {}
+    },
+    {
+        "label": "DataSourceReport",
+        "kind": 6,
+        "importPath": "verify_data_sources",
+        "description": "verify_data_sources",
+        "peekOfCode": "class DataSourceReport:\n    \"\"\"Generates comprehensive report of all data sources.\"\"\"\n    def __init__(self):\n        self.settings = get_settings()\n        self.results = {\n            \"timestamp\": datetime.utcnow().isoformat(),\n            \"app_mode\": self.settings.app_mode.value,\n            \"v1_providers\": {},\n            \"v2_connectors\": {},\n            \"infrastructure\": {},",
+        "detail": "verify_data_sources",
+        "documentation": {}
+    },
+    {
+        "label": "project_root",
+        "kind": 5,
+        "importPath": "verify_data_sources",
+        "description": "verify_data_sources",
+        "peekOfCode": "project_root = Path(__file__).parent\nsys.path.insert(0, str(project_root))\nfrom app.config import AppMode, get_settings\nclass DataSourceReport:\n    \"\"\"Generates comprehensive report of all data sources.\"\"\"\n    def __init__(self):\n        self.settings = get_settings()\n        self.results = {\n            \"timestamp\": datetime.utcnow().isoformat(),\n            \"app_mode\": self.settings.app_mode.value,",
+        "detail": "verify_data_sources",
         "documentation": {}
     }
 ]
