@@ -608,12 +608,33 @@ async function getVisibleLayerCounts(
 }
 
 test.describe("Exploratory Full Walkthrough", () => {
-  test("records a full cross-panel exploratory pass", async ({ page }, testInfo) => {
+  test("records a full cross-panel exploratory pass", async ({ browser }, testInfo) => {
     test.slow();
 
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
     const observations: string[] = [];
+    const warmupContext = await browser.newContext({ viewport: DEMO_VIEWPORT });
+    const warmupPage = await warmupContext.newPage();
+
+    await loadDemoApp(warmupPage, RECORDING_WARMUP_MS);
+    observations.push(`Warm-up completed for ${RECORDING_WARMUP_MS} ms before recording.`);
+    try {
+      await Promise.race([
+        warmupPage.goto("about:blank", { waitUntil: "domcontentloaded" }),
+        new Promise(resolve => setTimeout(resolve, 5_000)),
+      ]);
+    } catch {
+      // Ignore warm-up cleanup failures.
+    }
+    await warmupContext.close();
+
+    const context = await browser.newContext({
+      viewport: DEMO_VIEWPORT,
+      recordVideo: { dir: testInfo.outputDir, size: DEMO_VIEWPORT },
+    });
+    const page = await context.newPage();
+    const recordedVideo = page.video();
 
     observations.push(`Auth configured for walkthrough: ${Boolean(backendApiKey)}`);
 
@@ -622,15 +643,9 @@ test.describe("Exploratory Full Walkthrough", () => {
     });
     page.on("pageerror", (err) => pageErrors.push(err.message));
 
-    await primeAppState(page);
-    await page.goto("/?demoMode=true");
-    logDemo("app loaded");
+    await loadDemoApp(page, DEMO_PACING.short);
 
-    await expect(page.getByRole("heading", { name: "ARGUS" })).toBeVisible({ timeout: 20_000 });
-    await expect(page.locator(".live-badge")).toContainText("LIVE");
-    await waitForArgusMap(page);
-    await expect(page.getByTestId("globe-container")).toBeVisible();
-    await pause(page, DEMO_PACING.scene);
+    try {
 
     await test.step("3D globe navigation with slow cinematic interactions", async () => {
       logDemo("3D step start");
