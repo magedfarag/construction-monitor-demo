@@ -10,7 +10,7 @@ import sys
 ROOT = Path(__file__).parent.parent
 moves = [
     # Move test data to fixtures
-    ("ne_10m_land.geojson", "scripts/data/ne_10m_land.geojson"),
+    ("ne_10m_land.geojson", "tools/data/ne_10m_land.geojson"),
     ("playback_check.json", "tests/fixtures/playback_check.json"),
     ("playback_response.json", "tests/fixtures/playback_response.json"),
     ("production_readiness_report.json", "docs/reports/production_readiness_report.json"),

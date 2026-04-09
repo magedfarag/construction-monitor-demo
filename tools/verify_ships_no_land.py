@@ -5,7 +5,7 @@ then generates positions for ALL ships in _SHIP_ROUTES (not just active ones)
 using the same interpolation the demo seeder uses.  Reports every violation.
 
 Usage:
-    python scripts/verify_ships_no_land.py
+    python tools/verify_ships_no_land.py
 
 Prerequisites:
     - ne_10m_land.geojson must exist in the project root (downloaded by cURL or

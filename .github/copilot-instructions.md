@@ -40,11 +40,16 @@ argus-intel/
 │   │   ├── services/            # Frontend services
 │   │   └── styles/              # Global styles
 │   └── playwright-report/       # Test execution reports (gitignored)
-├── scripts/                     # Operational and development scripts
+├── tools/                       # Operational scripts and development utilities
 │   ├── data/                    # Reference data files (ne_10m_land.geojson, etc.)
 │   ├── debug_stac.py            # STAC API debugging tool
 │   ├── generate_status_report.py  # Infrastructure status reporting
 │   ├── organize_project.py      # File organization utility
+│   ├── run_api.ps1              # Start FastAPI backend
+│   ├── run_worker.ps1           # Start Celery worker
+│   ├── run_beat.ps1             # Start Celery beat scheduler
+│   ├── start_infra.ps1          # Start Docker infrastructure
+│   ├── run-e2e-tests.ps1        # Run Playwright E2E tests
 │   ├── status_check.py          # Service health checks
 │   ├── test_connectivity.py     # API connectivity testing
 │   ├── test_playback.py         # Playback service validation
@@ -121,14 +126,16 @@ No build step for the frontend — all static files are served as-is.
 **BLOCKING: Files must never escape proper directory structure**
 
 - **Temporary files**: `*.log`, `*-output.txt`, `*.err` → must be gitignored, never committed
-- **Debug scripts**: `debug_*.py`, `test_*.py` → must live in `scripts/` directory
+- **Debug scripts**: `debug_*.py`, `test_*.py` → must live in `tools/` directory
 - **Test data**: JSON/GeoJSON test fixtures → must live in `tests/fixtures/`
-- **Reference data**: Large data files (ne_10m_land.geojson, etc.) → must live in `scripts/data/`
+- **Reference data**: Large data files (ne_10m_land.geojson, etc.) → must live in `tools/data/`
 - **Documentation**: All markdown, reports, guides → must live in appropriate `docs/` subdirectory
 - **Screenshots/Images**: PNG, JPG assets → must live in `docs/images/`
 - **Reports**: Status reports, verification outputs → must live in `docs/reports/`
+- **Operational scripts**: PowerShell, Bash, Python runners → must live in `tools/` directory
 
-Run `python scripts/organize_project.py` to auto-organize misplaced files.
+Run `python tools/organize_project.py` to auto-organize misplaced files.
+Run `run_demo.bat` (Windows) for quick start with auto-setup.
 
 ## Pitfalls
 
