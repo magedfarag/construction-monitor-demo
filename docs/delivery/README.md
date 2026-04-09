@@ -18,7 +18,7 @@ Use these first:
 |---|---|
 | [handover.md](handover.md) | Project handover narrative carried forward from the repo root |
 | [deployment-candidate.md](deployment-candidate.md) | Delivery snapshot for the deployment candidate |
-| [reports/](reports/) | Historical status, verification, coverage, and readiness artifacts |
+| [reports/](reports/) | Historical status, verification, coverage, and readiness artifacts, including JSON snapshots where available |
 
 ## Reading Guidance
 

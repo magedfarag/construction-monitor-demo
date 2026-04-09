@@ -231,9 +231,9 @@ frontend/src/components/Map/MapView.tsx # Visualization
 
 ## Documentation
 
-- [IMPLEMENTATION_VERIFICATION.md](IMPLEMENTATION_VERIFICATION.md) - Full technical details
-- [MILITARY_CLASSIFICATION_EXPLANATION.md](MILITARY_CLASSIFICATION_EXPLANATION.md) - Data sources & classification logic
-- [DEV_SETUP.md](DEV_SETUP.md) - Development environment setup
+- [../delivery/reports/implementation-verification.md](../delivery/reports/implementation-verification.md) - Full technical details
+- [military-classification-explanation.md](military-classification-explanation.md) - Data sources and classification logic
+- [../getting-started/local-development.md](../getting-started/local-development.md) - Development environment setup
 
 ---
 
