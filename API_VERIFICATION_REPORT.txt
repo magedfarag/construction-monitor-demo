@@ -1,4 +1,0 @@
-  File "C:\Projects\mod\Tracking\world-view\verify_data_sources.py", line 141
-    print(f"  \u03b2£" Redis: {redis_status} - {redis_msg}")
-                                                     ^
-SyntaxError: unterminated string literal (detected at line 141)

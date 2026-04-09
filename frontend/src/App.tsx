@@ -324,7 +324,7 @@ function AppShell() {
     end_time: endTime,
     cloud_threshold: 30,
     max_results: 24,
-    connectors: ["cdse-sentinel2", "earth-search"],
+    connectors: ["earth-search"],
     collections: ["sentinel-2-l2a"],
     prefer_live: true,
     fallback_to_demo: true,

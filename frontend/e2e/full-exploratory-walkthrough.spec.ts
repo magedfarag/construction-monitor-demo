@@ -484,16 +484,42 @@ async function setLayer(page: Page, label: string, checked: boolean): Promise<vo
 }
 
 async function closeMapPopup(page: Page): Promise<void> {
-  const visibleButtons = page.locator(".maplibregl-popup-close-button:visible");
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if ((await visibleButtons.count()) === 0) break;
-    await visibleButtons.last().click({ delay: 120, force: true });
-    await pause(page, 250);
-  }
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.evaluate(() => {
+    const map = (window as Window & {
+      __argusMap?: { _popups?: Array<{ remove?: () => void }> };
+    }).__argusMap;
+    const livePopups = Array.isArray(map?._popups) ? [...map._popups] : [];
+    for (const popup of livePopups) {
+      popup?.remove?.();
+    }
+    document.querySelectorAll(".maplibregl-popup").forEach((popup) => popup.remove());
+  });
+  await expect(page.locator(".maplibregl-popup")).toHaveCount(0, { timeout: 5_000 }).catch(() => {});
   await page.evaluate(() => {
     document.querySelectorAll(".maplibregl-popup").forEach((popup) => popup.remove());
   });
   await pause(page, 150);
+}
+
+async function expectLiveImageryPreview(page: Page): Promise<void> {
+  const preview = page.locator(".imagery-popup-preview").last();
+  await expect(preview).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(
+      async () =>
+        preview.evaluate((element) => {
+          const image = element as HTMLImageElement;
+          const src = image.currentSrc || image.src || "";
+          return (
+            /^https?:\/\//i.test(src) &&
+            !src.includes("/static/assets/demo-imagery/") &&
+            image.naturalWidth > 0
+          );
+        }),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
 }
 
 async function setRangeValue(locator: Locator, value: number): Promise<void> {
@@ -766,6 +792,11 @@ test.describe("Exploratory Full Walkthrough", () => {
     await test.step("2D map aircraft, event, signal, GDELT, and imagery inspection", async () => {
       logDemo("2D inspection step start");
       await switchView(page, "2d");
+      await openPanel(page, "Sensors");
+      await expect(page.getByTestId("layer-panel")).toBeVisible();
+      await setRangeValue(page.getByTestId("density-slider"), 1);
+      await setRangeValue(page.getByTestId("imagery-opacity-slider"), 0.55);
+      await pause(page, DEMO_PACING.short);
       await clickZoomControls(page, "in", 2);
       await clickZoomControls(page, "out", 1);
       await cycleBasemaps(page);
@@ -841,6 +872,7 @@ test.describe("Exploratory Full Walkthrough", () => {
         await clickRenderedFeature(page, "imagery-fill");
         await expect(page.locator(".maplibregl-popup-content").last()).toContainText("IMAGERY FOOTPRINT");
         await expect(page.locator(".maplibregl-popup-content").last()).toContainText("Collection");
+        await expectLiveImageryPreview(page);
         await pause(page, DEMO_PACING.long);
         await closeMapPopup(page);
         logDemo("2D imagery popup done");
@@ -1134,5 +1166,24 @@ test.describe("Exploratory Full Walkthrough", () => {
       contentType: "text/plain",
     });
     logDemo("test complete");
+    } finally {
+      try {
+        await Promise.race([
+          page.goto("about:blank", { waitUntil: "domcontentloaded" }),
+          new Promise(resolve => setTimeout(resolve, 5_000)),
+        ]);
+      } catch {
+        // Ignore teardown errors to preserve the recording output.
+      }
+
+      await context.close();
+      if (recordedVideo) {
+        const videoPath = await recordedVideo.path();
+        await testInfo.attach("full-exploratory-video", {
+          path: videoPath,
+          contentType: "video/webm",
+        });
+      }
+    }
   });
 });
