@@ -111,6 +111,13 @@ def _canonical_to_summary(event: Any, connector_id: str) -> ImageryItemSummary:
     ),
 )
 def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:
+    live_first = request.prefer_live or bool(request.connectors) or bool(request.collections)
+
+    if live_first:
+        live_items = _search_live_imagery(request)
+        if live_items.total_items > 0 or not request.fallback_to_demo:
+            return live_items
+
     # ── Demo path: serve from seeded EventStore ───────────────────────────────
     # When the shared EventStore is populated (demo mode), return its curated
     # imagery events instead of hitting live STAC catalogs.  This eliminates
@@ -121,6 +128,11 @@ def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:
         if demo_items is not None:
             return demo_items
 
+    return _search_live_imagery(request)
+
+
+def _search_live_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:
+    """Search enabled live imagery connectors for scenes intersecting the AOI."""
     # ── Live catalog path ─────────────────────────────────────────────────────
     registry = get_connector_registry()
     connectors = registry.connectors_by_source_type("imagery_catalog")
@@ -149,6 +161,7 @@ def search_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse:
                 end_time=request.end_time,
                 cloud_threshold=request.cloud_threshold,
                 max_results=request.max_results,
+                collections=request.collections,
             )
             for event in raw_items:
                 all_items.append(_canonical_to_summary(event, connector.connector_id))
@@ -217,12 +230,34 @@ def _search_demo_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse
     t_start = time.perf_counter()
     items: list[ImageryItemSummary] = []
     by_source: dict[str, int] = {}
+    requested_connectors = set(request.connectors or [])
+    requested_collections = set(request.collections or [])
+    demo_connector_aliases = {
+        "cdse-sentinel2": {"copernicus-cdse"},
+        "earth-search": {"earth-search", "earth-search:sentinel-2-l2a", "earth-search:landsat-c2-l2"},
+        "planetary-computer": {
+            "planetary-computer",
+            "planetary-computer:sentinel-2-l2a",
+            "planetary-computer:landsat-c2-l2",
+        },
+        "usgs-landsat": {"usgs-landsat"},
+    }
 
     for event in result.events:
         attrs = event.attributes or {}
         cloud = attrs.get("cloud_cover_pct")
         if cloud is not None and cloud > request.cloud_threshold:
             continue
+        if requested_connectors:
+            allowed_sources = set()
+            for connector_id in requested_connectors:
+                allowed_sources.update(demo_connector_aliases.get(connector_id, {connector_id}))
+            if event.source not in allowed_sources:
+                continue
+        if requested_collections:
+            event_collection = str(event.entity_id or "").split("/", 1)[0]
+            if event_collection not in requested_collections:
+                continue
         items.append(_canonical_to_summary(event, event.source))
         by_source[event.source] = by_source.get(event.source, 0) + 1
 

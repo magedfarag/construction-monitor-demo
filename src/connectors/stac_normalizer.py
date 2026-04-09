@@ -192,12 +192,13 @@ def stac_item_to_canonical_event(
     except (ValueError, TypeError):
         cloud_cover_pct = None
 
-    # Scene URL — prefer B08/NIR thumbnail, fall back to any visual asset
+    # Scene URL — prefer browser-ready previews over raw visual assets so the UI
+    # can render a real thumbnail instead of a placeholder or a large TIFF.
     assets = item.get("assets", {})
     scene_url = (
-        assets.get("visual", {}).get("href")
-        or assets.get("thumbnail", {}).get("href")
+        assets.get("thumbnail", {}).get("href")
         or assets.get("overview", {}).get("href")
+        or assets.get("visual", {}).get("href")
     )
 
     _sensor_raw = props.get("instrument") or props.get("instruments")

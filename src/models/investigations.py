@@ -98,6 +98,14 @@ class InvestigationNote(BaseModel):
         return _require_utc(v)
 
 
+class InvestigationNoteCreateRequest(BaseModel):
+    """Payload for creating a new analyst note on an investigation."""
+
+    content: str
+    author: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
 class SavedFilter(BaseModel):
     """A named query filter captured for reuse inside an investigation."""
 
@@ -191,6 +199,7 @@ __all__ = [
     "WatchlistEntryType",
     "WatchlistEntry",
     "InvestigationNote",
+    "InvestigationNoteCreateRequest",
     "SavedFilter",
     "Investigation",
     "InvestigationCreateRequest",

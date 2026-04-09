@@ -10,6 +10,8 @@ const DEMO_PACING = {
   long: 2_400,
   scene: 3_800,
 };
+const APP_URL = "http://127.0.0.1:5173/?demoMode=true";
+const RECORDING_WARMUP_MS = 10_000;
 
 function logDemo(message: string): void {
   if (process.env.DEMO_DEBUG) {
@@ -23,10 +25,6 @@ test.describe.configure({ mode: 'serial' });
 test.use({
   headless: true,
   viewport: DEMO_VIEWPORT,
-  video: {
-    mode: "on",
-    size: DEMO_VIEWPORT,
-  },
 });
 
 const DEFAULT_LAYERS = {
@@ -167,6 +165,18 @@ async function primeAppState(page: Page): Promise<void> {
     }
     window.open = () => null;
   }, { layers: DEFAULT_LAYERS, preferredAoiId, apiKey: backendApiKey });
+}
+
+async function loadDemoApp(page: Page, settleMs = DEMO_PACING.scene): Promise<void> {
+  await primeAppState(page);
+  await page.goto(APP_URL);
+  logDemo("app loaded");
+
+  await expect(page.getByRole("heading", { name: "ARGUS" })).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".live-badge")).toContainText("LIVE");
+  await waitForArgusMap(page);
+  await expect(page.getByTestId("globe-container")).toBeVisible();
+  await pause(page, settleMs);
 }
 
 async function waitForArgusMap(page: Page): Promise<void> {

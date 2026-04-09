@@ -22,6 +22,7 @@ from src.models.investigations import (
     InvestigationCreateRequest,
     InvestigationListResponse,
     InvestigationNote,
+    InvestigationNoteCreateRequest,
     InvestigationStatus,
     InvestigationUpdateRequest,
     SavedFilter,
@@ -115,11 +116,17 @@ def delete_investigation(
 )
 def add_note(
     investigation_id: str,
-    note: InvestigationNote,
+    note: InvestigationNoteCreateRequest,
     _user: UserClaims = Depends(require_operator),
 ) -> Investigation:
     _get_or_404(investigation_id)
-    updated = _store().add_note(investigation_id, note)
+    note_record = InvestigationNote(
+        investigation_id=investigation_id,
+        content=note.content,
+        author=note.author,
+        tags=note.tags,
+    )
+    updated = _store().add_note(investigation_id, note_record)
     if updated is None:
         raise HTTPException(status_code=404, detail=f"Investigation {investigation_id!r} not found")
     return updated

@@ -94,6 +94,9 @@ export interface ImagerySearchRequest {
   cloud_threshold?: number;
   max_results?: number;
   connectors?: string[];
+  collections?: string[];
+  prefer_live?: boolean;
+  fallback_to_demo?: boolean;
 }
 
 export interface ImageryItem {

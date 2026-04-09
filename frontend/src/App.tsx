@@ -323,6 +323,11 @@ function AppShell() {
     start_time: startTime,
     end_time: endTime,
     cloud_threshold: 30,
+    max_results: 24,
+    connectors: ["cdse-sentinel2", "earth-search"],
+    collections: ["sentinel-2-l2a"],
+    prefer_live: true,
+    fallback_to_demo: true,
   } : null);
 
   // P2-1.5/1.6: Fetch GDELT contextual events when layer is enabled

@@ -47,6 +47,21 @@ class ImagerySearchRequest(BaseModel):
             "If omitted, all enabled imagery connectors are queried."
         ),
     )
+    collections: list[str] | None = Field(
+        default=None,
+        description=(
+            "Optional STAC collection filter passed through to compatible imagery catalogs, "
+            "for example ['sentinel-2-l2a']."
+        ),
+    )
+    prefer_live: bool = Field(
+        default=False,
+        description="Attempt live catalog search before using seeded demo imagery.",
+    )
+    fallback_to_demo: bool = Field(
+        default=True,
+        description="When live imagery returns no items or errors, fall back to seeded demo imagery.",
+    )
 
     @field_validator("geometry")
     @classmethod
