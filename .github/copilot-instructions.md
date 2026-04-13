@@ -144,3 +144,15 @@ Run `run_demo.bat` (Windows) for quick start with auto-setup.
 - Area calculation in `_polygon_area_km2()` uses a flat-earth approximation — sufficient for a demo, not for production.
 - Circle selections are converted to 64-step polygons client-side before the geometry is posted; the backend only accepts `Polygon` / `MultiPolygon`.
 - Never commit temporary output files, logs, or build artifacts - they belong in .gitignore.
+
+## Documentation Retrieval -- Two-Tier QMD Architecture
+
+Two QMD MCP servers run simultaneously. For any non-trivial question, query both tiers.
+
+| Server | MCP prefix | Port | Purpose |
+|--------|------------|------|---------|
+| `qmd` | `mcp_qmd_*` | 8181 | Project-specific docs, templates, samples, reports |
+| `qmd-global` | `mcp_qmd_global_*` | 8182 | Cross-project patterns, decisions, lessons |
+
+**Never read indexed project folders directly.** They are in `search.exclude` and served
+exclusively by the project QMD server. Use `mcp_qmd_query` instead.

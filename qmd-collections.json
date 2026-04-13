@@ -1,0 +1,15 @@
+{
+  "globalContext": "External customer-vendor delivery governance system built on Azure DevOps Server 2022 on-premises. Covers process customization, traceability, retention policies, and audit compliance.",
+  "collections": [
+    {
+      "name": "docs",
+      "path": "docs",
+      "context": "requirements, architecture, workflows, design, and implementation documentation for the map analysis system."
+    },
+    {
+      "name": "demo",
+      "path": "demo",
+      "context": "demo scripts and content for recording video tutorial of the map analysis system."
+    }
+  ]
+}

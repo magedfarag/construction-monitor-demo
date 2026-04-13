@@ -8,7 +8,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 # Create limiter instance with remote address key (supports proxies)
-limiter = Limiter(key_func=get_remote_address)
+# Pass config_filename=None to prevent automatic .env loading (encoding issues on Windows)
+limiter = Limiter(key_func=get_remote_address, config_filename=None)
 
 
 def rate_limit_error_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
