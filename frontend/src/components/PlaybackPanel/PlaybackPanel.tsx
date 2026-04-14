@@ -18,7 +18,7 @@ export function PlaybackPanel({ aoiId, startTime, endTime, onFrameChange }: Prop
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(10);
   const [loading, setLoading] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rafRef = useRef<number | null>(null);
 
   async function loadPlayback() {
     setLoading(true);
@@ -37,14 +37,33 @@ export function PlaybackPanel({ aoiId, startTime, endTime, onFrameChange }: Prop
 
   useEffect(() => {
     if (!playing || !playback) return;
-    intervalRef.current = setInterval(() => {
-      setFrameIdx(i => {
-        const next = i + 1;
-        if (next >= playback.frames.length) { setPlaying(false); return i; }
-        return next;
-      });
-    }, 1000 / speed);
-    return () => clearInterval(intervalRef.current!);
+    // Use requestAnimationFrame + time accumulator instead of setInterval.
+    // setInterval can fire in bursts under CPU load (e.g. during screen recording),
+    // causing multiple frame jumps per paint. rAF is always coalesced to one call
+    // per browser paint cycle, giving smooth, burst-free playback.
+    const msPerFrame = 1000 / speed;
+    let lastTime: number | null = null;
+    let accumulated = 0;
+
+    function tick(now: number) {
+      if (lastTime !== null) {
+        accumulated += now - lastTime;
+        if (accumulated >= msPerFrame) {
+          // Cap at exactly 1 frame per paint — no burst catch-up.
+          accumulated = accumulated % msPerFrame;
+          setFrameIdx(i => {
+            const next = i + 1;
+            if (next >= playback.frames.length) { setPlaying(false); return i; }
+            return next;
+          });
+        }
+      }
+      lastTime = now;
+      rafRef.current = requestAnimationFrame(tick);
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
   }, [playing, speed, playback]);
 
   useEffect(() => {

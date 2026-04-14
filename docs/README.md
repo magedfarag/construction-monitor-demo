@@ -27,6 +27,7 @@ This documentation tree was consolidated on 2026-04-09 against the current codeb
 | Document | Purpose |
 |---|---|
 | [reference/environment.md](reference/environment.md) | Environment variables, defaults, and deployment-relevant config |
+| [reference/external-data-sources.md](reference/external-data-sources.md) | External provider inventory with onboarding, pricing, and repo integration notes |
 | [RUNBOOK.md](RUNBOOK.md) | Daily operations, incident handling, and rollback guidance |
 | [ALERTING_RULES.md](ALERTING_RULES.md) | Implemented alert surfaces plus recommended external alerts |
 | [ONCALL.md](ONCALL.md) | Handoff checklist and first-response diagnostics |
