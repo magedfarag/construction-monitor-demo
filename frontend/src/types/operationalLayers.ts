@@ -120,3 +120,13 @@ export interface StrikeListResponse {
   events: StrikeEvent[];
   is_demo_data?: boolean;
 }
+
+export interface PassListResponse {
+  satellite_id: string;
+  observer_lon: number;
+  observer_lat: number;
+  horizon_hours: number;
+  total: number;
+  passes: SatellitePass[];
+  is_demo_data?: boolean;
+}

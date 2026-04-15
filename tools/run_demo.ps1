@@ -4,9 +4,13 @@ if ((Test-Path $cargoBin) -and ($env:PATH -notlike "*$cargoBin*")) {
     $env:PATH = "$cargoBin;$env:PATH"
 }
 
-if (-not (Test-Path .venv)) {
-    python -m venv .venv
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$venvDir = Join-Path $repoRoot ".venv"
+$venvPython = Join-Path $venvDir "Scripts\python.exe"
+
+if (-not (Test-Path $venvPython)) {
+    python -m venv $venvDir
 }
-& .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+
+& $venvPython -m pip install -r (Join-Path $repoRoot "requirements.txt")
+& $venvPython -m uvicorn app.main:app --reload

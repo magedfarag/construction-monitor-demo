@@ -120,7 +120,8 @@ function resolveMapStyle(id: string) {
     case "dark":      return raster("https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "© CARTO, © OpenStreetMap contributors");
     case "light":     return raster("https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", "© CARTO, © OpenStreetMap contributors");
     case "satellite": return raster("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "© Esri");
-    default:          return "https://demotiles.maplibre.org/style.json";
+    // OpenFreeMap: free, no API key — fallback for any unrecognised style id
+    default:          return "https://tiles.openfreemap.org/styles/liberty";
   }
 }
 
@@ -455,7 +456,7 @@ export function MapView({
         type: "symbol",
         source: "events",
         filter: ["has", "point_count"],
-        layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11 },
+        layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11, "text-font": ["Noto Sans Regular"] },
         paint: { "text-color": "#fff" },
       });
       map.addLayer({
@@ -534,7 +535,7 @@ export function MapView({
         type: "symbol",
         source: "gdelt",
         filter: ["has", "point_count"],
-        layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11 },
+        layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11, "text-font": ["Noto Sans Regular"] },
         paint: { "text-color": "#fff" },
       });
       map.addLayer({
@@ -640,7 +641,7 @@ export function MapView({
         type: "symbol",
         source: "signals",
         filter: ["has", "point_count"],
-        layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11 },
+        layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11, "text-font": ["Noto Sans Regular"] },
         paint: { "text-color": "#fff" },
       });
       // Individual signal markers — color by event_type

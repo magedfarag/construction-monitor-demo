@@ -76,6 +76,7 @@ class OrbitLayerService:
         self._stub.connect()
         self._connector = self._stub
         self._demo_mode: bool = True
+        self._block_stub: bool = False
         self._orbits: dict = {}
         # Seed immediately so the service is usable before lifespan runs.
         self._seed_from_connector()
@@ -87,6 +88,7 @@ class OrbitLayerService:
         *,
         demo_mode: bool,
         live_connector=None,
+        production_mode: bool = False,
     ) -> None:
         """Called once in the app lifespan.
 
@@ -94,6 +96,8 @@ class OrbitLayerService:
             demo_mode:       True when ``APP_MODE == DEMO``.
             live_connector:  Optional live ``OrbitConnector`` subclass instance.
                              Ignored in demo mode.
+            production_mode: True when ``APP_MODE == PRODUCTION``.  Disables
+                             stub data fallback — returns empty store instead.
         """
         self._demo_mode = demo_mode
         if not demo_mode and live_connector is not None:
@@ -108,13 +112,22 @@ class OrbitLayerService:
                 )
                 self._connector = self._stub
                 self._demo_mode = True
+                if production_mode:
+                    self._block_stub = True
         elif demo_mode:
             self._connector = self._stub
         else:
             log.info("OrbitLayerService: no live connector supplied; using stub in %s mode",
                      "demo" if demo_mode else "staging/production")
+            if production_mode:
+                self._block_stub = True
 
-        self._seed_from_connector()
+        if self._block_stub:
+            with self._lock:
+                self._orbits = {}
+            log.info("OrbitLayerService: production mode — no live connector, returning empty store")
+        else:
+            self._seed_from_connector()
 
     def _seed_from_connector(self) -> None:
         """Populate the store from the active connector's seed TLE."""
@@ -164,11 +177,11 @@ class OrbitLayerService:
 
     def all_orbits(self) -> dict:
         with self._lock:
-            return dict(self._orbits)
+            return {} if self._block_stub else dict(self._orbits)
 
     def get_orbit(self, satellite_id: str):
         with self._lock:
-            return self._orbits.get(satellite_id)
+            return None if self._block_stub else self._orbits.get(satellite_id)
 
     def ingest_tle(self, tle_text: str) -> list:
         """Ingest a TLE block into the store; also push to canonical EventStore."""
@@ -192,7 +205,7 @@ class OrbitLayerService:
 
     @property
     def is_demo_mode(self) -> bool:
-        return self._demo_mode
+        return False if self._block_stub else self._demo_mode
 
     # ── Internals ─────────────────────────────────────────────────────────
 
@@ -234,6 +247,7 @@ class AirspaceLayerService:
         self._stub.connect()
         self._connector = self._stub
         self._demo_mode: bool = True
+        self._block_stub: bool = False
         self._restrictions: dict = {}
         self._notams: dict = {}
         self._seed_from_connector()
@@ -245,6 +259,7 @@ class AirspaceLayerService:
         *,
         demo_mode: bool,
         live_connector=None,
+        production_mode: bool = False,
     ) -> None:
         self._demo_mode = demo_mode
         if not demo_mode and live_connector is not None:
@@ -258,9 +273,20 @@ class AirspaceLayerService:
                 )
                 self._connector = self._stub
                 self._demo_mode = True
+                if production_mode:
+                    self._block_stub = True
         elif demo_mode:
             self._connector = self._stub
-        self._seed_from_connector()
+        else:
+            if production_mode:
+                self._block_stub = True
+        if self._block_stub:
+            with self._lock:
+                self._restrictions = {}
+                self._notams = {}
+            log.info("AirspaceLayerService: production mode — no live connector, returning empty store")
+        else:
+            self._seed_from_connector()
 
     def _seed_from_connector(self) -> None:
         try:
@@ -286,23 +312,23 @@ class AirspaceLayerService:
 
     def all_restrictions(self) -> dict:
         with self._lock:
-            return dict(self._restrictions)
+            return {} if self._block_stub else dict(self._restrictions)
 
     def get_restriction(self, restriction_id: str):
         with self._lock:
-            return self._restrictions.get(restriction_id)
+            return None if self._block_stub else self._restrictions.get(restriction_id)
 
     def all_notams(self) -> dict:
         with self._lock:
-            return dict(self._notams)
+            return {} if self._block_stub else dict(self._notams)
 
     def get_notam(self, notam_id: str):
         with self._lock:
-            return self._notams.get(notam_id)
+            return None if self._block_stub else self._notams.get(notam_id)
 
     @property
     def is_demo_mode(self) -> bool:
-        return self._demo_mode
+        return False if self._block_stub else self._demo_mode
 
     # ── Internals ─────────────────────────────────────────────────────────
 
@@ -357,19 +383,29 @@ class JammingLayerService:
         self._lock = threading.Lock()
         self._connector = JammingConnector()
         self._connector.connect()
+        self._block_stub: bool = False
         self._store: dict = {}
         self._seed_from_connector()
 
     # ── Lifecycle ─────────────────────────────────────────────────────────
 
-    def initialize(self, *, demo_mode: bool, live_connector=None) -> None:  # noqa: ARG002
-        """Always demo-only regardless of mode until JAM-02 lands."""
+    def initialize(self, *, demo_mode: bool, live_connector=None, production_mode: bool = False) -> None:  # noqa: ARG002
+        """Always demo-only regardless of mode until JAM-02 lands.
+
+        In production mode, disables stub data entirely and returns empty.
+        """
         if live_connector is not None:
             log.warning(
                 "JammingLayerService: live connector supplied but jamming remains demo-only "
                 "(JAM-01 decision — no approved GNSS jamming source). Ignoring live connector."
             )
-        self._seed_from_connector()
+        if production_mode:
+            self._block_stub = True
+            with self._lock:
+                self._store = {}
+            log.info("JammingLayerService: production mode — jamming stub disabled, returning empty store")
+        else:
+            self._seed_from_connector()
 
     def _seed_from_connector(self) -> None:
         try:
@@ -389,6 +425,8 @@ class JammingLayerService:
 
     def refresh(self, start: datetime | None = None, end: datetime | None = None) -> list:
         """Generate deterministic events for a time window and append to store."""
+        if self._block_stub:
+            return []
         if start is None or end is None:
             end = datetime.now(UTC)
             start = end - timedelta(days=30)
@@ -408,16 +446,16 @@ class JammingLayerService:
 
     def all_events(self) -> dict:
         with self._lock:
-            return dict(self._store)
+            return {} if self._block_stub else dict(self._store)
 
     def get_event(self, jamming_id: str):
         with self._lock:
-            return self._store.get(jamming_id)
+            return None if self._block_stub else self._store.get(jamming_id)
 
     @property
     def is_demo_mode(self) -> bool:
-        """Always True — jamming is permanently demo-only until JAM-02 lands."""
-        return True
+        """True in demo/staging mode (synthetic data); False in production (empty store)."""
+        return not self._block_stub
 
     # ── Internals ─────────────────────────────────────────────────────────
 
@@ -452,6 +490,7 @@ class StrikeLayerService:
         self._stub.connect()
         self._connector = self._stub
         self._demo_mode: bool = True
+        self._block_stub: bool = False
         self._store: dict = {}
         self._evidence_store: dict[str, list] = {}
         self._seed_from_connector()
@@ -463,6 +502,7 @@ class StrikeLayerService:
         *,
         demo_mode: bool,
         live_connector=None,
+        production_mode: bool = False,
     ) -> None:
         self._demo_mode = demo_mode
         if not demo_mode and live_connector is not None:
@@ -476,9 +516,20 @@ class StrikeLayerService:
                 )
                 self._connector = self._stub
                 self._demo_mode = True
+                if production_mode:
+                    self._block_stub = True
         elif demo_mode:
             self._connector = self._stub
-        self._seed_from_connector()
+        else:
+            if production_mode:
+                self._block_stub = True
+        if self._block_stub:
+            with self._lock:
+                self._store = {}
+                self._evidence_store = {}
+            log.info("StrikeLayerService: production mode — no live connector, returning empty store")
+        else:
+            self._seed_from_connector()
 
     def _seed_from_connector(self) -> None:
         try:
@@ -509,11 +560,11 @@ class StrikeLayerService:
 
     def all_strikes(self) -> dict:
         with self._lock:
-            return dict(self._store)
+            return {} if self._block_stub else dict(self._store)
 
     def get_strike(self, strike_id: str):
         with self._lock:
-            return self._store.get(strike_id)
+            return None if self._block_stub else self._store.get(strike_id)
 
     def list_evidence(self, strike_id: str) -> list:
         with self._lock:
@@ -533,7 +584,7 @@ class StrikeLayerService:
 
     @property
     def is_demo_mode(self) -> bool:
-        return self._demo_mode
+        return False if self._block_stub else self._demo_mode
 
     # ── Internals ─────────────────────────────────────────────────────────
 
@@ -609,11 +660,13 @@ def initialize_operational_layers(settings: "AppSettings") -> None:
     from app.config import AppMode
 
     demo_mode = settings.app_mode == AppMode.DEMO
+    production_mode = settings.app_mode == AppMode.PRODUCTION
 
     log.info(
-        "Initialising operational layers | mode=%s demo=%s",
+        "Initialising operational layers | mode=%s demo=%s production=%s",
         settings.app_mode.value,
         demo_mode,
+        production_mode,
     )
 
     # Orbit — ORB-01: live connector in non-demo mode, graceful stub fallback.
@@ -628,7 +681,7 @@ def initialize_operational_layers(settings: "AppSettings") -> None:
             log.warning(
                 "ORB-01: CelestrakConnector unavailable, falling back to stub: %s", exc
             )
-    get_orbit_service().initialize(demo_mode=demo_mode, live_connector=_orbit_live)
+    get_orbit_service().initialize(demo_mode=demo_mode, live_connector=_orbit_live, production_mode=production_mode)
 
     # Airspace — AIR-01/AIR-03: attempt live FAA NOTAM connector in non-demo mode.
     _airspace_live = None
@@ -643,10 +696,10 @@ def initialize_operational_layers(settings: "AppSettings") -> None:
             log.warning(
                 "AIR-03: FaaNotamConnector unavailable, falling back to stub: %s", exc
             )
-    get_airspace_service().initialize(demo_mode=demo_mode, live_connector=_airspace_live)
+    get_airspace_service().initialize(demo_mode=demo_mode, live_connector=_airspace_live, production_mode=production_mode)
 
     # Jamming — permanently demo-only (JAM-01 / JAM-03 decision).
-    get_jamming_service().initialize(demo_mode=demo_mode, live_connector=None)
+    get_jamming_service().initialize(demo_mode=demo_mode, live_connector=None, production_mode=production_mode)
 
     # Strike — STR-02/STR-03: wire live ACLED connector in non-demo mode when configured.
     # ACLED data is free for non-commercial research only; AI/ML training and competitive
@@ -666,6 +719,6 @@ def initialize_operational_layers(settings: "AppSettings") -> None:
             log.warning(
                 "STR-03: AcledStrikeConnector instantiation failed, using stub: %s", exc
             )
-    get_strike_service().initialize(demo_mode=demo_mode, live_connector=_strike_live)
+    get_strike_service().initialize(demo_mode=demo_mode, live_connector=_strike_live, production_mode=production_mode)
 
     log.info("Operational layers initialised")

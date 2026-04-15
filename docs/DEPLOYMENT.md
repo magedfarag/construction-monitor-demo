@@ -28,7 +28,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 # Run with auto-reload
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 
 # Open http://127.0.0.1:8000
 ```
@@ -47,7 +47,7 @@ docker run --name redis-dev -p 6379:6379 -d redis:7-alpine
 # Terminal 2 — API server
 $env:REDIS_URL = "redis://localhost:6379/0"
 $env:APP_MODE  = "auto"
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 
 # Terminal 3 — Celery worker
 $env:REDIS_URL = "redis://localhost:6379/0"

@@ -204,9 +204,16 @@ class ChangeAnalyticsService:
     """In-memory change analytics service (PostGIS-swap-ready).
 
     Thread-safe: all mutations acquire ``_lock``.
+
+    Args:
+        use_synthetic_fallback: When True (default), generates deterministic
+            synthetic candidates when live rasterio detection is unavailable.
+            Set False in production to return an empty list instead, preventing
+            demo artifacts from appearing in live deployments.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, use_synthetic_fallback: bool = True) -> None:
+        self._use_synthetic_fallback = use_synthetic_fallback
         self._jobs: dict[str, ChangeDetectionJobResponse] = {}
         self._candidates: dict[str, ChangeCandidate] = {}
         self._lock = threading.Lock()
@@ -280,13 +287,21 @@ class ChangeAnalyticsService:
         # no scenes are returned (demo / offline environments).
         candidates = self._try_live_detection(job_id, request, bbox)
         if candidates is None:
-            candidates = _generate_synthetic_candidates(
-                job_id=job_id,
-                aoi_id=request.aoi_id,
-                bbox=bbox,
-                before_date=request.start_date,
-                after_date=request.end_date,
-            )
+            if self._use_synthetic_fallback:
+                candidates = _generate_synthetic_candidates(
+                    job_id=job_id,
+                    aoi_id=request.aoi_id,
+                    bbox=bbox,
+                    before_date=request.start_date,
+                    after_date=request.end_date,
+                )
+            else:
+                logger.info(
+                    "Change detection job %s: live detection unavailable; "
+                    "synthetic fallback disabled",
+                    job_id,
+                )
+                candidates = []
         return candidates
 
     def _try_live_detection(

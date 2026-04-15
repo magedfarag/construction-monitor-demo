@@ -25,7 +25,7 @@ import type {
 
 // ── Orbit layer ───────────────────────────────────────────────────────────────
 
-export function useOrbits(): {
+export function useOrbits(enabled = true): {
   orbits: SatelliteOrbit[];
   loading: boolean;
   error: string | null;
@@ -37,6 +37,7 @@ export function useOrbits(): {
   const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
+    if (!enabled) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
     setError(null);
@@ -54,14 +55,14 @@ export function useOrbits(): {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, []);
+  }, [enabled]);
 
   return { orbits, loading, error, isDemo };
 }
 
 // ── Airspace layer ────────────────────────────────────────────────────────────
 
-export function useAirspaceRestrictions(activeOnly?: boolean): {
+export function useAirspaceRestrictions(activeOnly?: boolean, enabled = true): {
   restrictions: AirspaceRestriction[];
   notams: NotamEvent[];
   loading: boolean;
@@ -73,6 +74,7 @@ export function useAirspaceRestrictions(activeOnly?: boolean): {
   const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
+    if (!enabled) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
 
@@ -94,14 +96,14 @@ export function useAirspaceRestrictions(activeOnly?: boolean): {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [activeOnly]);
+  }, [activeOnly, enabled]);
 
   return { restrictions, notams, loading, isDemo };
 }
 
 // ── GPS Jamming layer ─────────────────────────────────────────────────────────
 
-export function useJammingLayer(confidenceMin?: number): {
+export function useJammingLayer(confidenceMin?: number, enabled = true): {
   events: GpsJammingEvent[];
   heatmapPoints: HeatmapPoint[];
   loading: boolean;
@@ -113,6 +115,7 @@ export function useJammingLayer(confidenceMin?: number): {
   const [isDemo, setIsDemo] = useState(true); // jamming is permanently demo-only
 
   useEffect(() => {
+    if (!enabled) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
 
@@ -133,14 +136,14 @@ export function useJammingLayer(confidenceMin?: number): {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [confidenceMin]);
+  }, [confidenceMin, enabled]);
 
   return { events, heatmapPoints, loading, isDemo };
 }
 
 // ── Strike layer ──────────────────────────────────────────────────────────────
 
-export function useStrikeLayer(strikeType?: string): {
+export function useStrikeLayer(strikeType?: string, enabled = true): {
   strikes: StrikeEvent[];
   summary: Record<string, number>;
   loading: boolean;
@@ -152,6 +155,7 @@ export function useStrikeLayer(strikeType?: string): {
   const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
+    if (!enabled) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
 
@@ -159,10 +163,10 @@ export function useStrikeLayer(strikeType?: string): {
       fetchStrikeEvents(strikeType, undefined, controller.signal),
       fetchStrikeSummary(controller.signal),
     ])
-      .then(([evtsResp, sum]) => {
+      .then(([evtsResp, sumResp]) => {
         setStrikes(evtsResp.events);
-        setSummary(sum);
-        setIsDemo(evtsResp.is_demo_data ?? false);
+        setSummary(sumResp.counts);
+        setIsDemo((evtsResp.is_demo_data ?? false) || sumResp.is_demo_data);
       })
       .catch((err: unknown) => {
         if ((err as { name?: string }).name !== 'AbortError') {
@@ -172,7 +176,7 @@ export function useStrikeLayer(strikeType?: string): {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [strikeType]);
+  }, [strikeType, enabled]);
 
   return { strikes, summary, loading, isDemo };
 }

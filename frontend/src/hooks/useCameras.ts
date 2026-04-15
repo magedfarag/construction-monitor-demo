@@ -90,6 +90,7 @@ export function useCameraObservations(
 export function useDetectionLayer(
   confidenceMin?: number,
   detectionType?: string,
+  enabled = true,
 ): {
   detections: DetectionOverlay[];
   loading: boolean;
@@ -98,6 +99,7 @@ export function useDetectionLayer(
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!enabled) { setLoading(false); return; }
     const controller = new AbortController();
     setLoading(true);
 
@@ -114,7 +116,7 @@ export function useDetectionLayer(
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [confidenceMin, detectionType]);
+  }, [confidenceMin, detectionType, enabled]);
 
   return { detections, loading };
 }

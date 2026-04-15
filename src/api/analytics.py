@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
 
 # ── Module-level service singleton ────────────────────────────────────────────
-_service = ChangeAnalyticsService()
+_service = ChangeAnalyticsService(use_synthetic_fallback=False)
 _event_store: Any | None = None
 
 

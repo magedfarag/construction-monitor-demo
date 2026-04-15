@@ -21,8 +21,9 @@ import type { RenderMode } from "../../types/renderModes";
 import { RENDER_MODE_CONFIGS } from "../../types/renderModes";
 import { normalizeEntityAltitudeM } from "../../utils/entityAltitude";
 
-/** Globe always uses vector tiles — raster styles break the globe projection */
-const GLOBE_STYLE_URL = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+/** Globe always uses vector tiles — raster styles break the globe projection.
+ * OpenFreeMap: free, no API key, no registration (https://openfreemap.org/). */
+const GLOBE_STYLE_URL = "https://tiles.openfreemap.org/styles/bright";
 const TRACK_LAYER_REFRESH_MS = 120;
 
 interface TrackHead {
@@ -344,6 +345,34 @@ export function GlobeView({
     // Backup: Also listen to window resize events
     window.addEventListener('resize', handleResize);
 
+    // Defensive font remapper — patches any loaded style that references fonts not
+    // hosted on OpenFreeMap (e.g. old Carto Voyager style migrated its glyphs URL to
+    // tiles.openfreemap.org but still specifies "Open Sans Regular" which 404s there).
+    const FONT_REMAP: Record<string, string> = {
+      "Open Sans Regular":      "Noto Sans Regular",
+      "Open Sans Bold":         "Noto Sans Bold",
+      "Open Sans Italic":       "Noto Sans Italic",
+      "Open Sans SemiBold":     "Noto Sans Bold",
+      "Open Sans ExtraBold":    "Noto Sans Bold",
+      "Arial Unicode MS Regular": "Noto Sans Regular",
+      "Arial Unicode MS Bold":    "Noto Sans Bold",
+    };
+    const patchStyleFonts = () => {
+      const style = map.getStyle();
+      if (!style?.layers) return;
+      for (const layer of style.layers) {
+        if (layer.type !== "symbol") continue;
+        const fonts = (layer as maplibregl.SymbolLayerSpecification).layout?.["text-font"];
+        if (!Array.isArray(fonts)) continue;
+        // fonts may be ExpressionSpecification[] — only remap plain string entries
+        const remapped = fonts.map((f) => (typeof f === "string" ? (FONT_REMAP[f] ?? f) : f));
+        if (remapped.some((f, i) => f !== fonts[i])) {
+          map.setLayoutProperty(layer.id, "text-font", remapped);
+        }
+      }
+    };
+    map.on("styledata", patchStyleFonts);
+
     map.on("load", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any).setProjection({ type: "globe" });
@@ -488,7 +517,7 @@ export function GlobeView({
     map.addSource("g-aoi-label-pts", { type: "geojson", data: toFeatureCollection(pts) });
     map.addLayer({
       id: "g-aoi-labels", type: "symbol", source: "g-aoi-label-pts",
-      layout: { "text-field": ["get", "name"], "text-size": 13, "text-anchor": "bottom", "text-offset": [0, -0.5] },
+      layout: { "text-field": ["get", "name"], "text-size": 13, "text-anchor": "bottom", "text-offset": [0, -0.5], "text-font": ["Noto Sans Regular"] },
       paint: { "text-color": "#f1f5f9", "text-halo-color": "#1e3a5f", "text-halo-width": 2 },
     });
   }, [aois, styleLoaded]);
@@ -952,7 +981,7 @@ export function GlobeView({
     map.addSource("g-choke-label-pts", { type: "geojson", data: toFeatureCollection(labelPts) });
     map.addLayer({
       id: "g-choke-labels", type: "symbol", source: "g-choke-label-pts",
-      layout: { "text-field": ["get", "label"], "text-size": 11, "text-anchor": "center", "text-max-width": 10 },
+      layout: { "text-field": ["get", "label"], "text-size": 11, "text-anchor": "center", "text-max-width": 10, "text-font": ["Noto Sans Regular"] },
       paint: { "text-color": "#f8fafc", "text-halo-color": "#00000099", "text-halo-width": 1.5 },
     });
   }, [cpData, styleLoaded]);

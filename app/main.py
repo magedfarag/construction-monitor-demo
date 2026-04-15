@@ -234,11 +234,13 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # Shared EventStore for V2 event/playback/compare/analytics routers
     from src.api import events as _events_router_module
     from src.api.analytics import set_analytics_event_store as _set_analytics_store
+    from src.api.dark_ships import set_event_store as _set_dark_ships_store
     from src.api.playback import set_event_store as _set_playback_store
     _shared_store = _events_router_module._store  # reuse the module-level singleton
     set_imagery_event_store(_shared_store)
     _set_playback_store(_shared_store)
     _set_analytics_store(_shared_store)
+    _set_dark_ships_store(_shared_store)
 
     # Keep in-memory stores mode-clean across reloads. In demo mode we seed
     # deterministic data; in staging/production we explicitly clear any prior
@@ -248,11 +250,13 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         _aoi_store.clear()
         _shared_store.clear()
         if settings.app_mode == AppMode.DEMO:
+            from src.api.cameras import seed_demo_cameras as _seed_cameras
             from src.services.demo_seeder import seed_aoi_store as _seed_aoi
             from src.services.demo_seeder import seed_event_store as _seed
 
             _demo_aoi_id = _seed_aoi(_aoi_store)
             _seed_count = _seed(_shared_store, aoi_id=_demo_aoi_id)
+            _seed_cameras()
             _log.getLogger(__name__).info(
                 "Demo seeder: AOI %s + %d events ingested",
                 _demo_aoi_id,

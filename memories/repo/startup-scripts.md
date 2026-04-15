@@ -1,0 +1,3 @@
+- Prefer invoking the API server as `python -m uvicorn app.main:app ...` in local startup scripts; Windows shells in this repo have shown unreliable discovery of the `uvicorn` launcher even when the package is installed in `.venv`.
+- For scripts under `tools/`, resolve the repository root from `$PSScriptRoot`/`${BASH_SOURCE[0]}` instead of assuming the current working directory is the repo root.
+- The top-level `run_demo.bat` is an orchestrator, not a direct API entry point: it should start infra plus backend/worker/frontend and force demo-safe local environment overrides (for example `APP_MODE=demo`) so an existing production-tuned `.env` does not hijack local demo startup.

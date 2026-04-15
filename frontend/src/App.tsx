@@ -349,13 +349,14 @@ function AppShell() {
       : null
   );
 
-  // Phase 2 operational layers
-  const orbitsQuery = useOrbits();
-  const airspaceQuery = useAirspaceRestrictions(true);
-  const jammingQuery = useJammingLayer();
-  const strikesQuery = useStrikeLayer();
+  // Phase 2 operational layers — only fetch when the layer is enabled to avoid
+  // spurious aborted requests (React StrictMode double-invoke) for off-by-default layers.
+  const orbitsQuery = useOrbits(layers.showOrbits);
+  const airspaceQuery = useAirspaceRestrictions(true, layers.showAirspace);
+  const jammingQuery = useJammingLayer(undefined, layers.showJamming);
+  const strikesQuery = useStrikeLayer(undefined, layers.showStrikes);
   // Phase 4 Track D — AI detection overlays
-  const detectionsQuery = useDetectionLayer();
+  const detectionsQuery = useDetectionLayer(undefined, undefined, layers.showDetections);
 
   // Timeline filtering — keeps MapView and GlobeView temporally consistent
   // Note: We DON'T update timeline on every playbackTime change (that's 30fps!)

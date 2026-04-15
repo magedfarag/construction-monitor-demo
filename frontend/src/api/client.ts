@@ -117,7 +117,22 @@ export const imageryApi = {
       full_image_url: i.scene_url,
     }));
   },
-  providers: () => request<ProviderStatus[]>('/api/v1/imagery/providers'),
+  providers: async (): Promise<ProviderStatus[]> => {
+    // Backend returns { providers: ImageryProviderInfo[], total } — unwrap and normalise to ProviderStatus.
+    interface ImageryProviderInfo {
+      connector_id: string;
+      display_name: string;
+      source_type: string;
+      healthy: boolean;
+      message?: string;
+    }
+    const res = await request<{ providers: ImageryProviderInfo[]; total: number }>('/api/v1/imagery/providers');
+    return (res.providers ?? []).map(p => ({
+      name: p.display_name ?? p.connector_id,
+      available: p.healthy,
+      mode: p.source_type,
+    }));
+  },
 };
 
 // ── Analytics ────────────────────────────────────────────────────────────────

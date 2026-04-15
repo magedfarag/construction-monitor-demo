@@ -1804,6 +1804,14 @@
         "documentation": {}
     },
     {
+        "label": "annotations",
+        "importPath": "__future__",
+        "description": "__future__",
+        "isExtraImport": true,
+        "detail": "__future__",
+        "documentation": {}
+    },
+    {
         "label": "op",
         "importPath": "alembic",
         "description": "alembic",
@@ -2232,6 +2240,14 @@
         "documentation": {}
     },
     {
+        "label": "Any",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
         "label": "Annotated",
         "importPath": "typing",
         "description": "typing",
@@ -2561,6 +2577,14 @@
     },
     {
         "label": "ClassVar",
+        "importPath": "typing",
+        "description": "typing",
+        "isExtraImport": true,
+        "detail": "typing",
+        "documentation": {}
+    },
+    {
+        "label": "Any",
         "importPath": "typing",
         "description": "typing",
         "isExtraImport": true,
@@ -3314,6 +3338,30 @@
         "documentation": {}
     },
     {
+        "label": "UTC",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "datetime",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "timedelta",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
         "label": "datetime",
         "importPath": "datetime",
         "description": "datetime",
@@ -3339,6 +3387,14 @@
     },
     {
         "label": "timedelta",
+        "importPath": "datetime",
+        "description": "datetime",
+        "isExtraImport": true,
+        "detail": "datetime",
+        "documentation": {}
+    },
+    {
+        "label": "datetime",
         "importPath": "datetime",
         "description": "datetime",
         "isExtraImport": true,
@@ -9883,6 +9939,14 @@
         "documentation": {}
     },
     {
+        "label": "Path",
+        "importPath": "pathlib",
+        "description": "pathlib",
+        "isExtraImport": true,
+        "detail": "pathlib",
+        "documentation": {}
+    },
+    {
         "label": "CORSMiddleware",
         "importPath": "fastapi.middleware.cors",
         "description": "fastapi.middleware.cors",
@@ -11742,6 +11806,14 @@
     },
     {
         "label": "CanonicalEvent",
+        "importPath": "src.models.canonical_event",
+        "description": "src.models.canonical_event",
+        "isExtraImport": true,
+        "detail": "src.models.canonical_event",
+        "documentation": {}
+    },
+    {
+        "label": "EventType",
         "importPath": "src.models.canonical_event",
         "description": "src.models.canonical_event",
         "isExtraImport": true,
@@ -14741,14 +14813,6 @@
         "documentation": {}
     },
     {
-        "label": "DarkShipCandidate",
-        "importPath": "src.services.dark_ship_detector",
-        "description": "src.services.dark_ship_detector",
-        "isExtraImport": true,
-        "detail": "src.services.dark_ship_detector",
-        "documentation": {}
-    },
-    {
         "label": "DarkShipDetectionResponse",
         "importPath": "src.services.dark_ship_detector",
         "description": "src.services.dark_ship_detector",
@@ -17183,6 +17247,30 @@
     },
     {
         "label": "get_vessel_by_mmsi",
+        "importPath": "src.services.vessel_registry",
+        "description": "src.services.vessel_registry",
+        "isExtraImport": true,
+        "detail": "src.services.vessel_registry",
+        "documentation": {}
+    },
+    {
+        "label": "SanctionsStatus",
+        "importPath": "src.services.vessel_registry",
+        "description": "src.services.vessel_registry",
+        "isExtraImport": true,
+        "detail": "src.services.vessel_registry",
+        "documentation": {}
+    },
+    {
+        "label": "VesselProfile",
+        "importPath": "src.services.vessel_registry",
+        "description": "src.services.vessel_registry",
+        "isExtraImport": true,
+        "detail": "src.services.vessel_registry",
+        "documentation": {}
+    },
+    {
+        "label": "list_vessels",
         "importPath": "src.services.vessel_registry",
         "description": "src.services.vessel_registry",
         "isExtraImport": true,
@@ -20972,7 +21060,7 @@
         "kind": 5,
         "importPath": "src.api.analytics",
         "description": "src.api.analytics",
-        "peekOfCode": "logger = logging.getLogger(__name__)\nrouter = APIRouter(prefix=\"/api/v1/analytics\", tags=[\"analytics\"])\n# ── Module-level service singleton ────────────────────────────────────────────\n_service = ChangeAnalyticsService()\n_event_store: Any | None = None\ndef get_analytics_service() -> ChangeAnalyticsService:\n    \"\"\"Return the module-level ChangeAnalyticsService (replaceable in tests).\"\"\"\n    return _service\ndef set_analytics_service(svc: ChangeAnalyticsService) -> None:\n    \"\"\"Replace the service singleton. Used in tests.\"\"\"",
+        "peekOfCode": "logger = logging.getLogger(__name__)\nrouter = APIRouter(prefix=\"/api/v1/analytics\", tags=[\"analytics\"])\n# ── Module-level service singleton ────────────────────────────────────────────\n_service = ChangeAnalyticsService(use_synthetic_fallback=False)\n_event_store: Any | None = None\ndef get_analytics_service() -> ChangeAnalyticsService:\n    \"\"\"Return the module-level ChangeAnalyticsService (replaceable in tests).\"\"\"\n    return _service\ndef set_analytics_service(svc: ChangeAnalyticsService) -> None:\n    \"\"\"Replace the service singleton. Used in tests.\"\"\"",
         "detail": "src.api.analytics",
         "documentation": {}
     },
@@ -20981,7 +21069,7 @@
         "kind": 5,
         "importPath": "src.api.analytics",
         "description": "src.api.analytics",
-        "peekOfCode": "router = APIRouter(prefix=\"/api/v1/analytics\", tags=[\"analytics\"])\n# ── Module-level service singleton ────────────────────────────────────────────\n_service = ChangeAnalyticsService()\n_event_store: Any | None = None\ndef get_analytics_service() -> ChangeAnalyticsService:\n    \"\"\"Return the module-level ChangeAnalyticsService (replaceable in tests).\"\"\"\n    return _service\ndef set_analytics_service(svc: ChangeAnalyticsService) -> None:\n    \"\"\"Replace the service singleton. Used in tests.\"\"\"\n    global _service",
+        "peekOfCode": "router = APIRouter(prefix=\"/api/v1/analytics\", tags=[\"analytics\"])\n# ── Module-level service singleton ────────────────────────────────────────────\n_service = ChangeAnalyticsService(use_synthetic_fallback=False)\n_event_store: Any | None = None\ndef get_analytics_service() -> ChangeAnalyticsService:\n    \"\"\"Return the module-level ChangeAnalyticsService (replaceable in tests).\"\"\"\n    return _service\ndef set_analytics_service(svc: ChangeAnalyticsService) -> None:\n    \"\"\"Replace the service singleton. Used in tests.\"\"\"\n    global _service",
         "detail": "src.api.analytics",
         "documentation": {}
     },
@@ -20990,7 +21078,7 @@
         "kind": 5,
         "importPath": "src.api.analytics",
         "description": "src.api.analytics",
-        "peekOfCode": "_service = ChangeAnalyticsService()\n_event_store: Any | None = None\ndef get_analytics_service() -> ChangeAnalyticsService:\n    \"\"\"Return the module-level ChangeAnalyticsService (replaceable in tests).\"\"\"\n    return _service\ndef set_analytics_service(svc: ChangeAnalyticsService) -> None:\n    \"\"\"Replace the service singleton. Used in tests.\"\"\"\n    global _service\n    _service = svc\ndef set_analytics_event_store(store: Any) -> None:",
+        "peekOfCode": "_service = ChangeAnalyticsService(use_synthetic_fallback=False)\n_event_store: Any | None = None\ndef get_analytics_service() -> ChangeAnalyticsService:\n    \"\"\"Return the module-level ChangeAnalyticsService (replaceable in tests).\"\"\"\n    return _service\ndef set_analytics_service(svc: ChangeAnalyticsService) -> None:\n    \"\"\"Replace the service singleton. Used in tests.\"\"\"\n    global _service\n    _service = svc\ndef set_analytics_event_store(store: Any) -> None:",
         "detail": "src.api.analytics",
         "documentation": {}
     },
@@ -21073,6 +21161,15 @@
         "description": "src.api.aois",
         "peekOfCode": "StoreDep = Annotated[AOIStore, Depends(get_aoi_store)]\n# ── Endpoints ─────────────────────────────────────────────────────────────────\n@router.post(\n    \"\",\n    response_model=AOIResponse,\n    status_code=status.HTTP_201_CREATED,\n    summary=\"Create a new AOI\",\n)\ndef create_aoi(payload: AOICreate, store: StoreDep) -> AOIResponse:\n    \"\"\"Save an analyst-defined area of interest.",
         "detail": "src.api.aois",
+        "documentation": {}
+    },
+    {
+        "label": "seed_demo_cameras",
+        "kind": 2,
+        "importPath": "src.api.cameras",
+        "description": "src.api.cameras",
+        "peekOfCode": "def seed_demo_cameras() -> None:\n    \"\"\"Populate the in-memory stores with demo cameras. Called only in DEMO mode.\"\"\"\n    _seed()\n# ── Endpoints — static routes FIRST to avoid param capture ───────────────────\n@router.get(\n    \"\",\n    response_model=list[dict],\n    summary=\"List all cameras\",\n    description=\"Returns camera IDs, type, label, and geo_registration for all seeded cameras.\",\n)",
+        "detail": "src.api.cameras",
         "documentation": {}
     },
     {
@@ -21188,16 +21285,16 @@
         "kind": 6,
         "importPath": "src.api.dark_ships",
         "description": "src.api.dark_ships",
-        "peekOfCode": "class DetectRequest(BaseModel):\n    events: list[CanonicalEvent]\n@router.post(\n    \"/detect\",\n    response_model=DarkShipDetectionResponse,\n    summary=\"Detect dark-ship candidates from a list of canonical AIS events\",\n)\ndef detect(req: DetectRequest) -> DarkShipDetectionResponse:\n    if not req.events:\n        raise HTTPException(status_code=422, detail=\"events list must not be empty\")",
+        "peekOfCode": "class DetectRequest(BaseModel):\n    events: list[CanonicalEvent]\ndef list_demo_candidates() -> DarkShipDetectionResponse:\n    \"\"\"Return a fixed set of curated demo dark-ship candidates for testing / demo mode.\n    These are drawn from known sanctioned/shadow-fleet vessels in the vessel registry\n    and are NOT served by the live ``list_candidates()`` endpoint (which queries the\n    EventStore). Use this function in tests and demo-mode fixtures only.\n    \"\"\"\n    from src.services.dark_ship_detector import DarkShipCandidate, _event_id\n    _candidates = [",
         "detail": "src.api.dark_ships",
         "documentation": {}
     },
     {
-        "label": "detect",
+        "label": "set_event_store",
         "kind": 2,
         "importPath": "src.api.dark_ships",
         "description": "src.api.dark_ships",
-        "peekOfCode": "def detect(req: DetectRequest) -> DarkShipDetectionResponse:\n    if not req.events:\n        raise HTTPException(status_code=422, detail=\"events list must not be empty\")\n    return detect_dark_ships(req.events)\n# ── Curated demo endpoint ─────────────────────────────────────────────────────\n# Returns a deterministic list of dark-ship candidates seeded from demo data.\n# This guarantees the UI has data without needing a live AIS feed.\n_DEMO_CANDIDATES: list[DarkShipCandidate] = [\n    DarkShipCandidate(\n        mmsi=\"422110600\", vessel_name=\"WISDOM\",",
+        "peekOfCode": "def set_event_store(store: Any) -> None:\n    \"\"\"Inject the shared EventStore. Called from app lifespan.\"\"\"\n    global _event_store\n    _event_store = store\nclass DetectRequest(BaseModel):\n    events: list[CanonicalEvent]\ndef list_demo_candidates() -> DarkShipDetectionResponse:\n    \"\"\"Return a fixed set of curated demo dark-ship candidates for testing / demo mode.\n    These are drawn from known sanctioned/shadow-fleet vessels in the vessel registry\n    and are NOT served by the live ``list_candidates()`` endpoint (which queries the",
         "detail": "src.api.dark_ships",
         "documentation": {}
     },
@@ -21206,7 +21303,34 @@
         "kind": 2,
         "importPath": "src.api.dark_ships",
         "description": "src.api.dark_ships",
-        "peekOfCode": "def list_demo_candidates() -> DarkShipDetectionResponse:\n    return DarkShipDetectionResponse(\n        candidates=_DEMO_CANDIDATES,\n        total=len(_DEMO_CANDIDATES),\n        events_analysed=0,\n    )",
+        "peekOfCode": "def list_demo_candidates() -> DarkShipDetectionResponse:\n    \"\"\"Return a fixed set of curated demo dark-ship candidates for testing / demo mode.\n    These are drawn from known sanctioned/shadow-fleet vessels in the vessel registry\n    and are NOT served by the live ``list_candidates()`` endpoint (which queries the\n    EventStore). Use this function in tests and demo-mode fixtures only.\n    \"\"\"\n    from src.services.dark_ship_detector import DarkShipCandidate, _event_id\n    _candidates = [\n        DarkShipCandidate(\n            mmsi=\"422110600\",",
+        "detail": "src.api.dark_ships",
+        "documentation": {}
+    },
+    {
+        "label": "detect",
+        "kind": 2,
+        "importPath": "src.api.dark_ships",
+        "description": "src.api.dark_ships",
+        "peekOfCode": "def detect(req: DetectRequest) -> DarkShipDetectionResponse:\n    if not req.events:\n        raise HTTPException(status_code=422, detail=\"events list must not be empty\")\n    return detect_dark_ships(req.events)\n@router.get(\n    \"\",\n    response_model=DarkShipDetectionResponse,\n    summary=\"Detect dark-ship candidates from the live EventStore\",\n)\ndef list_candidates() -> DarkShipDetectionResponse:",
+        "detail": "src.api.dark_ships",
+        "documentation": {}
+    },
+    {
+        "label": "list_candidates",
+        "kind": 2,
+        "importPath": "src.api.dark_ships",
+        "description": "src.api.dark_ships",
+        "peekOfCode": "def list_candidates() -> DarkShipDetectionResponse:\n    \"\"\"Run dark-ship detection against ship_position events in the live EventStore.\n    Returns an empty candidate list when no AIS data is available (e.g., no\n    AISSTREAM_API_KEY configured or store not yet populated).\n    \"\"\"\n    if _event_store is None:\n        return DarkShipDetectionResponse(candidates=[], total=0, events_analysed=0)\n    window_start = (datetime.now(UTC) - timedelta(days=90)).isoformat()\n    window_end = datetime.now(UTC).isoformat()\n    with _event_store._lock:",
+        "detail": "src.api.dark_ships",
+        "documentation": {}
+    },
+    {
+        "label": "log",
+        "kind": 5,
+        "importPath": "src.api.dark_ships",
+        "description": "src.api.dark_ships",
+        "peekOfCode": "log = logging.getLogger(__name__)\nrouter = APIRouter(prefix=\"/api/v1/dark-ships\", tags=[\"dark-ships\"])\n# Module-level EventStore reference — injected by app lifespan\n_event_store: Any | None = None\ndef set_event_store(store: Any) -> None:\n    \"\"\"Inject the shared EventStore. Called from app lifespan.\"\"\"\n    global _event_store\n    _event_store = store\nclass DetectRequest(BaseModel):\n    events: list[CanonicalEvent]",
         "detail": "src.api.dark_ships",
         "documentation": {}
     },
@@ -21215,7 +21339,7 @@
         "kind": 5,
         "importPath": "src.api.dark_ships",
         "description": "src.api.dark_ships",
-        "peekOfCode": "router = APIRouter(prefix=\"/api/v1/dark-ships\", tags=[\"dark-ships\"])\nclass DetectRequest(BaseModel):\n    events: list[CanonicalEvent]\n@router.post(\n    \"/detect\",\n    response_model=DarkShipDetectionResponse,\n    summary=\"Detect dark-ship candidates from a list of canonical AIS events\",\n)\ndef detect(req: DetectRequest) -> DarkShipDetectionResponse:\n    if not req.events:",
+        "peekOfCode": "router = APIRouter(prefix=\"/api/v1/dark-ships\", tags=[\"dark-ships\"])\n# Module-level EventStore reference — injected by app lifespan\n_event_store: Any | None = None\ndef set_event_store(store: Any) -> None:\n    \"\"\"Inject the shared EventStore. Called from app lifespan.\"\"\"\n    global _event_store\n    _event_store = store\nclass DetectRequest(BaseModel):\n    events: list[CanonicalEvent]\ndef list_demo_candidates() -> DarkShipDetectionResponse:",
         "detail": "src.api.dark_ships",
         "documentation": {}
     },
@@ -21701,7 +21825,7 @@
         "kind": 2,
         "importPath": "src.api.jamming",
         "description": "src.api.jamming",
-        "peekOfCode": "def ingest_jamming(body: IngestRequest) -> JammingListResponse:\n    if body.end <= body.start:\n        raise HTTPException(status_code=422, detail=\"end must be after start\")\n    new_events = get_jamming_service().refresh(start=body.start, end=body.end)\n    return JammingListResponse(events=new_events, is_demo_data=True)\n@router.get(\n    \"/events/{jamming_id}\",\n    response_model=GpsJammingEvent,\n    summary=\"Retrieve a single GPS jamming event by ID [DEMO DATA]\",\n)",
+        "peekOfCode": "def ingest_jamming(body: IngestRequest) -> JammingListResponse:\n    if body.end <= body.start:\n        raise HTTPException(status_code=422, detail=\"end must be after start\")\n    new_events = get_jamming_service().refresh(start=body.start, end=body.end)\n    return JammingListResponse(events=new_events, is_demo_data=get_jamming_service().is_demo_mode)\n@router.get(\n    \"/events/{jamming_id}\",\n    response_model=GpsJammingEvent,\n    summary=\"Retrieve a single GPS jamming event by ID [DEMO DATA]\",\n)",
         "detail": "src.api.jamming",
         "documentation": {}
     },
@@ -21998,7 +22122,7 @@
         "kind": 2,
         "importPath": "src.api.strike",
         "description": "src.api.strike",
-        "peekOfCode": "def list_strikes(\n    start=Query(\n        default=None, description=\"Filter events on or after this UTC timestamp\"\n    ),\n    end=Query(\n        default=None, description=\"Filter events on or before this UTC timestamp\"\n    ),\n    strike_type: str | None = Query(\n        default=None,\n        description=\"Filter by strike type: airstrike | artillery | missile | drone | unknown\",",
+        "peekOfCode": "def list_strikes(\n    start: datetime | None = Query(\n        default=None, description=\"Filter events on or after this UTC timestamp\"\n    ),\n    end: datetime | None = Query(\n        default=None, description=\"Filter events on or before this UTC timestamp\"\n    ),\n    strike_type: str | None = Query(\n        default=None,\n        description=\"Filter by strike type: airstrike | artillery | missile | drone | unknown\",",
         "detail": "src.api.strike",
         "documentation": {}
     },
@@ -24505,11 +24629,20 @@
         "documentation": {}
     },
     {
+        "label": "AoiStore",
+        "kind": 5,
+        "importPath": "src.services.aoi_store",
+        "description": "src.services.aoi_store",
+        "peekOfCode": "AoiStore = AOIStore",
+        "detail": "src.services.aoi_store",
+        "documentation": {}
+    },
+    {
         "label": "ChangeAnalyticsService",
         "kind": 6,
         "importPath": "src.services.change_analytics",
         "description": "src.services.change_analytics",
-        "peekOfCode": "class ChangeAnalyticsService:\n    \"\"\"In-memory change analytics service (PostGIS-swap-ready).\n    Thread-safe: all mutations acquire ``_lock``.\n    \"\"\"\n    def __init__(self) -> None:\n        self._jobs: dict[str, ChangeDetectionJobResponse] = {}\n        self._candidates: dict[str, ChangeCandidate] = {}\n        self._lock = threading.Lock()\n    # ── P4-1.2: Submit job ────────────────────────────────────────────────────\n    def submit_job(",
+        "peekOfCode": "class ChangeAnalyticsService:\n    \"\"\"In-memory change analytics service (PostGIS-swap-ready).\n    Thread-safe: all mutations acquire ``_lock``.\n    Args:\n        use_synthetic_fallback: When True (default), generates deterministic\n            synthetic candidates when live rasterio detection is unavailable.\n            Set False in production to return an empty list instead, preventing\n            demo artifacts from appearing in live deployments.\n    \"\"\"\n    def __init__(self, *, use_synthetic_fallback: bool = True) -> None:",
         "detail": "src.services.change_analytics",
         "documentation": {}
     },
@@ -25121,16 +25254,16 @@
         "kind": 2,
         "importPath": "src.services.intel_briefing",
         "description": "src.services.intel_briefing",
-        "peekOfCode": "def generate_briefing() -> IntelBriefing:\n    now = datetime.now(UTC)\n    cps = get_all_chokepoints()\n    max_threat = max(cp.threat_level for cp in cps)\n    risk_level, risk_color = (\n        (\"CRITICAL\", \"#dc2626\") if max_threat == 5 else\n        (\"HIGH\", \"#f97316\")     if max_threat == 4 else\n        (\"MODERATE\", \"#eab308\") if max_threat == 3 else\n        (\"LOW\", \"#22c55e\")\n    )",
+        "peekOfCode": "def generate_briefing() -> IntelBriefing:\n    now = datetime.now(UTC)\n    cps = get_all_chokepoints()\n    max_threat = max((cp.threat_level for cp in cps), default=0)\n    risk_level, risk_color = (\n        (\"CRITICAL\", \"#dc2626\") if max_threat >= 5 else\n        (\"HIGH\", \"#f97316\")     if max_threat == 4 else\n        (\"MODERATE\", \"#eab308\") if max_threat == 3 else\n        (\"LOW\", \"#22c55e\")\n    )",
         "detail": "src.services.intel_briefing",
         "documentation": {}
     },
     {
-        "label": "_EXECUTIVE_SUMMARY",
+        "label": "log",
         "kind": 5,
         "importPath": "src.services.intel_briefing",
         "description": "src.services.intel_briefing",
-        "peekOfCode": "_EXECUTIVE_SUMMARY = (\n    \"THREAT LEVEL: CRITICAL. Iran's IRGC has escalated vessel-seizure operations in the Strait of \"\n    \"Hormuz to a 5-year high, representing the most acute interdiction risk in the assessment period. \"\n    \"Shadow-fleet AIS-dark operations continue with three OFAC-linked vessels dark for a combined \"\n    \"144 hours. Bab-el-Mandeb remains HIGH due to the ongoing Houthi anti-shipping campaign. \"\n    \"Recommend immediate convoy assessment and enhanced AIS monitoring for all Hormuz-transiting vessels.\"\n)\ndef generate_briefing() -> IntelBriefing:\n    now = datetime.now(UTC)\n    cps = get_all_chokepoints()",
+        "peekOfCode": "log = logging.getLogger(__name__)\nclass VesselAlert(BaseModel):\n    mmsi: str\n    vessel_name: str\n    sanctions_status: str\n    alert_type: str          # \"dark_ship\" | \"sanctions_entry\" | \"position_jump\"\n    detail: str\n    confidence: float\nclass IntelBriefing(BaseModel):\n    briefing_id: str",
         "detail": "src.services.intel_briefing",
         "documentation": {}
     },
@@ -25175,7 +25308,7 @@
         "kind": 6,
         "importPath": "src.services.operational_layer_service",
         "description": "src.services.operational_layer_service",
-        "peekOfCode": "class AirspaceLayerService:\n    \"\"\"Singleton service managing airspace restrictions and NOTAMs.\"\"\"\n    def __init__(self) -> None:\n        from src.connectors.airspace_connector import AirspaceConnector\n        self._lock = threading.Lock()\n        self._stub = AirspaceConnector()\n        self._stub.connect()\n        self._connector = self._stub\n        self._demo_mode: bool = True\n        self._restrictions: dict = {}",
+        "peekOfCode": "class AirspaceLayerService:\n    \"\"\"Singleton service managing airspace restrictions and NOTAMs.\"\"\"\n    def __init__(self) -> None:\n        from src.connectors.airspace_connector import AirspaceConnector\n        self._lock = threading.Lock()\n        self._stub = AirspaceConnector()\n        self._stub.connect()\n        self._connector = self._stub\n        self._demo_mode: bool = True\n        self._block_stub: bool = False",
         "detail": "src.services.operational_layer_service",
         "documentation": {}
     },
@@ -25238,7 +25371,7 @@
         "kind": 2,
         "importPath": "src.services.operational_layer_service",
         "description": "src.services.operational_layer_service",
-        "peekOfCode": "def initialize_operational_layers(settings: \"AppSettings\") -> None:\n    \"\"\"Called once in ``app/main.py`` lifespan after settings are loaded.\n    Resolves which connector to use for each domain layer based on the current\n    ``APP_MODE`` and available credentials, then seeds each service store.\n    \"\"\"\n    from app.config import AppMode\n    demo_mode = settings.app_mode == AppMode.DEMO\n    log.info(\n        \"Initialising operational layers | mode=%s demo=%s\",\n        settings.app_mode.value,",
+        "peekOfCode": "def initialize_operational_layers(settings: \"AppSettings\") -> None:\n    \"\"\"Called once in ``app/main.py`` lifespan after settings are loaded.\n    Resolves which connector to use for each domain layer based on the current\n    ``APP_MODE`` and available credentials, then seeds each service store.\n    \"\"\"\n    from app.config import AppMode\n    demo_mode = settings.app_mode == AppMode.DEMO\n    production_mode = settings.app_mode == AppMode.PRODUCTION\n    log.info(\n        \"Initialising operational layers | mode=%s demo=%s production=%s\",",
         "detail": "src.services.operational_layer_service",
         "documentation": {}
     },
@@ -25666,11 +25799,20 @@
         "documentation": {}
     },
     {
+        "label": "_RESTORE_KEYS",
+        "kind": 5,
+        "importPath": "tests.integration.conftest",
+        "description": "tests.integration.conftest",
+        "peekOfCode": "_RESTORE_KEYS = {\n    \"DATABASE_URL\",\n    \"SENTINEL2_CLIENT_ID\",\n    \"SENTINEL2_CLIENT_SECRET\",\n    \"SENTINEL2_TOKEN_URL\",\n    \"LANDSAT_USERNAME\",\n    \"LANDSAT_PASSWORD\",\n    \"MAXAR_API_KEY\",\n    \"PLANET_API_KEY\",\n    \"ACLED_EMAIL\",",
+        "detail": "tests.integration.conftest",
+        "documentation": {}
+    },
+    {
         "label": "_env_file",
         "kind": 5,
         "importPath": "tests.integration.conftest",
         "description": "tests.integration.conftest",
-        "peekOfCode": "_env_file = Path(__file__).parents[2] / \".env\"\nif _env_file.exists():\n    with _env_file.open() as _f:\n        for _line in _f:\n            _line = _line.strip()\n            if not _line or _line.startswith(\"#\") or \"=\" not in _line:\n                continue\n            _key, _, _val = _line.partition(\"=\")\n            _key = _key.strip()\n            _val = _val.strip()",
+        "peekOfCode": "_env_file = Path(__file__).parents[2] / \".env\"\nif _env_file.exists():\n    with _env_file.open(encoding=\"utf-8\") as _f:\n        for _line in _f:\n            _line = _line.strip()\n            if not _line or _line.startswith(\"#\") or \"=\" not in _line:\n                continue\n            _key, _, _val = _line.partition(\"=\")\n            _key = _key.strip()\n            _val = _val.strip()",
         "detail": "tests.integration.conftest",
         "documentation": {}
     },
@@ -26453,7 +26595,7 @@
         "kind": 6,
         "importPath": "tests.integration.test_change_detection_rasterio",
         "description": "tests.integration.test_change_detection_rasterio",
-        "peekOfCode": "class TestChangeDetectionIntegration:\n    \"\"\"End-to-end change detection integration tests.\"\"\"\n    def test_analyze_live_provider_has_real_changes(self, settings):\n        \"\"\"Test that live Sentinel-2 analysis returns real change polygons (not demo).\"\"\"\n        from app.services.analysis import AnalysisService\n        from app.providers.sentinel2 import Sentinel2Provider\n        from app.resilience.circuit_breaker import CircuitBreaker\n        from app.cache.client import CacheClient\n        # Skip if no Sentinel-2 credentials\n        if not settings.sentinel2_is_configured():",
+        "peekOfCode": "class TestChangeDetectionIntegration:\n    \"\"\"End-to-end change detection integration tests.\"\"\"\n    def test_analyze_live_provider_has_real_changes(self, settings):\n        \"\"\"Test that live Sentinel-2 analysis returns real change polygons (not demo).\"\"\"\n        from app.services.analysis import AnalysisService\n        from app.models.requests import AnalyzeRequest\n        from app.providers.registry import ProviderRegistry\n        from app.providers.sentinel2 import Sentinel2Provider\n        from app.resilience.circuit_breaker import CircuitBreaker\n        from app.cache.client import CacheClient",
         "detail": "tests.integration.test_change_detection_rasterio",
         "documentation": {}
     },
@@ -26948,7 +27090,7 @@
         "kind": 6,
         "importPath": "tests.integration.test_operational_layers_replay",
         "description": "tests.integration.test_operational_layers_replay",
-        "peekOfCode": "class TestScenarioB_JammingConfidenceFilter:\n    \"\"\"Higher confidence_min returns fewer or equal jamming events.\"\"\"\n    def test_high_confidence_returns_subset(self, client: TestClient) -> None:\n        low = client.get(\"/api/v1/jamming/events?confidence_min=0.0\").json()\n        high = client.get(\"/api/v1/jamming/events?confidence_min=0.9\").json()\n        assert len(high) <= len(low), (\n            \"High confidence filter must return ≤ results vs low confidence filter\"\n        )\n    def test_filtered_events_meet_minimum_confidence(self, client: TestClient) -> None:\n        threshold = 0.7",
+        "peekOfCode": "class TestScenarioB_JammingConfidenceFilter:\n    \"\"\"Higher confidence_min returns fewer or equal jamming events.\"\"\"\n    def test_high_confidence_returns_subset(self, client: TestClient) -> None:\n        low = client.get(\"/api/v1/jamming/events?confidence_min=0.0\").json()[\"events\"]\n        high = client.get(\"/api/v1/jamming/events?confidence_min=0.9\").json()[\"events\"]\n        assert len(high) <= len(low), (\n            \"High confidence filter must return ≤ results vs low confidence filter\"\n        )\n    def test_filtered_events_meet_minimum_confidence(self, client: TestClient) -> None:\n        threshold = 0.7",
         "detail": "tests.integration.test_operational_layers_replay",
         "documentation": {}
     },
@@ -26957,7 +27099,7 @@
         "kind": 6,
         "importPath": "tests.integration.test_operational_layers_replay",
         "description": "tests.integration.test_operational_layers_replay",
-        "peekOfCode": "class TestScenarioC_StrikeTypeFilter:\n    \"\"\"Filtering by strike_type returns only matching strikes.\"\"\"\n    def _get_first_type(self, client: TestClient) -> str:\n        \"\"\"Return the strike_type of the first seeded strike.\"\"\"\n        body = client.get(\"/api/v1/strikes\").json()\n        assert len(body) >= 1\n        return body[0][\"strike_type\"]\n    def test_type_filter_returns_only_matching(self, client: TestClient) -> None:\n        strike_type = self._get_first_type(client)\n        filtered = client.get(f\"/api/v1/strikes?strike_type={strike_type}\").json()",
+        "peekOfCode": "class TestScenarioC_StrikeTypeFilter:\n    \"\"\"Filtering by strike_type returns only matching strikes.\"\"\"\n    def _get_first_type(self, client: TestClient) -> str:\n        \"\"\"Return the strike_type of the first seeded strike.\"\"\"\n        body = client.get(\"/api/v1/strikes\").json()[\"events\"]\n        assert len(body) >= 1\n        return body[0][\"strike_type\"]\n    def test_type_filter_returns_only_matching(self, client: TestClient) -> None:\n        strike_type = self._get_first_type(client)\n        filtered = client.get(f\"/api/v1/strikes?strike_type={strike_type}\").json()[\"events\"]",
         "detail": "tests.integration.test_operational_layers_replay",
         "documentation": {}
     },
@@ -26966,7 +27108,7 @@
         "kind": 6,
         "importPath": "tests.integration.test_operational_layers_replay",
         "description": "tests.integration.test_operational_layers_replay",
-        "peekOfCode": "class TestScenarioD_EvidenceCorroboration:\n    \"\"\"Attaching a new evidence link increments corroboration_count by 1.\"\"\"\n    def test_evidence_increments_corroboration(self, client: TestClient) -> None:\n        strikes = client.get(\"/api/v1/strikes\").json()\n        strike = strikes[0]\n        strike_id = strike[\"strike_id\"]\n        initial_count = strike[\"corroboration_count\"]\n        payload = {\n            \"evidence_id\": \"ev-replay-scenario-d-001\",\n            \"event_id\": strike_id,",
+        "peekOfCode": "class TestScenarioD_EvidenceCorroboration:\n    \"\"\"Attaching a new evidence link increments corroboration_count by 1.\"\"\"\n    def test_evidence_increments_corroboration(self, client: TestClient) -> None:\n        strikes = client.get(\"/api/v1/strikes\").json()[\"events\"]\n        strike = strikes[0]\n        strike_id = strike[\"strike_id\"]\n        initial_count = strike[\"corroboration_count\"]\n        payload = {\n            \"evidence_id\": \"ev-replay-scenario-d-001\",\n            \"event_id\": strike_id,",
         "detail": "tests.integration.test_operational_layers_replay",
         "documentation": {}
     },
@@ -27002,7 +27144,7 @@
         "kind": 6,
         "importPath": "tests.integration.test_operational_layers_replay",
         "description": "tests.integration.test_operational_layers_replay",
-        "peekOfCode": "class TestScenarioH_StrikeSummary:\n    \"\"\"Strike summary returns a dict of {strike_type: count} with valid types.\"\"\"\n    _VALID_TYPES = {\"airstrike\", \"artillery\", \"missile\", \"drone\", \"unknown\"}\n    def test_summary_returns_dict(self, client: TestClient) -> None:\n        r = client.get(\"/api/v1/strikes/summary\")\n        assert r.status_code == 200\n        assert isinstance(r.json(), dict)\n    def test_summary_keys_are_valid_strike_types(self, client: TestClient) -> None:\n        summary = client.get(\"/api/v1/strikes/summary\").json()\n        for k in summary:",
+        "peekOfCode": "class TestScenarioH_StrikeSummary:\n    \"\"\"Strike summary returns a dict of {strike_type: count} with valid types.\"\"\"\n    _VALID_TYPES = {\"airstrike\", \"artillery\", \"missile\", \"drone\", \"unknown\"}\n    def test_summary_returns_dict(self, client: TestClient) -> None:\n        r = client.get(\"/api/v1/strikes/summary\")\n        assert r.status_code == 200\n        assert isinstance(r.json(), dict)\n    def test_summary_keys_are_valid_strike_types(self, client: TestClient) -> None:\n        summary = client.get(\"/api/v1/strikes/summary\").json()[\"counts\"]\n        for k in summary:",
         "detail": "tests.integration.test_operational_layers_replay",
         "documentation": {}
     },
@@ -27038,7 +27180,7 @@
         "kind": 6,
         "importPath": "tests.integration.test_operational_layer_routes",
         "description": "tests.integration.test_operational_layer_routes",
-        "peekOfCode": "class TestJammingEndpoints:\n    def test_list_jamming_events_200(self, client):\n        r = client.get(\"/api/v1/jamming/events\")\n        assert r.status_code == 200\n    def test_list_jamming_events_returns_list(self, client):\n        r = client.get(\"/api/v1/jamming/events\")\n        body = r.json()\n        assert isinstance(body, list)\n        assert len(body) >= 1\n    def test_list_jamming_events_have_required_fields(self, client):",
+        "peekOfCode": "class TestJammingEndpoints:\n    def test_list_jamming_events_200(self, client):\n        r = client.get(\"/api/v1/jamming/events\")\n        assert r.status_code == 200\n    def test_list_jamming_events_returns_list(self, client):\n        r = client.get(\"/api/v1/jamming/events\")\n        body = r.json()\n        assert isinstance(body[\"events\"], list)\n        assert len(body[\"events\"]) >= 1\n        assert body[\"is_demo_data\"] is True",
         "detail": "tests.integration.test_operational_layer_routes",
         "documentation": {}
     },
@@ -27047,7 +27189,7 @@
         "kind": 6,
         "importPath": "tests.integration.test_operational_layer_routes",
         "description": "tests.integration.test_operational_layer_routes",
-        "peekOfCode": "class TestStrikeEndpoints:\n    def test_list_strikes_200(self, client):\n        r = client.get(\"/api/v1/strikes\")\n        assert r.status_code == 200\n    def test_list_strikes_returns_list(self, client):\n        body = client.get(\"/api/v1/strikes\").json()\n        assert isinstance(body, list)\n        assert len(body) >= 1\n    def test_list_strikes_have_required_fields(self, client):\n        body = client.get(\"/api/v1/strikes\").json()",
+        "peekOfCode": "class TestStrikeEndpoints:\n    def test_list_strikes_200(self, client):\n        r = client.get(\"/api/v1/strikes\")\n        assert r.status_code == 200\n    def test_list_strikes_returns_list(self, client):\n        body = client.get(\"/api/v1/strikes\").json()\n        assert isinstance(body[\"events\"], list)\n        assert len(body[\"events\"]) >= 1\n    def test_list_strikes_have_required_fields(self, client):\n        body = client.get(\"/api/v1/strikes\").json()",
         "detail": "tests.integration.test_operational_layer_routes",
         "documentation": {}
     },
@@ -32965,6 +33107,60 @@
         "documentation": {}
     },
     {
+        "label": "test_startup_scripts_use_module_form_for_uvicorn",
+        "kind": 2,
+        "importPath": "tests.unit.test_startup_scripts",
+        "description": "tests.unit.test_startup_scripts",
+        "peekOfCode": "def test_startup_scripts_use_module_form_for_uvicorn() -> None:\n    \"\"\"Startup scripts should invoke Uvicorn via ``python -m`` for Windows reliability.\"\"\"\n    for script_path in STARTUP_SCRIPTS:\n        content = script_path.read_text(encoding=\"utf-8\")\n        assert \"-m uvicorn app.main:app\" in content, (\n            f\"{script_path.relative_to(ROOT)} should invoke uvicorn via the Python module entry point\"\n        )\n        assert re.search(r\"(?<!-m )uvicorn app\\.main:app\", content) is None, (\n            f\"{script_path.relative_to(ROOT)} should not invoke uvicorn via a bare console command\"\n        )",
+        "detail": "tests.unit.test_startup_scripts",
+        "documentation": {}
+    },
+    {
+        "label": "test_celery_service_scripts_use_module_form",
+        "kind": 2,
+        "importPath": "tests.unit.test_startup_scripts",
+        "description": "tests.unit.test_startup_scripts",
+        "peekOfCode": "def test_celery_service_scripts_use_module_form() -> None:\n    \"\"\"Celery startup scripts should invoke Celery via ``python -m`` for Windows reliability.\"\"\"\n    for script_path in CELERY_SCRIPTS:\n        content = script_path.read_text(encoding=\"utf-8\")\n        assert \"-m celery -A app.workers.celery_app.celery_app\" in content, (\n            f\"{script_path.relative_to(ROOT)} should invoke Celery via the Python module entry point\"\n        )\n        assert re.search(r\"(?<!-m )celery -A app\\.workers\\.celery_app\\.celery_app\", content) is None, (\n            f\"{script_path.relative_to(ROOT)} should not invoke Celery via a bare console command\"\n        )",
+        "detail": "tests.unit.test_startup_scripts",
+        "documentation": {}
+    },
+    {
+        "label": "test_run_demo_bat_orchestrates_full_demo_stack",
+        "kind": 2,
+        "importPath": "tests.unit.test_startup_scripts",
+        "description": "tests.unit.test_startup_scripts",
+        "peekOfCode": "def test_run_demo_bat_orchestrates_full_demo_stack() -> None:\n    \"\"\"The Windows demo launcher should start infra, backend, worker, and frontend services.\"\"\"\n    content = (ROOT / \"run_demo.bat\").read_text(encoding=\"utf-8\").lower()\n    assert \"docker-compose.infra.yml\" in content\n    assert \"run_api.ps1\" in content\n    assert \"run_worker.ps1\" in content\n    assert \"frontend\" in content\n    assert \"pnpm dev\" in content or \"npm run dev\" in content\n    assert \"argus_demo_dry_run\" in content\n    assert \"waiting for backend api and frontend ui to become reachable\" in content",
+        "detail": "tests.unit.test_startup_scripts",
+        "documentation": {}
+    },
+    {
+        "label": "ROOT",
+        "kind": 5,
+        "importPath": "tests.unit.test_startup_scripts",
+        "description": "tests.unit.test_startup_scripts",
+        "peekOfCode": "ROOT = Path(__file__).resolve().parents[2]\nSTARTUP_SCRIPTS = [\n    ROOT / \"tools\" / \"run_demo.ps1\",\n    ROOT / \"tools\" / \"run_demo.sh\",\n    ROOT / \"tools\" / \"run_api.ps1\",\n]\nCELERY_SCRIPTS = [\n    ROOT / \"tools\" / \"run_worker.ps1\",\n    ROOT / \"tools\" / \"run_beat.ps1\",\n]",
+        "detail": "tests.unit.test_startup_scripts",
+        "documentation": {}
+    },
+    {
+        "label": "STARTUP_SCRIPTS",
+        "kind": 5,
+        "importPath": "tests.unit.test_startup_scripts",
+        "description": "tests.unit.test_startup_scripts",
+        "peekOfCode": "STARTUP_SCRIPTS = [\n    ROOT / \"tools\" / \"run_demo.ps1\",\n    ROOT / \"tools\" / \"run_demo.sh\",\n    ROOT / \"tools\" / \"run_api.ps1\",\n]\nCELERY_SCRIPTS = [\n    ROOT / \"tools\" / \"run_worker.ps1\",\n    ROOT / \"tools\" / \"run_beat.ps1\",\n]\ndef test_startup_scripts_use_module_form_for_uvicorn() -> None:",
+        "detail": "tests.unit.test_startup_scripts",
+        "documentation": {}
+    },
+    {
+        "label": "CELERY_SCRIPTS",
+        "kind": 5,
+        "importPath": "tests.unit.test_startup_scripts",
+        "description": "tests.unit.test_startup_scripts",
+        "peekOfCode": "CELERY_SCRIPTS = [\n    ROOT / \"tools\" / \"run_worker.ps1\",\n    ROOT / \"tools\" / \"run_beat.ps1\",\n]\ndef test_startup_scripts_use_module_form_for_uvicorn() -> None:\n    \"\"\"Startup scripts should invoke Uvicorn via ``python -m`` for Windows reliability.\"\"\"\n    for script_path in STARTUP_SCRIPTS:\n        content = script_path.read_text(encoding=\"utf-8\")\n        assert \"-m uvicorn app.main:app\" in content, (\n            f\"{script_path.relative_to(ROOT)} should invoke uvicorn via the Python module entry point\"",
+        "detail": "tests.unit.test_startup_scripts",
+        "documentation": {}
+    },
+    {
         "label": "test_app_creates_without_error",
         "kind": 2,
         "importPath": "tests.unit.test_startup_smoke",
@@ -34274,7 +34470,7 @@
         "kind": 5,
         "importPath": "tools.write_docs",
         "description": "tools.write_docs",
-        "peekOfCode": "$env:REDIS_URL = \"redis://localhost:6379/0\"\nuvicorn app.main:app --reload               # Terminal 2\n$env:REDIS_URL = \"redis://localhost:6379/0\"\ncelery -A app.workers.celery_app.celery_app worker --loglevel=info --pool=solo  # Terminal 3\n```\n### Docker Compose (full stack)\n```bash\ncp .env.example .env   # then fill in credentials\ndocker compose up --build\n# http://localhost:8000",
+        "peekOfCode": "$env:REDIS_URL = \"redis://localhost:6379/0\"\npython -m uvicorn app.main:app --reload     # Terminal 2\n$env:REDIS_URL = \"redis://localhost:6379/0\"\ncelery -A app.workers.celery_app.celery_app worker --loglevel=info --pool=solo  # Terminal 3\n```\n### Docker Compose (full stack)\n```bash\ncp .env.example .env   # then fill in credentials\ndocker compose up --build\n# http://localhost:8000",
         "detail": "tools.write_docs",
         "documentation": {}
     },
@@ -34292,7 +34488,7 @@
         "kind": 5,
         "importPath": "tools.write_docs",
         "description": "tools.write_docs",
-        "peekOfCode": "$env:REDIS_URL = \"redis://localhost:6379/0\"\n$env:APP_MODE  = \"auto\"\nuvicorn app.main:app --reload\n# Terminal 3 — Celery worker\n$env:REDIS_URL = \"redis://localhost:6379/0\"\ncelery -A app.workers.celery_app.celery_app worker `\n    --loglevel=info --pool=solo --concurrency=2\n```\n---\n## 3. Docker Compose (recommended for staging / production)",
+        "peekOfCode": "$env:REDIS_URL = \"redis://localhost:6379/0\"\n$env:APP_MODE  = \"auto\"\npython -m uvicorn app.main:app --reload\n# Terminal 3 — Celery worker\n$env:REDIS_URL = \"redis://localhost:6379/0\"\ncelery -A app.workers.celery_app.celery_app worker `\n    --loglevel=info --pool=solo --concurrency=2\n```\n---\n## 3. Docker Compose (recommended for staging / production)",
         "detail": "tools.write_docs",
         "documentation": {}
     },

@@ -12,18 +12,22 @@ Write-Host "     ARGUS CELERY BEAT - LOCAL DEVELOPMENT MODE" -ForegroundColor Gr
 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$venvDir = Join-Path $repoRoot ".venv"
+$venvPython = Join-Path $venvDir "Scripts\python.exe"
+
 # Activate virtual environment if not already active
-if (-not $env:VIRTUAL_ENV) {
-    Write-Host "πŸ" Activating virtual environment..." -ForegroundColor Yellow
-    & "$PSScriptRoot\.venv\Scripts\Activate.ps1"
+if ((-not $env:VIRTUAL_ENV) -and (Test-Path $venvPython)) {
+    Write-Host "Activating virtual environment..." -ForegroundColor Yellow
+    & (Join-Path $venvDir "Scripts\Activate.ps1")
 }
 
 # Check Redis (required for Celery broker)
-Write-Host "πŸ"Œ Checking Redis broker..." -ForegroundColor Yellow
+Write-Host "Checking Redis broker..." -ForegroundColor Yellow
 try {
     $redis = Test-NetConnection -ComputerName localhost -Port 6379 -WarningAction SilentlyContinue
     if ($redis.TcpTestSucceeded) {
-        Write-Host "  βœ… Redis: Running on port 6379" -ForegroundColor Green
+        Write-Host "  [OK] Redis: Running on port 6379" -ForegroundColor Green
     } else {
         Write-Host "  ❌ Redis: Not responding on port 6379" -ForegroundColor Red
         Write-Host ""
@@ -41,7 +45,7 @@ try {
 }
 
 Write-Host ""
-Write-Host "πŸš€ Starting Celery beat scheduler..." -ForegroundColor Cyan
+Write-Host "Starting Celery beat scheduler..." -ForegroundColor Cyan
 Write-Host "   Broker: redis://localhost:6379/0" -ForegroundColor White
 Write-Host "   Schedule: $env:TEMP\celerybeat-schedule" -ForegroundColor White
 Write-Host ""
@@ -52,4 +56,8 @@ Write-Host "Press Ctrl+C to stop the scheduler" -ForegroundColor Yellow
 Write-Host ""
 
 # Start Celery beat scheduler
-celery -A app.workers.celery_app.celery_app beat --loglevel=info --schedule="$env:TEMP\celerybeat-schedule"
+if (Test-Path $venvPython) {
+    & $venvPython -m celery -A app.workers.celery_app.celery_app beat --loglevel=info --schedule="$env:TEMP\celerybeat-schedule"
+} else {
+    python -m celery -A app.workers.celery_app.celery_app beat --loglevel=info --schedule="$env:TEMP\celerybeat-schedule"
+}

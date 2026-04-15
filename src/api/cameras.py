@@ -304,7 +304,9 @@ def _seed() -> None:
     )
 
 
-_seed()
+def seed_demo_cameras() -> None:
+    """Populate the in-memory stores with demo cameras. Called only in DEMO mode."""
+    _seed()
 
 
 # ── Endpoints — static routes FIRST to avoid param capture ───────────────────

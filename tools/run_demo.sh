@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
-if [ ! -d ".venv" ]; then
-  python -m venv .venv
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+VENV_PYTHON="$ROOT_DIR/.venv/bin/python"
+
+if [ ! -x "$VENV_PYTHON" ]; then
+  python -m venv "$ROOT_DIR/.venv"
 fi
-source .venv/bin/activate
-pip install -r requirements.txt
-exec uvicorn app.main:app --reload
+
+"$VENV_PYTHON" -m pip install -r "$ROOT_DIR/requirements.txt"
+exec "$VENV_PYTHON" -m uvicorn app.main:app --reload

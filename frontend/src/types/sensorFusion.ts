@@ -17,7 +17,8 @@ export interface CameraInfo {
   camera_id: string;
   camera_type: string; // optical | thermal | night_vision | radar | sar
   geo_registration: GeoRegistration;
-  source: string;
+  label?: string;
+  source?: string;
 }
 
 export interface CameraObservation {

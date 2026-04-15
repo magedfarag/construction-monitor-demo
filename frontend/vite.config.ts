@@ -25,9 +25,9 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': { target: backendTarget, changeOrigin: true, headers: proxyHeaders },
-        '/demo': { target: backendTarget, changeOrigin: true },
-        '/static': { target: backendTarget, changeOrigin: true },
+        '/api': { target: backendTarget, changeOrigin: true, autoRewrite: true, headers: proxyHeaders },
+        '/demo': { target: backendTarget, changeOrigin: true, autoRewrite: true },
+        '/static': { target: backendTarget, changeOrigin: true, autoRewrite: true },
         '/healthz': { target: backendTarget, changeOrigin: true },
         '/readyz': { target: backendTarget, changeOrigin: true },
       },

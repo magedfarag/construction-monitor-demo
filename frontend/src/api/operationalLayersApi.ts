@@ -6,6 +6,7 @@ import type {
   SatellitePass,
   HeatmapPoint,
   OrbitListResponse,
+  PassListResponse,
   RestrictionListResponse,
   NotamListResponse,
   JammingListResponse,
@@ -51,10 +52,10 @@ export function fetchSatellitePasses(
     lat: String(lat),
     horizon_hours: String(horizonHours),
   });
-  return opRequest<SatellitePass[]>(
+  return opRequest<PassListResponse>(
     `/api/v1/orbits/${encodeURIComponent(satelliteId)}/passes?${params}`,
     signal,
-  );
+  ).then(r => r.passes);
 }
 
 // ── Airspace ──────────────────────────────────────────────────────────────────
@@ -106,6 +107,11 @@ export function fetchStrikeEvents(
   return opRequest<StrikeListResponse>(`/api/v1/strikes${qs}`, signal);
 }
 
-export function fetchStrikeSummary(signal?: AbortSignal): Promise<Record<string, number>> {
-  return opRequest<Record<string, number>>('/api/v1/strikes/summary', signal);
+export interface StrikeSummaryResponse {
+  counts: Record<string, number>;
+  is_demo_data: boolean;
+}
+
+export function fetchStrikeSummary(signal?: AbortSignal): Promise<StrikeSummaryResponse> {
+  return opRequest<StrikeSummaryResponse>('/api/v1/strikes/summary', signal);
 }

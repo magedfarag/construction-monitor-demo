@@ -33,7 +33,7 @@ pnpm --filter frontend install
 alembic upgrade head
 
 # Start server (auto-reload)
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 2.2 Docker Compose (staging / production)

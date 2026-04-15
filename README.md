@@ -21,12 +21,15 @@ run_demo.bat
 ```
 
 This script will:
+- Create a local `.env` with demo-friendly defaults if one does not already exist
 - Create a Python virtual environment (`.venv/`)
-- Install all dependencies
-- Start the FastAPI backend with hot reload
-- Open your browser to the API docs
+- Install backend and frontend dependencies
+- Start Docker infrastructure services (Redis, PostgreSQL, MinIO)
+- Launch the backend API, Celery worker, and React frontend in separate terminals
+- Open your browser to the UI and API docs
 
 Visit:
+- React UI: `http://localhost:5173`
 - API docs: `http://127.0.0.1:8000/docs`
 - Health check: `http://127.0.0.1:8000/api/health`
 
@@ -38,7 +41,7 @@ Visit:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
 #### Full Stack (Backend + Frontend + Infrastructure)

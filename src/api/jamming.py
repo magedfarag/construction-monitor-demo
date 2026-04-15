@@ -107,7 +107,7 @@ def list_jamming_events(
         ]
 
     results.sort(key=lambda e: e.detected_at, reverse=True)
-    return JammingListResponse(events=results, is_demo_data=True)
+    return JammingListResponse(events=results, is_demo_data=get_jamming_service().is_demo_mode)
 
 
 @router.get(
@@ -148,7 +148,7 @@ def ingest_jamming(body: IngestRequest) -> JammingListResponse:
         raise HTTPException(status_code=422, detail="end must be after start")
 
     new_events = get_jamming_service().refresh(start=body.start, end=body.end)
-    return JammingListResponse(events=new_events, is_demo_data=True)
+    return JammingListResponse(events=new_events, is_demo_data=get_jamming_service().is_demo_mode)
 
 
 @router.get(

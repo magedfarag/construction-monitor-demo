@@ -10,7 +10,7 @@ Use this when you want the API and OpenAPI docs without Redis, workers, or the R
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m uvicorn app.main:app --reload
 ```
 
 Open:
