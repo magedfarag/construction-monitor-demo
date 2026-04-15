@@ -399,16 +399,22 @@ class TestAcledConnector:
         assert 0.0 < ev.confidence <= 1.0
 
     def test_health_healthy(self):
+        connector = _acled_connector()
+        connector._access_token = "test-token"
+        connector._token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         mock_resp = _mock_response({"status": 200, "data": []})
         with patch("httpx.get", return_value=mock_resp):
-            status = _acled_connector().health()
+            status = connector.health()
         assert status.healthy is True
         assert status.connector_id == "acled"
 
     def test_health_unhealthy_on_exception(self):
         import httpx
+        connector = _acled_connector()
+        connector._access_token = "test-token"
+        connector._token_expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         with patch("httpx.get", side_effect=httpx.ConnectError("refused")):
-            status = _acled_connector().health()
+            status = connector.health()
         assert status.healthy is False
 
 

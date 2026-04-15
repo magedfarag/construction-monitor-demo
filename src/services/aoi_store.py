@@ -7,6 +7,7 @@ swapping backends requires only a new class, no router changes.
 from __future__ import annotations
 
 import threading
+from typing import Any
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -47,6 +48,16 @@ class AOIStore:
         start = (page - 1) * page_size
         return active[start : start + page_size]
 
+    def list_aois(self) -> list[dict[str, Any]]:
+        """Backward-compatible AOI listing for legacy worker tasks.
+
+        Older Celery polling tasks expect a plain list of dicts from an
+        ``AoiStore`` class.  Keep that contract here so the current AOI CRUD
+        API and the worker task layer can share the same in-memory store
+        implementation during the migration window.
+        """
+        return [aoi.model_dump(mode="json") for aoi in self.list_active(page_size=10_000)]
+
     def count_active(self) -> int:
         with self._lock:
             return sum(1 for a in self._store.values() if not a.deleted)
@@ -83,3 +94,7 @@ class AOIStore:
             data["updated_at"] = datetime.now(UTC)
             self._store[aoi_id] = AOIResponse(**data)
         return True
+
+
+# Backward-compatible alias for legacy imports in Celery task modules.
+AoiStore = AOIStore

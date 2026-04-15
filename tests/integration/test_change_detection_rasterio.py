@@ -133,6 +133,8 @@ class TestChangeDetectionIntegration:
     def test_analyze_live_provider_has_real_changes(self, settings):
         """Test that live Sentinel-2 analysis returns real change polygons (not demo)."""
         from app.services.analysis import AnalysisService
+        from app.models.requests import AnalyzeRequest
+        from app.providers.registry import ProviderRegistry
         from app.providers.sentinel2 import Sentinel2Provider
         from app.resilience.circuit_breaker import CircuitBreaker
         from app.cache.client import CacheClient
@@ -143,10 +145,8 @@ class TestChangeDetectionIntegration:
         
         # Create service with real provider
         provider = Sentinel2Provider(settings)
-        registry = type('Registry', (), {
-            'select_provider': lambda: provider,
-            'all_providers': lambda: [provider],
-        })()
+        registry = ProviderRegistry()
+        registry.register(provider)
         
         cache = CacheClient(redis_url=settings.redis_url)
         breaker = CircuitBreaker()
@@ -170,12 +170,14 @@ class TestChangeDetectionIntegration:
             ]],
         }
         
-        result = service.run_sync(
+        request = AnalyzeRequest(
             geometry=test_geometry,
             start_date="2026-02-26",
             end_date="2026-03-28",
             cloud_threshold=50.0,
+            provider="sentinel2",
         )
+        result = service.run_sync(request)
         
         # Validate result
         assert result is not None
@@ -192,7 +194,8 @@ class TestChangeDetectionIntegration:
             assert change.center is not None
             assert change.bbox is not None
             assert len(change.bbox) == 4  # [minx, miny, maxx, maxy]
-            assert change.geometry is not None or change.summary is not None
+            assert change.summary is not None
+            assert change.rationale is not None
 
     def test_change_detection_returns_geojson_polygons(self):
         """Test that change detection returns valid GeoJSON polygon features."""

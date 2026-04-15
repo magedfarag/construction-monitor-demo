@@ -172,18 +172,19 @@ class TestJammingEndpoints:
     def test_list_jamming_events_returns_list(self, client):
         r = client.get("/api/v1/jamming/events")
         body = r.json()
-        assert isinstance(body, list)
-        assert len(body) >= 1
+        assert isinstance(body["events"], list)
+        assert len(body["events"]) >= 1
+        assert body["is_demo_data"] is True
 
     def test_list_jamming_events_have_required_fields(self, client):
         body = client.get("/api/v1/jamming/events").json()
-        for ev in body:
+        for ev in body["events"]:
             assert "jamming_id" in ev
             assert "detected_at" in ev
             assert "confidence" in ev
 
     def test_get_jamming_event_by_id_200(self, client):
-        events = client.get("/api/v1/jamming/events").json()
+        events = client.get("/api/v1/jamming/events").json()["events"]
         first_id = events[0]["jamming_id"]
         r = client.get(f"/api/v1/jamming/events/{first_id}")
         assert r.status_code == 200
@@ -226,12 +227,12 @@ class TestStrikeEndpoints:
 
     def test_list_strikes_returns_list(self, client):
         body = client.get("/api/v1/strikes").json()
-        assert isinstance(body, list)
-        assert len(body) >= 1
+        assert isinstance(body["events"], list)
+        assert len(body["events"]) >= 1
 
     def test_list_strikes_have_required_fields(self, client):
         body = client.get("/api/v1/strikes").json()
-        for ev in body:
+        for ev in body["events"]:
             assert "strike_id" in ev
             assert "occurred_at" in ev
             assert "confidence" in ev
@@ -243,15 +244,15 @@ class TestStrikeEndpoints:
 
     def test_get_summary_returns_dict_with_strike_type_keys(self, client):
         body = client.get("/api/v1/strikes/summary").json()
-        assert isinstance(body, dict)
+        assert isinstance(body["counts"], dict)
         # Must have at least one strike_type key
-        assert len(body) >= 1
-        for v in body.values():
+        assert len(body["counts"]) >= 1
+        for v in body["counts"].values():
             assert isinstance(v, int)
             assert v >= 1
 
     def test_get_strike_by_id_200(self, client):
-        events = client.get("/api/v1/strikes").json()
+        events = client.get("/api/v1/strikes").json()["events"]
         first_id = events[0]["strike_id"]
         r = client.get(f"/api/v1/strikes/{first_id}")
         assert r.status_code == 200
@@ -261,7 +262,7 @@ class TestStrikeEndpoints:
         assert r.status_code == 404
 
     def test_attach_evidence_increments_corroboration(self, client):
-        events = client.get("/api/v1/strikes").json()
+        events = client.get("/api/v1/strikes").json()["events"]
         strike_id = events[0]["strike_id"]
         before_count = events[0]["corroboration_count"]
 
@@ -276,7 +277,7 @@ class TestStrikeEndpoints:
         assert updated["corroboration_count"] == before_count + 1
 
     def test_attach_evidence_adds_evidence_id_to_refs(self, client):
-        events = client.get("/api/v1/strikes").json()
+        events = client.get("/api/v1/strikes").json()["events"]
         strike_id = events[0]["strike_id"]
 
         link_payload = {
@@ -289,7 +290,7 @@ class TestStrikeEndpoints:
         assert "ev-integration-test-002" in r.json()["evidence_refs"]
 
     def test_attach_evidence_idempotent_same_id(self, client):
-        events = client.get("/api/v1/strikes").json()
+        events = client.get("/api/v1/strikes").json()["events"]
         strike_id = events[0]["strike_id"]
 
         link_payload = {

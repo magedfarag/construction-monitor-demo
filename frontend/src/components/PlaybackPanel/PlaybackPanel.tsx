@@ -42,6 +42,7 @@ export function PlaybackPanel({ aoiId, startTime, endTime, onFrameChange }: Prop
     // causing multiple frame jumps per paint. rAF is always coalesced to one call
     // per browser paint cycle, giving smooth, burst-free playback.
     const msPerFrame = 1000 / speed;
+    const frameCount = playback.frames.length;
     let lastTime: number | null = null;
     let accumulated = 0;
 
@@ -53,7 +54,7 @@ export function PlaybackPanel({ aoiId, startTime, endTime, onFrameChange }: Prop
           accumulated = accumulated % msPerFrame;
           setFrameIdx(i => {
             const next = i + 1;
-            if (next >= playback.frames.length) { setPlaying(false); return i; }
+            if (next >= frameCount) { setPlaying(false); return i; }
             return next;
           });
         }

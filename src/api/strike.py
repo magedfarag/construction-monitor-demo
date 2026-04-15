@@ -16,7 +16,7 @@ GET /api/v1/strikes/summary is not captured by the path parameter route.
 """
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
@@ -60,10 +60,10 @@ class StrikeSummaryResponse(BaseModel):
     ),
 )
 def list_strikes(
-    start=Query(
+    start: datetime | None = Query(
         default=None, description="Filter events on or after this UTC timestamp"
     ),
-    end=Query(
+    end: datetime | None = Query(
         default=None, description="Filter events on or before this UTC timestamp"
     ),
     strike_type: str | None = Query(

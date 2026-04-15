@@ -65,7 +65,7 @@ class TestScenarioA_TimelineConsistency:
             "?start=2026-02-01T00:00:00Z&end=2026-04-04T00:00:00Z"
         )
         assert r.status_code == 200
-        body = r.json()
+        body = r.json()["events"]
         assert len(body) >= 1, "Jamming layer must have at least 1 event in the window"
 
     def test_strikes_layer_returns_results(self, client: TestClient) -> None:
@@ -74,7 +74,7 @@ class TestScenarioA_TimelineConsistency:
             "?start=2026-02-01T00:00:00Z&end=2026-04-04T00:00:00Z"
         )
         assert r.status_code == 200
-        body = r.json()
+        body = r.json()["events"]
         assert len(body) >= 1, "Strike layer must have at least 1 event in the window"
 
     def test_all_four_layers_respond_200(self, client: TestClient) -> None:
@@ -98,15 +98,15 @@ class TestScenarioB_JammingConfidenceFilter:
     """Higher confidence_min returns fewer or equal jamming events."""
 
     def test_high_confidence_returns_subset(self, client: TestClient) -> None:
-        low = client.get("/api/v1/jamming/events?confidence_min=0.0").json()
-        high = client.get("/api/v1/jamming/events?confidence_min=0.9").json()
+        low = client.get("/api/v1/jamming/events?confidence_min=0.0").json()["events"]
+        high = client.get("/api/v1/jamming/events?confidence_min=0.9").json()["events"]
         assert len(high) <= len(low), (
             "High confidence filter must return ≤ results vs low confidence filter"
         )
 
     def test_filtered_events_meet_minimum_confidence(self, client: TestClient) -> None:
         threshold = 0.7
-        results = client.get(f"/api/v1/jamming/events?confidence_min={threshold}").json()
+        results = client.get(f"/api/v1/jamming/events?confidence_min={threshold}").json()["events"]
         for ev in results:
             assert ev["confidence"] >= threshold, (
                 f"Event {ev['jamming_id']} confidence {ev['confidence']} "
@@ -114,8 +114,8 @@ class TestScenarioB_JammingConfidenceFilter:
             )
 
     def test_zero_confidence_returns_all(self, client: TestClient) -> None:
-        all_events = client.get("/api/v1/jamming/events").json()
-        zero_filter = client.get("/api/v1/jamming/events?confidence_min=0.0").json()
+        all_events = client.get("/api/v1/jamming/events").json()["events"]
+        zero_filter = client.get("/api/v1/jamming/events?confidence_min=0.0").json()["events"]
         assert len(zero_filter) == len(all_events), (
             "confidence_min=0.0 must be equivalent to no filter"
         )
@@ -131,13 +131,13 @@ class TestScenarioC_StrikeTypeFilter:
 
     def _get_first_type(self, client: TestClient) -> str:
         """Return the strike_type of the first seeded strike."""
-        body = client.get("/api/v1/strikes").json()
+        body = client.get("/api/v1/strikes").json()["events"]
         assert len(body) >= 1
         return body[0]["strike_type"]
 
     def test_type_filter_returns_only_matching(self, client: TestClient) -> None:
         strike_type = self._get_first_type(client)
-        filtered = client.get(f"/api/v1/strikes?strike_type={strike_type}").json()
+        filtered = client.get(f"/api/v1/strikes?strike_type={strike_type}").json()["events"]
         assert len(filtered) >= 1
         for s in filtered:
             assert s["strike_type"] == strike_type, (
@@ -146,15 +146,15 @@ class TestScenarioC_StrikeTypeFilter:
 
     def test_unknown_type_filter_returns_empty_or_matches(self, client: TestClient) -> None:
         """Filtering by a real type value returns only that type (or empty if absent)."""
-        filtered = client.get("/api/v1/strikes?strike_type=unknown").json()
+        filtered = client.get("/api/v1/strikes?strike_type=unknown").json()["events"]
         for s in filtered:
             assert s["strike_type"] == "unknown"
 
     def test_unfiltered_has_all_types(self, client: TestClient) -> None:
         """Unfiltered strikes list is a superset of any type-filtered result."""
-        all_strikes = client.get("/api/v1/strikes").json()
+        all_strikes = client.get("/api/v1/strikes").json()["events"]
         strike_type = all_strikes[0]["strike_type"]
-        filtered = client.get(f"/api/v1/strikes?strike_type={strike_type}").json()
+        filtered = client.get(f"/api/v1/strikes?strike_type={strike_type}").json()["events"]
         assert len(filtered) <= len(all_strikes)
 
 
@@ -167,7 +167,7 @@ class TestScenarioD_EvidenceCorroboration:
     """Attaching a new evidence link increments corroboration_count by 1."""
 
     def test_evidence_increments_corroboration(self, client: TestClient) -> None:
-        strikes = client.get("/api/v1/strikes").json()
+        strikes = client.get("/api/v1/strikes").json()["events"]
         strike = strikes[0]
         strike_id = strike["strike_id"]
         initial_count = strike["corroboration_count"]
@@ -185,7 +185,7 @@ class TestScenarioD_EvidenceCorroboration:
         )
 
     def test_evidence_id_appears_in_evidence_refs(self, client: TestClient) -> None:
-        strikes = client.get("/api/v1/strikes").json()
+        strikes = client.get("/api/v1/strikes").json()["events"]
         strike_id = strikes[0]["strike_id"]
 
         payload = {
@@ -198,7 +198,7 @@ class TestScenarioD_EvidenceCorroboration:
         assert "ev-replay-scenario-d-002" in r.json()["evidence_refs"]
 
     def test_attaching_same_evidence_twice_is_idempotent(self, client: TestClient) -> None:
-        strikes = client.get("/api/v1/strikes").json()
+        strikes = client.get("/api/v1/strikes").json()["events"]
         strike_id = strikes[0]["strike_id"]
 
         payload = {
@@ -218,7 +218,7 @@ class TestScenarioD_EvidenceCorroboration:
 
     def test_corroboration_reflected_in_get_by_id(self, client: TestClient) -> None:
         """After POST evidence, GET /{strike_id} reflects the updated count."""
-        strikes = client.get("/api/v1/strikes").json()
+        strikes = client.get("/api/v1/strikes").json()["events"]
         strike_id = strikes[-1]["strike_id"]  # Use last strike to avoid cross-test noise
 
         payload = {
@@ -392,7 +392,7 @@ class TestScenarioH_StrikeSummary:
         assert isinstance(r.json(), dict)
 
     def test_summary_keys_are_valid_strike_types(self, client: TestClient) -> None:
-        summary = client.get("/api/v1/strikes/summary").json()
+        summary = client.get("/api/v1/strikes/summary").json()["counts"]
         for k in summary:
             assert k in self._VALID_TYPES, (
                 f"Unexpected strike type key {k!r} in summary"
@@ -401,17 +401,17 @@ class TestScenarioH_StrikeSummary:
     def test_summary_counts_are_non_negative_integers(
         self, client: TestClient
     ) -> None:
-        summary = client.get("/api/v1/strikes/summary").json()
+        summary = client.get("/api/v1/strikes/summary").json()["counts"]
         for k, v in summary.items():
             assert isinstance(v, int), f"Count for {k!r} must be int, got {type(v)}"
             assert v >= 0, f"Count for {k!r} must be ≥ 0"
 
     def test_summary_total_matches_filtered_list(self, client: TestClient) -> None:
         """Sum of summary counts must equal the number of 30-day window strikes."""
-        summary = client.get("/api/v1/strikes/summary").json()
+        summary = client.get("/api/v1/strikes/summary").json()["counts"]
         summary_total = sum(summary.values())
         # /strikes without params returns all seeded events; seeded window is 30 days
-        all_strikes = client.get("/api/v1/strikes").json()
+        all_strikes = client.get("/api/v1/strikes").json()["events"]
         assert summary_total <= len(all_strikes), (
             "Summary total must not exceed total strike count"
         )

@@ -49,11 +49,14 @@ class TestSentinel2LiveSTAC:
     }
 
     def test_oauth_token_fetch_live(self, sentinel2_live_provider):
-        """Test OAuth2 token acquisition from live Copernicus endpoint."""
+        """Test auth mode for the configured live Sentinel-2 endpoint."""
         token = sentinel2_live_provider._get_token()
         assert token is not None
-        assert len(token) > 50  # JWT is long
-        assert "." in token  # JWT structure
+        if sentinel2_live_provider._is_element84:
+            assert token == ""
+        else:
+            assert len(token) > 50  # JWT is long
+            assert "." in token  # JWT structure
 
     def test_sentinel2_scene_search_live(self, sentinel2_live_provider):
         """Test live STAC scene search returns ≥1 result."""
@@ -107,4 +110,7 @@ class TestSentinel2LiveSTAC:
         """Test credential validation against live endpoint."""
         ok, msg = sentinel2_live_provider.validate_credentials()
         assert ok is True, f"Credential validation failed: {msg}"
-        assert "obtained" in msg.lower() or "success" in msg.lower()
+        if sentinel2_live_provider._is_element84:
+            assert "publicly accessible" in msg.lower()
+        else:
+            assert "obtained" in msg.lower() or "success" in msg.lower()
