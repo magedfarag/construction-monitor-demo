@@ -163,6 +163,9 @@ def _search_live_imagery(request: ImagerySearchRequest) -> ImagerySearchResponse
                 max_results=request.max_results,
                 collections=request.collections,
             )
+            # Ingest into the event store so scenes are available for /compare
+            if _imagery_event_store is not None and raw_items:
+                _imagery_event_store.ingest_batch(raw_items)
             for event in raw_items:
                 all_items.append(_canonical_to_summary(event, connector.connector_id))
             summaries.append(ConnectorResultSummary(

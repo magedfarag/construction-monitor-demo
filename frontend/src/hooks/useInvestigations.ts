@@ -27,6 +27,7 @@ export interface UseInvestigationsResult {
   absenceAlerts: AbsenceAlert[];
   loading: boolean;
   error: string | null;
+  clearError: () => void;
   createInvestigation: (req: InvestigationCreateRequest) => Promise<Investigation | null>;
   addNote: (id: string, content: string, author?: string) => Promise<void>;
   deleteInvestigation: (id: string) => Promise<void>;
@@ -143,12 +144,15 @@ export function useInvestigations(): UseInvestigationsResult {
     [],
   );
 
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     investigations,
     absenceSignals,
     absenceAlerts,
     loading,
     error,
+    clearError,
     createInvestigation,
     addNote,
     deleteInvestigation,

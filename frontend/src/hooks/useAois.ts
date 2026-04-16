@@ -1,9 +1,36 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { aoisApi } from "../api/client";
-import type { CreateAoiRequest } from "../api/types";
+import type { CreateAoiRequest, Aoi } from "../api/types";
+
+const AOIS_CACHE_KEY = "geoint:aois-cache";
+
+function readAoisCache(): Aoi[] {
+  try {
+    const raw = localStorage.getItem(AOIS_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as Aoi[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 export function useAois() {
-  return useQuery({ queryKey: ["aois"], queryFn: aoisApi.list });
+  const query = useQuery({
+    queryKey: ["aois"],
+    queryFn: aoisApi.list,
+    placeholderData: readAoisCache,
+  });
+
+  // Keep localStorage in sync so the list is available instantly on next load.
+  useEffect(() => {
+    if (query.data) {
+      try {
+        localStorage.setItem(AOIS_CACHE_KEY, JSON.stringify(query.data));
+      } catch { /* storage quota exceeded — ignore */ }
+    }
+  }, [query.data]);
+
+  return query;
 }
 
 export function useAoi(id: string | null) {

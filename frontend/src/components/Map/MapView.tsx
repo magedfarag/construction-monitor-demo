@@ -120,8 +120,9 @@ function resolveMapStyle(id: string) {
     case "dark":      return raster("https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png", "© CARTO, © OpenStreetMap contributors");
     case "light":     return raster("https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", "© CARTO, © OpenStreetMap contributors");
     case "satellite": return raster("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "© Esri");
-    // OpenFreeMap: free, no API key — fallback for any unrecognised style id
-    default:          return "https://tiles.openfreemap.org/styles/liberty";
+    // OpenFreeMap: free, no API key — use "bright" variant which has fewer
+    // null-property expressions in paint layers than "liberty".
+    default:          return "https://tiles.openfreemap.org/styles/bright";
   }
 }
 
@@ -205,12 +206,20 @@ export function MapView({
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    // Restore last viewport from localStorage; fall back to Strait of Hormuz default.
+    let storedViewport: { lng: number; lat: number; zoom: number } | null = null;
+    try {
+      const raw = localStorage.getItem("geoint:mapViewport");
+      if (raw) storedViewport = JSON.parse(raw) as { lng: number; lat: number; zoom: number };
+    } catch { /* ignore corrupt data */ }
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       style: resolveMapStyle(initialBaseStyleRef.current) as any,
-      center: [56.1, 26.2], // Strait of Hormuz
-      zoom: 8,
+      center: storedViewport ? [storedViewport.lng, storedViewport.lat] : [56.1, 26.2],
+      zoom: storedViewport?.zoom ?? 8,
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -267,6 +276,15 @@ export function MapView({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         overlay.setProps({ layers: nonTripLayers as any });
       }
+    });
+
+    // Persist viewport on every pan/zoom so it survives page reloads.
+    map.on("moveend", () => {
+      const { lng, lat } = map.getCenter();
+      const zoom = map.getZoom();
+      try {
+        localStorage.setItem("geoint:mapViewport", JSON.stringify({ lng, lat, zoom }));
+      } catch { /* storage quota exceeded — ignore */ }
     });
 
     return () => {
@@ -335,7 +353,36 @@ export function MapView({
         const f = e.features?.[0];
         if (!f) return;
         const p = f.properties as Record<string, unknown>;
-        if (p.id) onAoiClick?.(String(p.id));
+        const clickedId = p.id ? String(p.id) : null;
+        if (clickedId) {
+          onAoiClick?.(clickedId);
+          // If already selected, `selectedAoiId` won't change so the effect won't re-fire.
+          // Zoom directly from the feature geometry to still fill the screen.
+          if (clickedId === selectedAoiIdRef.current) {
+            const geom = f.geometry as GeoJSON.Geometry;
+            function collectCoordsClick(g: GeoJSON.Geometry): number[][] {
+              if (g.type === "Point") return [g.coordinates as number[]];
+              if (g.type === "MultiPoint") return g.coordinates as number[][];
+              if (g.type === "LineString") return g.coordinates as number[][];
+              if (g.type === "MultiLineString") return (g.coordinates as number[][][]).flat();
+              if (g.type === "Polygon") return (g.coordinates as number[][][]).flat();
+              if (g.type === "MultiPolygon") return (g.coordinates as number[][][][]).flat(2);
+              return [];
+            }
+            const coords = collectCoordsClick(geom);
+            if (coords.length > 0) {
+              const lons = coords.map(c => c[0]);
+              const lats = coords.map(c => c[1]);
+              const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+              const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+              if (minLon === maxLon && minLat === maxLat) {
+                map.flyTo({ center: [minLon, minLat], zoom: 12 });
+              } else {
+                map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, maxZoom: 14, duration: 900 });
+              }
+            }
+          }
+        }
         new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
           .setLngLat(e.lngLat)
           .setHTML(`<div class="entity-popup">
@@ -947,7 +994,7 @@ export function MapView({
         id: "strikes-circle", type: "circle", source: "strikes",
         paint: {
           "circle-color": ce,
-          "circle-radius": ["*", ["get", "confidence"], 10] as unknown as number,
+          "circle-radius": ["*", ["coalesce", ["get", "confidence"], 0.5], 10] as unknown as number,
           "circle-opacity": 0.8,
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 1.5,
@@ -973,6 +1020,44 @@ export function MapView({
       });
     }
   }, [showStrikesLayer, strikeEvents, styleLoaded, styleRevision]);
+
+  // Keep a ref to the latest selectedAoiId so the one-time click handler can detect re-clicks
+  const selectedAoiIdRef = useRef(selectedAoiId);
+  useEffect(() => { selectedAoiIdRef.current = selectedAoiId; });
+
+  // Fly to selected AOI bounds when selection changes or when style first loads.
+  // prevRef guards against re-zoom when unrelated deps (aois data refresh) cause a re-run.
+  const prevSelectedAoiIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const map = mapRef.current;
+    // Wait for style — early return leaves prevRef untouched so zoom fires once style is ready
+    if (!map || !styleLoaded || !selectedAoiId) return;
+    if (prevSelectedAoiIdRef.current === selectedAoiId) return;
+    prevSelectedAoiIdRef.current = selectedAoiId;
+    const aoi = aois.find(a => a.id === selectedAoiId);
+    if (!aoi?.geometry) return;
+    const geom = aoi.geometry as GeoJSON.Geometry;
+    function collectCoords(g: GeoJSON.Geometry): number[][] {
+      if (g.type === "Point") return [g.coordinates as number[]];
+      if (g.type === "MultiPoint") return g.coordinates as number[][];
+      if (g.type === "LineString") return g.coordinates as number[][];
+      if (g.type === "MultiLineString") return (g.coordinates as number[][][]).flat();
+      if (g.type === "Polygon") return (g.coordinates as number[][][]).flat();
+      if (g.type === "MultiPolygon") return (g.coordinates as number[][][][]).flat(2);
+      return [];
+    }
+    const coords = collectCoords(geom);
+    if (coords.length === 0) return;
+    const lons = coords.map(c => c[0]);
+    const lats = coords.map(c => c[1]);
+    const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    if (minLon === maxLon && minLat === maxLat) {
+      map.flyTo({ center: [minLon, minLat], zoom: 12 });
+    } else {
+      map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, maxZoom: 14, duration: 900 });
+    }
+  }, [selectedAoiId, aois, styleLoaded]);
 
   // Phase 4 Track C — fly to camera focus point
   useEffect(() => {
@@ -1023,7 +1108,7 @@ export function MapView({
         id: "detections-circle", type: "circle", source: "detections",
         paint: {
           "circle-color": ce,
-          "circle-radius": ["*", ["get", "confidence"], 10] as unknown as number,
+          "circle-radius": ["*", ["coalesce", ["get", "confidence"], 0.5], 10] as unknown as number,
           "circle-opacity": 0.85,
           "circle-stroke-color": "#222222",
           "circle-stroke-width": 1,

@@ -81,7 +81,10 @@ export function PlaybackPanel({ aoiId, startTime, endTime, onFrameChange }: Prop
       <button className="btn btn-sm" onClick={loadPlayback} disabled={loading}>
         {loading ? "Loading…" : "Load Frames"}
       </button>
-      {playback && (
+      {playback && playback.frames.length === 0 && (
+        <p className="muted">No events in time range</p>
+      )}
+      {playback && playback.frames.length > 0 && (
         <>
           <div className="playback-controls">
             <button
@@ -127,3 +130,4 @@ export function PlaybackPanel({ aoiId, startTime, endTime, onFrameChange }: Prop
     </div>
   );
 }
+

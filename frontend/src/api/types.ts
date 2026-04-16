@@ -140,18 +140,18 @@ export interface ChangeDetectionJob {
 
 // ── Exports ──────────────────────────────────────────────────────────────────
 export interface ExportRequest {
-  aoi_id?: string;
-  start_time: string;
-  end_time: string;
-  format: 'csv' | 'geojson';
+  search: EventSearchRequest;
+  format: 'csv' | 'geojson' | 'parquet';
   include_restricted?: boolean;
 }
 
 export interface ExportJob {
   job_id: string;
-  state: 'pending' | 'running' | 'completed' | 'failed';
-  download_url?: string;
-  row_count?: number;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  format: string;
+  event_count: number;
+  download_url: string;
+  error?: string | null;
 }
 
 // ── Playback ─────────────────────────────────────────────────────────────────

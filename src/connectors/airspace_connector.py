@@ -134,6 +134,64 @@ _STUB_RESTRICTIONS: list[AirspaceRestriction] = [
         source=_SOURCE,
         provenance="https://tfr.faa.gov/tfr2/list.jsp#TFR-2026-EXPIRED",
     ),
+    # ── Persian Gulf / Strait of Hormuz region ──────────────────────────────
+    AirspaceRestriction(
+        restriction_id="ADIZ-IRAN-PERSIAN-GULF",
+        name="IRANIAN ADIZ — PERSIAN GULF",
+        restriction_type="ADIZ",
+        geometry_geojson={
+            "type": "Polygon",
+            "coordinates": [[
+                [50.0, 24.0], [60.0, 24.0], [60.0, 30.0],
+                [50.0, 30.0], [50.0, 24.0],
+            ]],
+        },
+        lower_limit_ft=0.0,
+        upper_limit_ft=60000.0,
+        valid_from=_NOW - timedelta(days=365 * 10),
+        valid_to=None,  # permanent
+        is_active=True,
+        source=_SOURCE,
+        provenance="https://www.icao.int/Pages/default.aspx",
+    ),
+    AirspaceRestriction(
+        restriction_id="NFZ-HORMUZ-STRAIT-2026",
+        name="STRAIT OF HORMUZ — IRGCN EXCLUSION ZONE",
+        restriction_type="NFZ",
+        geometry_geojson={
+            "type": "Polygon",
+            "coordinates": [[
+                [55.5, 25.5], [57.5, 25.5], [57.5, 27.5],
+                [55.5, 27.5], [55.5, 25.5],
+            ]],
+        },
+        lower_limit_ft=0.0,
+        upper_limit_ft=500.0,
+        valid_from=_NOW - timedelta(days=90),
+        valid_to=_NOW + timedelta(days=180),
+        is_active=True,
+        source=_SOURCE,
+        provenance="https://www.icao.int/safety/airnavigation/notams/",
+    ),
+    AirspaceRestriction(
+        restriction_id="TFR-OIKB-BANDAR-ABBAS-2026",
+        name="BANDAR ABBAS INTERNATIONAL — MILITARY TFR",
+        restriction_type="TFR",
+        geometry_geojson={
+            "type": "Polygon",
+            "coordinates": [[
+                [56.2, 27.0], [57.0, 27.0], [57.0, 27.6],
+                [56.2, 27.6], [56.2, 27.0],
+            ]],
+        },
+        lower_limit_ft=0.0,
+        upper_limit_ft=18000.0,
+        valid_from=_NOW - timedelta(days=14),
+        valid_to=_NOW + timedelta(days=60),
+        is_active=True,
+        source=_SOURCE,
+        provenance="https://www.icao.int/safety/airnavigation/notams/",
+    ),
     AirspaceRestriction(
         restriction_id="ADIZ-EASTERN-SEABOARD",
         name="US EASTERN ADIZ",
@@ -204,6 +262,55 @@ _STUB_NOTAMS: list[NotamEvent] = [
         effective_to=_NOW + timedelta(days=30),
         geometry_geojson=None,
         raw_text="A0789/26 NOTAMN\nQ) ZLA/QNAVX/I//, /A/000/999/3356N11825W025\nB) 2604030000 C) 2605032359\nE) VOR/DME OKITE OUT OF SERVICE\nCREATED: 03 Apr 2026 00:00:00",
+        source=_SOURCE,
+    ),
+    # ── Persian Gulf / Strait of Hormuz region ──────────────────────────────
+    NotamEvent(
+        notam_id="notam-pg-001",
+        notam_number="A1201/26",
+        subject="Military activity — airspace warning Strait of Hormuz",
+        condition="MILITARY ACTIVITY AREA ACT. CAUTION ADVISED ALL ACFT. GND TO UNL.",
+        location_icao="OIKB",  # Bandar Abbas International, Iran
+        effective_from=_NOW - timedelta(days=7),
+        effective_to=_NOW + timedelta(days=30),
+        geometry_geojson={
+            "type": "Polygon",
+            "coordinates": [[
+                [56.0, 26.5], [57.5, 26.5], [57.5, 27.8],
+                [56.0, 27.8], [56.0, 26.5],
+            ]],
+        },
+        raw_text="A1201/26 NOTAMN\nQ) OIIX/QRTCA/IV/BO/W/000/UNL/2700N05630E075\nB) 2604010000 C) 2605152359\nE) MILITARY ACTIVITY AREA ACT. CAUTION ADVISED ALL ACFT. GND TO UNL.\nCREATED: 01 Apr 2026 00:00:00",
+        source=_SOURCE,
+    ),
+    NotamEvent(
+        notam_id="notam-pg-002",
+        notam_number="A0934/26",
+        subject="Navigation aid degraded — VORDME OIKB unreliable",
+        condition="VORDME BBD (BANDAR ABBAS) U/S",
+        location_icao="OIKB",  # Bandar Abbas International, Iran
+        effective_from=_NOW - timedelta(days=3),
+        effective_to=_NOW + timedelta(days=14),
+        geometry_geojson=None,
+        raw_text="A0934/26 NOTAMN\nQ) OIIX/QNAVX/I//, /A/000/999/2720N05618E025\nB) 2604130000 C) 2604302359\nE) VORDME BBD (BANDAR ABBAS) U/S\nCREATED: 13 Apr 2026 09:30:00",
+        source=_SOURCE,
+    ),
+    NotamEvent(
+        notam_id="notam-pg-003",
+        notam_number="B0512/26",
+        subject="Danger area active — Persian Gulf offshore",
+        condition="DANGER AREA OMDB D-001 ACT. SFC TO FL200. UNINHABITED PLATFORM DEMOLITION.",
+        location_icao="OMAA",  # Abu Dhabi International, UAE
+        effective_from=_NOW,
+        effective_to=_NOW + timedelta(hours=72),
+        geometry_geojson={
+            "type": "Polygon",
+            "coordinates": [[
+                [54.0, 24.5], [55.5, 24.5], [55.5, 26.0],
+                [54.0, 26.0], [54.0, 24.5],
+            ]],
+        },
+        raw_text="B0512/26 NOTAMN\nQ) OMAE/QRDCA/IV/BO/W/000/200/2500N05500E075\nB) 2604160000 C) 2604190000\nE) DANGER AREA OMDB D-001 ACT. SFC TO FL200. UNINHABITED PLATFORM DEMOLITION.\nCREATED: 15 Apr 2026 22:00:00",
         source=_SOURCE,
     ),
 ]

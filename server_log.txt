@@ -1,0 +1,58 @@
+INFO:     Will watch for changes in these directories: ['D:\\Projects\\construction-monitor-demo\\app', 'D:\\Projects\\construction-monitor-demo\\src']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [3308] using WatchFiles
+INFO:     Started server process [27096]
+INFO:     Waiting for application startup.
+[32m20:20:05 [INFO    ] app.providers.registry: Provider demo: OK ΓÇö Demo provider requires no credentials[0m
+[32m20:20:05 [INFO    ] app.providers.registry: Provider sentinel2: OK ΓÇö Element84 Earth Search is publicly accessible[0m
+[32m20:20:05 [INFO    ] app.providers.registry: Provider landsat: OK ΓÇö Landsat STAC is publicly accessible[0m
+[33m20:20:10 [WARNING ] app.cache.client: Redis unavailable (Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.); using in-memory cache[0m
+[32m20:20:10 [INFO    ] app.cache.client: Cache backend: in-memory TTLCache (max=256, ttl=3600s)[0m
+[33m20:20:14 [WARNING ] app.resilience.circuit_breaker: CircuitBreaker Redis unavailable (Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.); using in-process state[0m
+[33m20:20:18 [WARNING ] app.services.job_manager: JobManager Redis unavailable (Error 10061 connecting to localhost:6379. No connection could be made because the target machine actively refused it.); using fallback[0m
+[33m20:20:23 [WARNING ] app.services.job_manager: JobManager PostgreSQL unavailable ((psycopg2.OperationalError) connection to server at "localhost" (::1), port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+connection to server at "localhost" (127.0.0.1), port 5432 failed: Connection refused (0x0000274D/10061)
+	Is the server running on that host and accepting TCP/IP connections?
+
+(Background on this error at: https://sqlalche.me/e/20/e3q8)); using fallback[0m
+[32m20:20:25 [INFO    ] src.connectors.registry: Connector registered: earth-search (Earth Search (Element 84))[0m
+[32m20:20:26 [INFO    ] src.connectors.registry: Connector registered: planetary-computer (Planetary Computer (Microsoft))[0m
+[32m20:20:28 [INFO    ] src.connectors.registry: Connector registered: cdse-sentinel2 (Sentinel-2 (Copernicus Data Space))[0m
+[32m20:20:29 [INFO    ] src.connectors.registry: Connector registered: usgs-landsat (Landsat (USGS LandsatLook))[0m
+[33m20:20:31 [WARNING ] src.connectors.registry: Connector gdelt-doc unavailable at startup ΓÇö registered but disabled: GDELT API unreachable: Client error '429 Too Many Requests' for url 'https://api.gdeltproject.org/api/v2/doc/doc?query=test&mode=artlist&format=json&maxrecords=1'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429[0m
+[32m20:20:31 [INFO    ] src.connectors.ais_stream: AisStreamConnector: API key present ΓÇö connector active[0m
+[32m20:20:31 [INFO    ] src.connectors.registry: Connector registered: ais-stream (AISStream.io Maritime Positions)[0m
+[32m20:20:32 [INFO    ] src.connectors.opensky: OpenSkyConnector: connected (HTTP 200)[0m
+[32m20:20:32 [INFO    ] src.connectors.registry: Connector registered: opensky (OpenSky Network Aircraft Positions)[0m
+[32m20:20:33 [INFO    ] src.connectors.registry: Connector registered: usgs-earthquake (USGS Earthquake Catalog)[0m
+[32m20:20:34 [INFO    ] src.connectors.registry: Connector registered: nasa-eonet (NASA EONET (Natural Event Tracker))[0m
+[32m20:20:35 [INFO    ] src.connectors.registry: Connector registered: open-meteo (Open-Meteo (Global Weather Forecast))[0m
+[33m20:20:38 [WARNING ] src.connectors.registry: Connector acled unavailable at startup ΓÇö registered but disabled: ACLED API unreachable: Client error '403 Forbidden' for url 'https://acleddata.com/api/acled/read?_format=json&limit=1&fields=event_id_cnty%7Cevent_date'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403[0m
+[32m20:20:39 [INFO    ] src.connectors.registry: Connector registered: nga-msi (NGA Maritime Safety Information (Broadcast Warnings))[0m
+[33m20:20:45 [WARNING ] src.connectors.registry: Connector osm-military unavailable at startup ΓÇö registered but disabled: Overpass API unreachable: Server error '504 Gateway Timeout' for url 'https://overpass-api.de/api/interpreter'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/504[0m
+[33m20:20:47 [WARNING ] src.connectors.registry: Connector nasa-firms unavailable at startup ΓÇö registered but disabled: NASA FIRMS unreachable: Client error '401 Unauthorized' for url 'https://firms.modaps.eosdis.nasa.gov/api/area/json/DEMO_KEY/VIIRS_SNPP_NRT/0.0,0.0,1.0,1.0/2'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401[0m
+[32m20:20:48 [INFO    ] src.connectors.registry: Connector registered: noaa-swpc (NOAA Space Weather Prediction Center)[0m
+[33m20:20:49 [WARNING ] src.connectors.registry: Connector openaq unavailable at startup ΓÇö registered but disabled: OpenAQ API unreachable: Client error '401 Unauthorized' for url 'https://api.openaq.org/v3/locations?limit=1'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401[0m
+[32m20:20:49 [INFO    ] src.services.operational_layer_service: Initialising operational layers | mode=staging demo=False production=False[0m
+[32m20:20:49 [INFO    ] src.connectors.orbit_connector: OrbitConnector: stub connected (no remote endpoint).[0m
+[33m20:20:51 [WARNING ] src.services.operational_layer_service: OrbitLayerService: live connector failed to connect (CelestrakConnector: endpoint returned HTTP 404); using stub[0m
+[32m20:20:51 [INFO    ] src.connectors.airspace_connector: AirspaceConnector: stub connected (no remote endpoint).[0m
+[33m20:20:53 [WARNING ] src.services.operational_layer_service: StrikeLayerService: live connector failed (AcledStrikeConnector: API unreachable: Client error '403 Forbidden' for url 'https://acleddata.com/api/acled/read?_format=json&limit=1&fields=event_id_cnty%7Cevent_date'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403); using stub[0m
+[32m20:20:53 [INFO    ] src.services.operational_layer_service: Operational layers initialised[0m
+[32m20:20:53 [INFO    ] app.main: Demo seeder disabled in staging mode; in-memory AOI/event stores cleared[0m
+[32m20:20:53 [INFO    ] src.storage.database: Database engine initialised | url=postgresql+psycopg2://geoint:***@localhost:5432/geoint[0m
+[32m20:20:53 [INFO    ] app.main: Application started | mode=AppMode.STAGING providers=['demo', 'sentinel2', 'landsat'] redis=yes[0m
+[32m20:20:53 [INFO    ] health_prober: Running health probes for 15 connectors[0m
+INFO:     Application startup complete.
+[32m20:26:04 [INFO    ] health_prober: Running health probes for 15 connectors[0m
+[33m20:26:20 [WARNING ] health_prober: probe gdelt-doc: [0m
+[32m20:31:20 [INFO    ] health_prober: Running health probes for 15 connectors[0m
+[32m20:36:28 [INFO    ] health_prober: Running health probes for 15 connectors[0m
+[32m20:41:30 [INFO    ] health_prober: Running health probes for 15 connectors[0m

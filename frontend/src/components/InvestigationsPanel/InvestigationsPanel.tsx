@@ -54,12 +54,20 @@ export function InvestigationsPanel({ visible }: InvestigationsPanelProps) {
     absenceAlerts,
     loading,
     error,
+    clearError,
     createInvestigation,
     addNote,
     deleteInvestigation,
     generateAndDownloadEvidencePack,
     generateAndShowBriefing,
   } = useInvestigations();
+
+  function formatError(msg: string): string {
+    if (msg.includes('Operator role required')) {
+      return 'Creating investigations requires Operator role. Add an operator-level API key in the header.';
+    }
+    return msg;
+  }
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createName, setCreateName] = useState('');
@@ -144,7 +152,7 @@ export function InvestigationsPanel({ visible }: InvestigationsPanelProps) {
       {/* Error */}
       {error && (
         <p className="error" style={{ fontSize: '0.75rem', margin: '4px 0' }}>
-          {error}
+          {formatError(error)}
         </p>
       )}
 
@@ -190,7 +198,7 @@ export function InvestigationsPanel({ visible }: InvestigationsPanelProps) {
             </button>
             <button
               className="btn btn-xs"
-              onClick={() => setShowCreateForm(false)}
+              onClick={() => { setShowCreateForm(false); clearError(); }}
             >
               Cancel
             </button>

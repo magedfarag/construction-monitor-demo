@@ -6,6 +6,7 @@ GET  /api/v1/dark-ships          — run detection against the live EventStore
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -24,12 +25,69 @@ router = APIRouter(prefix="/api/v1/dark-ships", tags=["dark-ships"])
 
 # Module-level EventStore reference — injected by app lifespan
 _event_store: Any | None = None
+# Module-level ConnectorRegistry reference — injected by app lifespan
+_connector_registry: Any | None = None
 
 
 def set_event_store(store: Any) -> None:
     """Inject the shared EventStore. Called from app lifespan."""
     global _event_store
     _event_store = store
+
+
+def set_connector_registry(registry: Any) -> None:
+    """Inject the shared V2 ConnectorRegistry. Called from app lifespan."""
+    global _connector_registry
+    _connector_registry = registry
+
+
+# Default AoI for best-effort AIS live poll: Strait of Hormuz + surrounding waters.
+# Used only when the EventStore has no ship_position events and no spatial context
+# is available from the incoming request.
+_HORMUZ_BBOX_GEOM: dict = {
+    "type": "Polygon",
+    "coordinates": [[
+        [55.0, 22.0], [62.0, 22.0], [62.0, 28.0], [55.0, 28.0], [55.0, 22.0],
+    ]],
+}
+
+
+_LIVE_POLL_TIMEOUT_S: float = 12.0
+
+
+def _live_poll_ais() -> list[CanonicalEvent]:
+    """Best-effort: poll AISStream for the Hormuz area and ingest into the store.
+
+    Called only when the EventStore has no ship_position events.  Uses a
+    fixed bounding box so the endpoint remains callable without a request body.
+    """
+    if _connector_registry is None or _event_store is None:
+        return []
+    connector = _connector_registry.get("ais-stream")
+    if connector is None:
+        log.debug("_live_poll_ais: ais-stream connector not available")
+        return []
+    now = datetime.now(UTC)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as _pool:
+            future = _pool.submit(
+                connector.fetch_and_normalize,
+                _HORMUZ_BBOX_GEOM,
+                now - timedelta(hours=1),
+                now,
+            )
+            try:
+                events, warnings = future.result(timeout=_LIVE_POLL_TIMEOUT_S)
+            except FuturesTimeoutError:
+                log.warning("_live_poll_ais: timed out after %.0fs", _LIVE_POLL_TIMEOUT_S)
+                return []
+        if events:
+            _event_store.ingest_batch(events)
+            log.info("_live_poll_ais: ingested %d ship_position events (%d warnings)", len(events), len(warnings))
+        return events
+    except Exception as exc:  # noqa: BLE001
+        log.warning("_live_poll_ais: fetch failed: %s", exc)
+        return []
 
 
 class DetectRequest(BaseModel):
@@ -138,7 +196,11 @@ def list_candidates() -> DarkShipDetectionResponse:
         ]
 
     if not ship_events:
-        log.debug("Dark ship detection: no ship_position events in 90-day window")
+        log.debug("Dark ship detection: no ship_position events in 90-day window — attempting live AIS poll")
+        ship_events = _live_poll_ais()
+
+    if not ship_events:
+        log.debug("Dark ship detection: still no ship_position events after live poll")
         return DarkShipDetectionResponse(candidates=[], total=0, events_analysed=0)
 
     log.info("Dark ship detection: analysing %d ship_position events", len(ship_events))

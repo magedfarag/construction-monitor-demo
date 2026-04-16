@@ -494,14 +494,19 @@ function AppShell() {
           <span className="header-clock">{clock} UTC</span>
         </div>
         <div className="header-controls">
-          <input
-            type="password"
-            placeholder="API Key (optional)"
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            className="input-sm api-key-input"
-            title="API key for authenticated endpoints"
-          />
+          {/* form + hidden username field satisfies Chrome password-manager accessibility rules */}
+          <form onSubmit={e => e.preventDefault()} style={{ display: 'contents' }}>
+            <input type="hidden" name="username" autoComplete="username" />
+            <input
+              type="password"
+              placeholder="API Key (optional)"
+              value={apiKey ?? ''}
+              onChange={e => setApiKey(e.target.value)}
+              className="input-sm api-key-input"
+              title="API key for authenticated endpoints"
+              autoComplete="current-password"
+            />
+          </form>
         </div>
       </header>
       <div className="app-body">
@@ -526,6 +531,8 @@ function AppShell() {
               onDrawModeChange={setDrawMode}
               pendingGeometry={pendingGeometry}
               onClearPendingGeometry={() => setPendingGeometry(null)}
+              viewMode={viewMode}
+              onSwitchTo2D={() => setViewMode("2d")}
             />
           )}
           {activePanel === "layers" && (
@@ -629,7 +636,7 @@ function AppShell() {
             )}
           </div>
 
-          {/* Map-surface draw tools — always visible in 2D so users can draw AOIs directly */}
+          {/* Map-surface draw tools — always visible in 2D so users can draw AOIs from any panel */}
           {viewMode === "2d" && (
             <div className="map-draw-tools">
               <button
@@ -751,6 +758,7 @@ function AppShell() {
                 renderMode={renderMode}
                 selectedEntityId={selectedEntityId}
                 centerPoint={cameraFocusPoint ?? undefined}
+                selectedAoiId={selectedAoiId}
               />
               {/* P6: Intel briefing overlay (top-right of globe) */}
               <div className={`globe-intel-overlay${isGlobeBriefingExpanded ? " globe-intel-overlay--expanded" : " globe-intel-overlay--collapsed"}`}>

@@ -234,7 +234,7 @@ class SourceHealthService:
                 "connector_id": connector_id,
                 "display_name": display_name or connector_id,
                 "source_type": source_type,
-                "is_healthy": True,
+                "is_healthy": False,  # remains False until a successful poll is recorded
                 "last_successful_poll": None,
                 "last_error_at": None,
                 "last_error_message": None,

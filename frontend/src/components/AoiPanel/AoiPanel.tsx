@@ -9,9 +9,11 @@ interface Props {
   onDrawModeChange: (mode: "none" | "polygon" | "bbox") => void;
   pendingGeometry: GeoJSON.Geometry | null;
   onClearPendingGeometry: () => void;
+  viewMode?: "2d" | "3d";
+  onSwitchTo2D?: () => void;
 }
 
-export function AoiPanel({ selectedAoiId, onSelect, drawMode, onDrawModeChange, pendingGeometry, onClearPendingGeometry }: Props) {
+export function AoiPanel({ selectedAoiId, onSelect, drawMode, onDrawModeChange, pendingGeometry, onClearPendingGeometry, viewMode = "2d", onSwitchTo2D }: Props) {
   const { data: aois = [], isLoading } = useAois();
   const createAoi = useCreateAoi();
   const deleteAoi = useDeleteAoi();
@@ -32,13 +34,23 @@ export function AoiPanel({ selectedAoiId, onSelect, drawMode, onDrawModeChange, 
           className={`btn btn-sm ${drawMode === "bbox" ? "btn-active" : ""}`}
           onClick={() => onDrawModeChange(drawMode === "bbox" ? "none" : "bbox")}
           title="Draw bounding box (click 2 corners)"
+          disabled={viewMode === "3d"}
         >⬜ BBox</button>
         <button
           className={`btn btn-sm ${drawMode === "polygon" ? "btn-active" : ""}`}
           onClick={() => onDrawModeChange(drawMode === "polygon" ? "none" : "polygon")}
           title="Draw polygon (double-click to close)"
+          disabled={viewMode === "3d"}
         >⬡ Polygon</button>
       </div>
+      {viewMode === "3d" && (
+        <p className="muted hint" style={{ marginBottom: 8 }}>
+          Drawing requires 2D mode.{" "}
+          <button className="btn btn-xs btn-primary" onClick={onSwitchTo2D} style={{ marginLeft: 4 }}>
+            Switch to 2D
+          </button>
+        </p>
+      )}
       {pendingGeometry && (
         <div className="save-aoi">
           <input

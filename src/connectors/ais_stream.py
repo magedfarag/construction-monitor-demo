@@ -171,6 +171,32 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return 2 * r * math.asin(math.sqrt(a))
 
 
+def _parse_ais_timestamp(ts: str) -> "datetime | None":
+    """Parse an AISStream timestamp into a timezone-aware datetime.
+
+    AISStream's ``MetaData.time_utc`` uses a Go-style layout:
+    ``"2026-04-16 19:11:49.371039786 +0000 UTC"``
+    which differs from ISO-8601.  We normalise it before parsing.
+    Falls back to ``datetime.fromisoformat`` for standard formats.
+    Returns None if parsing fails so callers can substitute ``fetched_at``.
+    """
+    import re as _re
+    if not ts:
+        return None
+    # Normalise Go-style "YYYY-MM-DD HH:MM:SS.nnnnnnnnn +0000 UTC"
+    # by removing the trailing " UTC" token and truncating sub-second to 6 digits.
+    cleaned = _re.sub(r"\s+UTC$", "", ts.strip())          # drop trailing " UTC"
+    cleaned = _re.sub(r"(\.\d{6})\d+", r"\1", cleaned)    # truncate nanoseconds → microseconds
+    cleaned = cleaned.replace(" ", "T", 1)                  # space separator → T
+    try:
+        return datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            return datetime.strptime(cleaned[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=UTC)
+        except ValueError:
+            return None
+
+
 class AisStreamConnector(BaseConnector):
     """AISStream.io WebSocket relay connector.
 
@@ -309,7 +335,7 @@ class AisStreamConnector(BaseConnector):
             fetched_at = datetime.fromisoformat(fetched_at_str.replace("Z", "+00:00"))
 
             time_utc_str = meta.get("time_utc") or fetched_at_str
-            event_time = datetime.fromisoformat(time_utc_str.replace("Z", "+00:00"))
+            event_time = _parse_ais_timestamp(time_utc_str) or fetched_at
             if event_time.tzinfo is None:
                 event_time = event_time.replace(tzinfo=UTC)
 

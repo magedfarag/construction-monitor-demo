@@ -205,8 +205,12 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         ))
     except Exception as exc:
         _log.getLogger(__name__).warning("OpenAqConnector: %s", exc)
+    from src.api.dark_ships import set_connector_registry as _set_dark_ships_registry
+    from src.api.events import set_connector_registry as _set_events_registry
     from src.api.imagery import set_connector_registry, set_imagery_event_store
     set_connector_registry(v2_registry)
+    _set_events_registry(v2_registry)
+    _set_dark_ships_registry(v2_registry)
 
     # ── Operational layer services (ARCH-01 / ARCH-02 / ARCH-03) ────────────
     # Initialises the singleton services for orbit, airspace, jamming, and
@@ -375,6 +379,11 @@ app = FastAPI(
     version="2.0.0",
     description="Multi-domain surveillance: ships, aircraft, satellites, events, and signals intelligence.",
     lifespan=lifespan,
+    # Disable automatic trailing-slash redirects (307) — they cause
+    # strict-origin-when-cross-origin browser errors when a Vite dev proxy
+    # passes the redirect to the browser with the backend host in the
+    # Location header. All API routes are defined without trailing slashes.
+    redirect_slashes=False,
 )
 
 _STATIC_ROOT = Path(__file__).resolve().parent / "static"

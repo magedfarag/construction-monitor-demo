@@ -19,7 +19,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.connectors.ais_stream import AisStreamConnector, _bbox_from_geojson, _haversine_km
+from src.connectors.ais_stream import AisStreamConnector, _bbox_from_geojson, _haversine_km, _parse_ais_timestamp
 from src.connectors.base import ConnectorUnavailableError, NormalizationError
 from src.models.canonical_event import EventType, EntityType
 
@@ -114,6 +114,34 @@ class TestHelpers:
         assert abs(d - 111) < 2  # ±2 km tolerance
 
 
+# ── _parse_ais_timestamp() ────────────────────────────────────────────────────
+
+class TestParseAisTimestamp:
+    def test_iso_format(self) -> None:
+        result = _parse_ais_timestamp("2026-04-01T10:00:00+00:00")
+        assert result is not None
+        assert result == datetime(2026, 4, 1, 10, 0, 0, tzinfo=timezone.utc)
+
+    def test_go_style_format_with_nanoseconds(self) -> None:
+        result = _parse_ais_timestamp("2026-04-16 19:11:49.371039786 +0000 UTC")
+        assert result is not None
+        assert result.year == 2026
+        assert result.month == 4
+        assert result.day == 16
+        assert result.hour == 19
+        assert result.minute == 11
+        assert result.second == 49
+        assert result.tzinfo is not None
+
+    def test_empty_string_returns_none(self) -> None:
+        assert _parse_ais_timestamp("") is None
+
+    def test_z_suffix(self) -> None:
+        result = _parse_ais_timestamp("2026-04-01T10:00:00Z")
+        assert result is not None
+        assert result.tzinfo is not None
+
+
 # ── normalize() ──────────────────────────────────────────────────────────────
 
 class TestAisNormalize:
@@ -172,6 +200,18 @@ class TestAisNormalize:
         msg = _make_position_msg(timestamp=ts)
         e = self.conn.normalize(msg)
         assert e.event_time == datetime(2026, 4, 1, 10, 0, 0, tzinfo=timezone.utc)
+
+    def test_event_time_from_go_format_timestamp(self) -> None:
+        """AISStream MetaData.time_utc uses Go-style layout with nanoseconds."""
+        go_ts = "2026-04-16 19:11:49.371039786 +0000 UTC"
+        msg = _make_position_msg(timestamp="2026-04-16T19:11:49+00:00")
+        msg["MetaData"]["time_utc"] = go_ts
+        e = self.conn.normalize(msg)
+        assert e.event_time.year == 2026
+        assert e.event_time.month == 4
+        assert e.event_time.day == 16
+        assert e.event_time.hour == 19
+        assert e.event_time.tzinfo is not None
 
     def test_license_is_public(self) -> None:
         e = self.conn.normalize(_make_position_msg())

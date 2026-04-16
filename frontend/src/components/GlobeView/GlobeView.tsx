@@ -217,6 +217,7 @@ interface Props {
   // Phase 4 Track C — entity selection + camera focus
   selectedEntityId?: string | null;
   centerPoint?: { lon: number; lat: number };
+  selectedAoiId?: string | null;
 }
 
 function toFeatureCollection(features: GeoJSON.Feature[]): GeoJSON.FeatureCollection {
@@ -254,6 +255,7 @@ export function GlobeView({
   signalEvents = [], showSignalsLayer = false,
   selectedEntityId = null,
   centerPoint,
+  selectedAoiId,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -312,13 +314,20 @@ export function GlobeView({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Restore last globe viewport from localStorage; fall back to global overview default.
+    let storedViewport: { lng: number; lat: number; zoom: number; pitch?: number; bearing?: number } | null = null;
+    try {
+      const raw = localStorage.getItem("geoint:globeViewport");
+      if (raw) storedViewport = JSON.parse(raw) as typeof storedViewport;
+    } catch { /* ignore corrupt data */ }
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: GLOBE_STYLE_URL,
-      center: [30, 20],   // Africa / Middle East centre for good global perspective
-      zoom: 1.5,
-      pitch: 30,          // tilt for 3-D sphere feel
-      bearing: 20,
+      center: storedViewport ? [storedViewport.lng, storedViewport.lat] : [30, 20],
+      zoom: storedViewport?.zoom ?? 1.5,
+      pitch: storedViewport?.pitch ?? 30,
+      bearing: storedViewport?.bearing ?? 20,
     });
     mapRef.current = map;
 
@@ -344,6 +353,17 @@ export function GlobeView({
     
     // Backup: Also listen to window resize events
     window.addEventListener('resize', handleResize);
+
+    // Persist viewport on every pan/zoom so it survives page reloads.
+    map.on("moveend", () => {
+      const { lng, lat } = map.getCenter();
+      const zoom = map.getZoom();
+      const pitch = map.getPitch();
+      const bearing = map.getBearing();
+      try {
+        localStorage.setItem("geoint:globeViewport", JSON.stringify({ lng, lat, zoom, pitch, bearing }));
+      } catch { /* storage quota exceeded — ignore */ }
+    });
 
     // Defensive font remapper — patches any loaded style that references fonts not
     // hosted on OpenFreeMap (e.g. old Carto Voyager style migrated its glyphs URL to
@@ -376,6 +396,11 @@ export function GlobeView({
     map.on("load", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (map as any).setProjection({ type: "globe" });
+
+      // Globe projection does not support fog — remove it from the loaded style
+      // to suppress the "calculateFogMatrix is not supported on globe projection" warning.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      try { (map as any).setFog(null); } catch { /* MapLibre version may not support setFog */ }
 
       // Ensure map is properly sized after load
       requestAnimationFrame(() => {
@@ -429,8 +454,9 @@ export function GlobeView({
       // Expose map instance for Playwright demo recording (dev / demo mode only)
       (window as Window & { __argusMap?: maplibregl.Map }).__argusMap = map;
 
-      // P6-7: God's Eye entry animation — descend from orbit to Hormuz
-      if (!godsEyeFiredRef.current) {
+      // P6-7: God's Eye entry animation — descend from orbit to Hormuz.
+      // Skipped on subsequent visits when a persisted viewport is available.
+      if (!godsEyeFiredRef.current && !storedViewport) {
         godsEyeFiredRef.current = true;
         setTimeout(() => {
           map.flyTo({
@@ -1153,7 +1179,7 @@ export function GlobeView({
         // ["zoom"] must be the top-level interpolate input — cannot nest inside ["*"].
         "circle-radius": ["interpolate", ["linear"], ["zoom"],
           1, ["case", ["==", ["get", "selected"], 1], 6, 3],
-          6, ["case", ["==", ["get", "selected"], 1], ["*", ["get", "confidence"], 24], ["*", ["get", "confidence"], 12]],
+          6, ["case", ["==", ["get", "selected"], 1], ["*", ["coalesce", ["get", "confidence"], 0.5], 24], ["*", ["coalesce", ["get", "confidence"], 0.5], 12]],
         ] as unknown as number,
         "circle-opacity": 0.85,
         "circle-stroke-color": "#ffffff",
@@ -1198,6 +1224,39 @@ export function GlobeView({
       : [];
     flushOverlay();
   }, [showDetectionsLayer, detections]);
+
+  // Fly to selected AOI bounds when selection changes or when style first loads (3D globe).
+  const prevGlobeAoiIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    const map = mapRef.current;
+    // Wait for style — early return leaves prevRef untouched so zoom fires once style is ready
+    if (!map || !styleLoaded || !selectedAoiId) return;
+    if (prevGlobeAoiIdRef.current === (selectedAoiId ?? null)) return;
+    prevGlobeAoiIdRef.current = selectedAoiId ?? null;
+    const aoi = aois.find(a => a.id === selectedAoiId);
+    if (!aoi?.geometry) return;
+    const geom = aoi.geometry as GeoJSON.Geometry;
+    function collectCoords(g: GeoJSON.Geometry): number[][] {
+      if (g.type === "Point") return [g.coordinates as number[]];
+      if (g.type === "MultiPoint") return g.coordinates as number[][];
+      if (g.type === "LineString") return g.coordinates as number[][];
+      if (g.type === "MultiLineString") return (g.coordinates as number[][][]).flat();
+      if (g.type === "Polygon") return (g.coordinates as number[][][]).flat();
+      if (g.type === "MultiPolygon") return (g.coordinates as number[][][][]).flat(2);
+      return [];
+    }
+    const coords = collectCoords(geom);
+    if (coords.length === 0) return;
+    const lons = coords.map(c => c[0]);
+    const lats = coords.map(c => c[1]);
+    const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+    if (minLon === maxLon && minLat === maxLat) {
+      map.flyTo({ center: [minLon, minLat], zoom: 10, pitch: 30, duration: 900 });
+    } else {
+      map.fitBounds([[minLon, minLat], [maxLon, maxLat]], { padding: 80, maxZoom: 12, pitch: 30, duration: 900 });
+    }
+  }, [selectedAoiId, aois, styleLoaded]);
 
   // Phase 4 Track C — fly to camera focus point
   useEffect(() => {
