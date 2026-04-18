@@ -12,6 +12,8 @@ import type { Trip, TrackWaypoint } from "../../hooks/useTracks";
 import type { SatellitePass, AirspaceRestriction, GpsJammingEvent, StrikeEvent } from "../../types/operationalLayers";
 import type { DetectionOverlay } from "../../types/sensorFusion";
 import { MapLegend } from "./MapLegend";
+import { MapPopup } from "./MapPopup";
+import type { MapPopupData } from "./MapPopup";
 import type { RenderMode } from "../../types/renderModes";
 import { RENDER_MODE_CONFIGS } from "../../types/renderModes";
 import { normalizeEntityAltitudeM } from "../../utils/entityAltitude";
@@ -188,6 +190,18 @@ export function MapView({
   onStrikeClick,
   centerPoint,
 }: Props) {
+  // Draggable popup state
+  const [activePopups, setActivePopups] = useState<MapPopupData[]>([]);
+  // Stable ref so stale map-event closures always call the latest implementation
+  const openPopupRef = useRef<(x: number, y: number, html: string) => void>(() => {});
+  openPopupRef.current = (x: number, y: number, html: string) => {
+    const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setActivePopups(prev => [...prev, { id, x, y, html }]);
+  };
+  const closePopup = useCallback((id: string) => {
+    setActivePopups(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
   const drawCoordsRef = useRef<[number, number][]>([]);
@@ -383,17 +397,14 @@ export function MapView({
             }
           }
         }
-        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">\uD83D\uDDFA\uFE0F AOI ZONE</div>
             <div class="entity-popup-id">${String(p.name ?? p.id)}</div>
             <div class="entity-popup-grid">
               <span class="ep-label">ID</span><span class="ep-val">${String(p.id)}</span>
               <span class="ep-label">Status</span><span class="ep-val">${p.selected ? "Selected" : "Inactive"}</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
       });
     }
   }, [aois, selectedAoiId, onAoiClick, styleLoaded, styleRevision]);
@@ -448,9 +459,7 @@ export function MapView({
               <img class="imagery-popup-preview" src="${previewUrl}" alt="Imagery preview for ${String(p.id ?? "unknown")}" loading="lazy" />
             </a>`
           : `<div class="imagery-popup-preview imagery-popup-preview--empty">No preview available</div>`;
-        new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">\uD83D\uDEF0\uFE0F IMAGERY FOOTPRINT</div>
             <div class="entity-popup-id">${String(p.id ?? "unknown")}</div>
             ${preview}
@@ -463,8 +472,7 @@ export function MapView({
                   : "\u2014"
               }</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
       });
     }
   }, [imageryItems, showImageryLayer, imageryOpacity, styleLoaded, styleRevision]);
@@ -516,15 +524,12 @@ export function MapView({
       map.on("click", "events-clusters", (e) => {
         const p = e.features?.[0]?.properties;
         if (!p) return;
-        new maplibregl.Popup({ closeButton: true, maxWidth: "220px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">\u26A0\uFE0F EVENT CLUSTER</div>
             <div class="entity-popup-grid">
               <span class="ep-label">Items</span><span class="ep-val">${String(p.point_count ?? 0)}</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
       });
       map.on("click", "events-circle", (e) => {
         const id = e.features?.[0]?.properties?.id;
@@ -618,23 +623,17 @@ export function MapView({
         }
         content += `</div></div>`;
         
-        new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
-          .setLngLat(e.lngLat)
-          .setHTML(content)
-          .addTo(map);
+        openPopupRef.current(e.point.x, e.point.y, content);
       });
       map.on("click", "gdelt-clusters", (e) => {
         const p = e.features?.[0]?.properties;
         if (!p) return;
-        new maplibregl.Popup({ closeButton: true, maxWidth: "200px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">\uD83D\uDCC4 GDELT CLUSTER</div>
             <div class="entity-popup-grid">
               <span class="ep-label">Events</span><span class="ep-val">${String(p.point_count ?? 0)}</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
       });
     }
   }, [gdeltEvents, showGdeltLayer, styleLoaded, styleRevision]);
@@ -743,10 +742,7 @@ export function MapView({
         }
         content += `</div></div>`;
         
-        new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
-          .setLngLat(e.lngLat)
-          .setHTML(content)
-          .addTo(map);
+        openPopupRef.current(e.point.x, e.point.y, content);
         // Propagate to event detail panel
         const evt = signalEvents.find(ev => ev.event_id === String(p.id));
         if (evt) onEventClick?.(evt);
@@ -754,15 +750,12 @@ export function MapView({
       map.on("click", "signals-clusters", (e) => {
         const p = e.features?.[0]?.properties;
         if (!p) return;
-        new maplibregl.Popup({ closeButton: true, maxWidth: "200px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">\u26A1 SIGNALS CLUSTER</div>
             <div class="entity-popup-grid">
               <span class="ep-label">Signals</span><span class="ep-val">${String(p.point_count ?? 0)}</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
       });
     }
   }, [signalEvents, showSignalsLayer, onEventClick, styleLoaded, styleRevision]);
@@ -942,17 +935,14 @@ export function MapView({
           ? `${p.lower_limit_ft as string}\u2013${(p.upper_limit_ft as string | null) ?? "UNL"} ft`
           : "\u2014";
         const validity = `${(p.valid_from as string | null) ?? "\u2014"} \u2192 ${(p.valid_to as string | null) ?? "open"}`;
-        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">\u2708 ${p.restriction_type as string}</div>
             <div class="entity-popup-id">${p.name as string}</div>
             <div class="entity-popup-grid">
               <span class="ep-label">Valid</span><span class="ep-val">${validity}</span>
               <span class="ep-label">Altitude</span><span class="ep-val">${alt}</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
       });
     }
   }, [showAirspaceLayer, airspaceRestrictions, styleLoaded, styleRevision]);
@@ -1004,9 +994,7 @@ export function MapView({
         const p = e.features?.[0]?.properties;
         if (!p) return;
         const conf = `${Math.round((p.confidence as number) * 100)}%`;
-        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">\uD83D\uDCA5 STRIKE</div>
             <div class="entity-popup-id">${(p.strike_type as string).toUpperCase()}</div>
             <div class="entity-popup-grid">
@@ -1014,8 +1002,7 @@ export function MapView({
               <span class="ep-label">Target</span><span class="ep-val">${(p.target_description as string | null) ?? "\u2014"}</span>
               <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
         onStrikeClickRef.current?.(p.strike_id as string);
       });
     }
@@ -1119,9 +1106,7 @@ export function MapView({
         if (!p) return;
         const conf = `${Math.round((p.confidence as number) * 100)}%`;
         const detectedAt = new Date(p.detected_at as string).toLocaleString();
-        new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="entity-popup">
+        openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup">
             <div class="entity-popup-header">🔍 DETECTION</div>
             <div class="entity-popup-id">${(p.detection_type as string).toUpperCase()}</div>
             <div class="entity-popup-grid">
@@ -1129,8 +1114,7 @@ export function MapView({
               <span class="ep-label">Observation</span><span class="ep-val">${p.observation_id as string}</span>
               <span class="ep-label">Confidence</span><span class="ep-val">${conf}</span>
             </div>
-          </div>`)
-          .addTo(map);
+          </div>`);
       });
     }
   }, [showDetectionsLayer, detections, styleLoaded, styleRevision]);
@@ -1255,15 +1239,12 @@ export function MapView({
       if (!feat || feat.geometry.type !== "Point") return;
       const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
       const p = feat.properties as Record<string, unknown>;
-      new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
-        .setLngLat([lng, lat])
-        .setHTML(buildEntityPopupHtml(
-          String(p.id ?? ""), String(p.entityType ?? ""),
-          Number(p.heading ?? 0), Number(p.speedKts ?? 0),
-          Number(p.lastSeenUnix ?? 0), lng, lat, Number(p.altitudeM ?? 0),
-          Boolean(p.isMilitary ?? false),
-        ))
-        .addTo(map);
+      openPopupRef.current(e.point.x, e.point.y, buildEntityPopupHtml(
+        String(p.id ?? ""), String(p.entityType ?? ""),
+        Number(p.heading ?? 0), Number(p.speedKts ?? 0),
+        Number(p.lastSeenUnix ?? 0), lng, lat, Number(p.altitudeM ?? 0),
+        Boolean(p.isMilitary ?? false),
+      ));
     };
     const cursorOn  = () => { map.getCanvas().style.cursor = "pointer"; };
     const cursorOff = () => { if (drawMode === "none") map.getCanvas().style.cursor = ""; };
@@ -1459,6 +1440,9 @@ export function MapView({
         showSignals={showSignalsLayer}
       />
       {coordDisplay && <div className="map-coord-display">{coordDisplay}</div>}
+      {activePopups.map(p => (
+        <MapPopup key={p.id} {...p} onClose={closePopup} />
+      ))}
     </div>
   );
 }

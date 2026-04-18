@@ -539,26 +539,35 @@ body {
 /* ── Map Legend ─────────────────────────────────────────────────────────── */
 .map-legend {
   position: absolute;
-  bottom: 80px; left: 10px;  /* Increased from 58px to 80px to stay above chokepoint metrics bar */
+  /* Default anchor — useDraggable transform overrides this once the user moves it */
+  bottom: 80px; left: 10px;
   z-index: 10;
   min-width: 130px;
   max-width: 220px;
-  max-height: calc(100% - 130px);  /* Adjusted to account for higher bottom position */
+  max-height: calc(100% - 130px);
   overflow-y: auto;
   background: rgba(14,28,48,0.92);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 8px 10px;
+  padding: 0 0 8px;
   backdrop-filter: blur(6px);
   pointer-events: auto;
 }
 .map-legend-title {
   font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
-  text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 7px 10px 5px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
+.map-legend-title:hover { background: rgba(0,212,255,0.05); }
+/* legend rows need horizontal padding now that the wrapper padding was moved */
 .map-legend-row {
   display: flex; align-items: center; gap: 7px; margin-bottom: 5px;
+  padding-left: 10px; padding-right: 10px;
 }
+.map-legend-desc { font-size: 10px; color: var(--text-muted); line-height: 1.45; padding: 2px 10px 6px 35px; }
 .map-legend-row--interactive {
   cursor: pointer; border-radius: 3px; padding: 2px 4px; margin-left: -4px; margin-right: -4px;
   transition: background 0.15s;
@@ -567,10 +576,6 @@ body {
 .map-legend-row--active { background: rgba(255,255,255,0.10); }
 .map-legend-row:last-child { margin-bottom: 0; }
 .map-legend-label { font-size: 11px; color: var(--text-secondary); user-select: none; }
-.map-legend-desc {
-  font-size: 10px; color: var(--text-muted); line-height: 1.45;
-  padding: 2px 4px 6px 25px;
-}
 
 /* ── Entity popup (MapLibre custom styling) ─────────────────────────────── */
 .maplibregl-popup .maplibregl-popup-content {

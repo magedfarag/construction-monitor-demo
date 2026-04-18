@@ -2,7 +2,7 @@
 // Replaces globe.gl (static JPEG texture → blurry on zoom) with MapLibre's
 // native globe projection which streams vector tiles at full resolution at
 // every zoom level — identical to the 2D view but rendered as a 3D sphere.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -17,6 +17,8 @@ import type { DetectionOverlay } from "../../types/sensorFusion";
 import { chokepointsApi } from "../../api/client";
 import { darkShipsApi } from "../../api/client";
 import { MapLegend } from "../Map/MapLegend";
+import { MapPopup } from "../Map/MapPopup";
+import type { MapPopupData } from "../Map/MapPopup";
 import type { RenderMode } from "../../types/renderModes";
 import { RENDER_MODE_CONFIGS } from "../../types/renderModes";
 import { normalizeEntityAltitudeM } from "../../utils/entityAltitude";
@@ -257,6 +259,17 @@ export function GlobeView({
   centerPoint,
   selectedAoiId,
 }: Props) {
+  // Draggable popup state
+  const [activePopups, setActivePopups] = useState<MapPopupData[]>([]);
+  const openPopupRef = useRef<(x: number, y: number, html: string) => void>(() => {});
+  openPopupRef.current = (x: number, y: number, html: string) => {
+    const id = `popup-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setActivePopups(prev => [...prev, { id, x, y, html }]);
+  };
+  const closePopup = useCallback((id: string) => {
+    setActivePopups(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const deckRef = useRef<MapboxOverlay | null>(null);
@@ -825,14 +838,11 @@ export function GlobeView({
       if (!feat || feat.geometry.type !== "Point") return;
       const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
       const p = feat.properties as Record<string, unknown>;
-      new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
-        .setLngLat([lng, lat])
-        .setHTML(buildEntityPopupHtml(
-          String(p.id ?? ""), String(p.entityType ?? ""),
-          Number(p.heading ?? 0), Number(p.speedKts ?? 0),
-          Number(p.lastSeenUnix ?? 0), lng, lat, Number(p.altitudeM ?? 0),
-        ))
-        .addTo(map);
+      openPopupRef.current(e.point.x, e.point.y, buildEntityPopupHtml(
+        String(p.id ?? ""), String(p.entityType ?? ""),
+        Number(p.heading ?? 0), Number(p.speedKts ?? 0),
+        Number(p.lastSeenUnix ?? 0), lng, lat, Number(p.altitudeM ?? 0),
+      ));
     };
     const handleEventClick = (e: maplibregl.MapLayerMouseEvent) => {
       const feat = e.features?.[0];
@@ -864,10 +874,7 @@ export function GlobeView({
       }
       content += `</div></div>`;
       
-      new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
-        .setLngLat([lng, lat])
-        .setHTML(content)
-        .addTo(map);
+      openPopupRef.current(e.point.x, e.point.y, content);
     };
     const handleGdeltClick = (e: maplibregl.MapLayerMouseEvent) => {
       const feat = e.features?.[0];
@@ -897,10 +904,7 @@ export function GlobeView({
       }
       content += `</div></div>`;
       
-      new maplibregl.Popup({ closeButton: true, maxWidth: "320px" })
-        .setLngLat([lng, lat])
-        .setHTML(content)
-        .addTo(map);
+      openPopupRef.current(e.point.x, e.point.y, content);
     };
     const handleSignalClick = (e: maplibregl.MapLayerMouseEvent) => {
       const feat = e.features?.[0];
@@ -909,20 +913,14 @@ export function GlobeView({
       const p = feat.properties as Record<string, unknown>;
       const label = String(p.type ?? "").replace(/_/g, " ").toUpperCase();
       const conf = p.confidence != null ? `${Math.round(Number(p.confidence) * 100)}%` : "\u2014";
-      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
-        .setLngLat([lng, lat])
-        .setHTML(`<div class="entity-popup"><div class="entity-popup-header">\u26a1 ${label}</div><div class="entity-popup-id">${String(p.id ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span><span class="ep-label">Confidence</span><span class="ep-val">${conf}</span></div></div>`)
-        .addTo(map);
+      openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup"><div class="entity-popup-header">\u26a1 ${label}</div><div class="entity-popup-id">${String(p.id ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Source</span><span class="ep-val">${String(p.source ?? "\u2014")}</span><span class="ep-label">Confidence</span><span class="ep-val">${conf}</span></div></div>`);
     };
     const handleDarkShipClick = (e: maplibregl.MapLayerMouseEvent) => {
       const feat = e.features?.[0];
       if (!feat || feat.geometry.type !== "Point") return;
       const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates;
       const p = feat.properties as Record<string, unknown>;
-      new maplibregl.Popup({ closeButton: true, maxWidth: "280px" })
-        .setLngLat([lng, lat])
-        .setHTML(`<div class="entity-popup entity-popup-ship"><div class="entity-popup-header">\uD83D\uDD26 DARK SHIP</div><div class="entity-popup-id">${String(p.label ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Confidence</span><span class="ep-val">${String(p.conf ?? "\u2014")}%</span></div></div>`)
-        .addTo(map);
+      openPopupRef.current(e.point.x, e.point.y, `<div class="entity-popup entity-popup-ship"><div class="entity-popup-header">\uD83D\uDD26 DARK SHIP</div><div class="entity-popup-id">${String(p.label ?? "")}</div><div class="entity-popup-grid"><span class="ep-label">Confidence</span><span class="ep-val">${String(p.conf ?? "\u2014")}%</span></div></div>`);
     };
     const cursorOn  = () => { map.getCanvas().style.cursor = "pointer"; };
     const cursorOff = () => { map.getCanvas().style.cursor = ""; };
@@ -1328,6 +1326,9 @@ export function GlobeView({
           {perfReport.fps} FPS · {perfReport.frameMs}ms{perfReport.isDenseView ? " · DENSE" : ""}
         </div>
       )}
+      {activePopups.map(p => (
+        <MapPopup key={p.id} {...p} onClose={closePopup} />
+      ))}
     </div>
   );
 }

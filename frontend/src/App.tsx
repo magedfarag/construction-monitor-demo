@@ -404,8 +404,25 @@ function AppShell() {
     return Math.max(fallback, earliestTrackPoint - 900);
   }, [startTime, visibleTracks]);
 
-  // currentTime for TripsLayer — driven by animation or playback, fallback to end of window
-  const tracksCurrentTime = playbackTime ?? (Date.parse(endTime) / 1000);
+  // Live clock — ticks every 10 s when not animating so entity positions stay current.
+  // When animating, `playbackTime` overrides this anyway.
+  const [liveNowSec, setLiveNowSec] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    if (isAnimating) return;
+    const id = setInterval(() => {
+      const now = Date.now() / 1000;
+      setLiveNowSec(now);
+      // Auto-extend endTime when it is within 5 minutes of "now" (i.e. live mode).
+      // This keeps the useTracks window fresh so newly ingested telemetry is included.
+      if (now - Date.parse(endTime) / 1000 < 300) {
+        setEndTime(new Date().toISOString());
+      }
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [isAnimating, endTime]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // currentTime for TripsLayer — driven by animation or playback, fallback to live wall-clock.
+  const tracksCurrentTime = playbackTime ?? liveNowSec;
   // Keep only very recent tails visible to prevent map-spanning artifacts
   // during high-speed replay.
   const tracksTrailLength = 60 * 60;  // 60-minute trails for ships (longer context)

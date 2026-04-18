@@ -262,7 +262,9 @@ class AisStreamConnector(BaseConnector):
             ) from exc
 
         min_lat, min_lon, max_lat, max_lon = _bbox_from_geojson(geometry)
-        bounding_boxes = [[min_lat, min_lon, max_lat, max_lon]]
+        # AISStream expects BoundingBoxes: [[[lat1, lon1], [lat2, lon2]]] —
+        # two [lat, lon] corner pairs per box, not a flat 4-element list.
+        bounding_boxes = [[min_lat, min_lon], [max_lat, max_lon]]
 
         subscribe_msg = {
             "APIKey": self._api_key,

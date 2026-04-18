@@ -116,6 +116,25 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         ))
     except Exception as exc:
         _log.getLogger(__name__).warning("OpenSkyConnector: %s", exc)
+    # P3-3: RapidAPI AIS (REST bbox poll — faster + more reliable than WebSocket)
+    if settings.rapid_api_is_configured():
+        try:
+            from src.connectors.rapidapi_ais import RapidApiAisConnector
+            v2_registry.register(RapidApiAisConnector(
+                api_key=settings.rapid_api_key,
+                host=settings.rapid_api_host,
+            ))
+        except Exception as exc:
+            _log.getLogger(__name__).warning("RapidApiAisConnector: %s", exc)
+    # P3-4: VesselData API (center+radius area poll — additional ship source)
+    if settings.vessel_data_is_configured():
+        try:
+            from src.connectors.vessel_data import VesselDataConnector
+            v2_registry.register(VesselDataConnector(
+                api_key=settings.vessel_data_api_key,
+            ))
+        except Exception as exc:
+            _log.getLogger(__name__).warning("VesselDataConnector: %s", exc)
     # Free data sources — no credentials required ────────────────────────────
     # USGS Earthquake Catalog (public domain, zero auth)
     try:
@@ -267,9 +286,15 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
                 _seed_count,
             )
         else:
+            # In production/staging, seed the Strait of Hormuz AOI so the
+            # frontend has a geometry to work with and live polls can fire.
+            # No synthetic events are injected — only real connectors supply data.
+            from src.services.demo_seeder import seed_aoi_store as _seed_aoi
+            _prod_aoi_id = _seed_aoi(_aoi_store)
             _log.getLogger(__name__).info(
-                "Demo seeder disabled in %s mode; in-memory AOI/event stores cleared",
-                settings.app_mode.value,
+                "Production mode: Strait of Hormuz AOI %s created; "
+                "event store cleared (live connectors will populate)",
+                _prod_aoi_id,
             )
     except Exception as _seed_exc:
         _log.getLogger(__name__).warning("Demo seeder failed: %s", _seed_exc)
@@ -277,8 +302,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     # PostGIS / SQLAlchemy engine (P0-4) — initialise when DATABASE_URL is set
     if settings.database_url:
         try:
-            from src.storage.database import init_db
+            from src.storage.database import create_all_tables, init_db
             init_db(settings.database_url)
+            create_all_tables()  # idempotent — creates tables that do not yet exist
         except Exception as exc:
             _log.getLogger(__name__).warning("Database init failed: %s", exc)
 

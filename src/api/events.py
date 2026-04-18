@@ -54,42 +54,47 @@ def set_connector_registry(registry: Any) -> None:
 
 
 # Event types that can be fetched live from a connector when the store is empty.
-# Maps EventType value → connector_id registered in the V2 registry.
-_LIVE_POLL_MAP: dict[str, str] = {
-    EventType.SHIP_POSITION.value: "ais-stream",
-    EventType.AIRCRAFT_POSITION.value: "opensky",
+# Maps EventType value → ordered list of connector_ids to try (all are attempted;
+# REST connectors first for speed, WebSocket last as fallback).
+_LIVE_POLL_MAP: dict[str, list[str]] = {
+    EventType.SHIP_POSITION.value: ["ais-stream"],
+    EventType.AIRCRAFT_POSITION.value: ["opensky"],
 }
 
 
-# Per-connector live-poll timeout (seconds).  Keeps HTTP response latency bounded.
-# AISStream WebSocket has open_timeout=10 + collect_timeout_s=10 by default, so
-# we cap the whole call at 12 s to stay within a typical 20 s HTTP gateway timeout.
-_LIVE_POLL_TIMEOUT_S: float = 12.0
+# Per-connector live-poll timeout (seconds).  REST connectors (rapidapi-ais,
+# vessel-data) respond in <5 s.  AISStream WebSocket needs open_timeout=10 +
+# collect_timeout_s=10, so we budget 25 s to accommodate the full window.
+_LIVE_POLL_TIMEOUT_S: float = 25.0
 
 
-def _live_poll_and_ingest(req: EventSearchRequest, store: EventStore) -> int:
-    """Best-effort on-demand poll for telemetry connectors.
+def poll_live_connectors(
+    geometry: dict,
+    start_time: datetime,
+    end_time: datetime,
+    store: EventStore,
+    event_types: list | None = None,
+) -> int:
+    """Poll live connectors and ingest results into the store.
 
-    Called when a search returns 0 results and a geometry is present.  Polls
-    the relevant live connector(s) directly, normalises the results, and
-    ingests them into the store so the re-run search finds data.
-
+    Shared helper used by both /events/search and /playback/query so that
+    any endpoint that reads from the EventStore can prime it on a cache miss.
     Returns the number of newly ingested events (0 on any error).
     """
-    if _connector_registry is None or req.geometry is None:
+    if _connector_registry is None:
         return 0
 
     requested = {
         (t.value if hasattr(t, "value") else str(t))
-        for t in (req.event_types or [])
+        for t in (event_types or [])
     }
     # If no type filter is set, try all live-pollable types.
     connector_ids = {
         cid
-        for etype, cid in _LIVE_POLL_MAP.items()
+        for etype, cids in _LIVE_POLL_MAP.items()
+        for cid in cids
         if not requested or etype in requested
     }
-
     total_ingested = 0
     for cid in connector_ids:
         connector = _connector_registry.get(cid)
@@ -99,7 +104,7 @@ def _live_poll_and_ingest(req: EventSearchRequest, store: EventStore) -> int:
             with ThreadPoolExecutor(max_workers=1) as _pool:
                 future = _pool.submit(
                     connector.fetch_and_normalize,
-                    req.geometry, req.start_time, req.end_time,
+                    geometry, start_time, end_time,
                 )
                 try:
                     events, warnings = future.result(timeout=_LIVE_POLL_TIMEOUT_S)
@@ -118,6 +123,20 @@ def _live_poll_and_ingest(req: EventSearchRequest, store: EventStore) -> int:
         except Exception as exc:  # noqa: BLE001
             log.warning("live_poll_fallback: %s raised %s", cid, exc)
     return total_ingested
+
+
+def _live_poll_and_ingest(req: EventSearchRequest, store: EventStore) -> int:
+    """Best-effort on-demand poll for telemetry connectors.
+
+    Called when a search returns 0 results and a geometry is present.
+    Delegates to poll_live_connectors — kept for backward compatibility.
+    """
+    if _connector_registry is None or req.geometry is None:
+        return 0
+    return poll_live_connectors(
+        req.geometry, req.start_time, req.end_time, store,
+        event_types=list(req.event_types) if req.event_types else None,
+    )
 
 
 # ── Dependency ────────────────────────────────────────────────────────────────

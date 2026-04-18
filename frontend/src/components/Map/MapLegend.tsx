@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDraggable } from "../../hooks/useDraggable";
 
 interface LegendItem {
   key: string;
@@ -41,6 +42,7 @@ interface Props {
 
 export function MapLegend({ showShips, showAircraft, showEvents, showGdelt, showImagery, showOrbits, showAirspace, showJamming, showStrikes, showDetections, showSignals }: Props) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const { containerProps, handleProps, isDragging } = useDraggable();
 
   const visible = LEGEND_ITEMS.filter(({ key }) => {
     if (key === "ships-civilian")    return showShips;
@@ -60,8 +62,20 @@ export function MapLegend({ showShips, showAircraft, showEvents, showGdelt, show
   });
   if (!visible.length) return null;
   return (
-    <div className="map-legend">
-      <div className="map-legend-title">LEGEND</div>
+    <div
+      {...containerProps}
+      className="map-legend"
+      style={{ ...containerProps.style, userSelect: isDragging ? 'none' : undefined }}
+    >
+      <div
+        {...handleProps}
+        className="map-legend-title"
+        style={{ ...handleProps.style, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: isDragging ? 'grabbing' : 'grab' }}
+        title="Drag to reposition legend"
+      >
+        <span>LEGEND</span>
+        <span style={{ fontSize: 9, opacity: 0.4, marginLeft: 6 }}>⠿</span>
+      </div>
       {visible.map(item => (
         <div key={item.key}>
           <div

@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "./.github/hooks/bin/dispatch-hook.sh sessionStart",
+        "powershell": "./.github/hooks/bin/dispatch-hook.ps1 sessionStart",
+        "timeoutSec": 30,
+        "comment": "Route session start events to the external optimizer"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "./.github/hooks/bin/dispatch-hook.sh sessionEnd",
+        "powershell": "./.github/hooks/bin/dispatch-hook.ps1 sessionEnd",
+        "timeoutSec": 30,
+        "comment": "Route session end events to the external optimizer"
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "./.github/hooks/bin/dispatch-hook.sh userPromptSubmitted",
+        "powershell": "./.github/hooks/bin/dispatch-hook.ps1 userPromptSubmitted",
+        "timeoutSec": 30,
+        "comment": "Log prompt submissions for later analysis"
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "./.github/hooks/bin/dispatch-hook.sh preToolUse",
+        "powershell": "./.github/hooks/bin/dispatch-hook.ps1 preToolUse",
+        "timeoutSec": 30,
+        "comment": "Enforce approval policy for write actions"
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "./.github/hooks/bin/dispatch-hook.sh postToolUse",
+        "powershell": "./.github/hooks/bin/dispatch-hook.ps1 postToolUse",
+        "timeoutSec": 30,
+        "comment": "Log tool results for later analysis"
+      }
+    ]
+  }
+}

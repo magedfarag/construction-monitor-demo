@@ -33,6 +33,7 @@ from fastapi.responses import Response
 from app.cache.query_cache import get_query_cache, ttl_for_window
 from app.rate_limiter import heavy_endpoint_rate_limit
 from src.api.aois import get_aoi_store
+from src.api.events import poll_live_connectors
 from src.models.playback import (
     EntityTrackPoint,
     EntityTrackResponse,
@@ -42,6 +43,7 @@ from src.models.playback import (
     PlaybackQueryRequest,
     PlaybackQueryResponse,
 )
+from src.api.events import poll_live_connectors
 from src.services.event_store import EventStore, get_default_event_store
 from src.services.playback_service import PlaybackService
 from src.services.telemetry_store import TelemetryStore, get_default_telemetry_store
@@ -171,7 +173,22 @@ def query_playback(
     ttl = ttl_for_window(window_days)
 
     svc = get_playback_service()
+    store = get_default_event_store()
     result = svc.query(req)
+    # Best-effort live poll: when result is empty and a geometry is present,
+    # prime the store from live connectors and re-run.  Only telemetry source
+    # types trigger polling (ships / aircraft).
+    if result.total_frames == 0 and req.geometry is not None:
+        is_telemetry = not req.source_types or any(
+            st.value == "telemetry" for st in req.source_types
+        )
+        if is_telemetry:
+            ingested = poll_live_connectors(
+                req.geometry, req.start_time, req.end_time, store,
+                event_types=[et.value for et in req.event_types] if req.event_types else None,
+            )
+            if ingested > 0:
+                result = svc.query(req)
     # Use Pydantic v2's Rust-backed serialiser (model_dump_json) instead of
     # FastAPI's jsonable_encoder + json.dumps so that the cache always stores
     # a compact, pre-serialised string.  Subsequent cache hits skip all

@@ -128,11 +128,16 @@ class RapidApiAisConnector(BaseConnector):
             "X-RapidAPI-Key": self._api_key,
             "X-RapidAPI-Host": self._host,
         }
+        # AIS Hub API uses latmin/latmax/lonmin/lonmax bbox params with human-readable
+        # output (format=1) and JSON encoding.  The RapidAPI wrapper drops the
+        # username requirement — auth is via X-RapidAPI-Key.
         params: dict[str, Any] = {
-            "south": south,
-            "west": west,
-            "north": north,
-            "east": east,
+            "latmin": south,
+            "latmax": north,
+            "lonmin": west,
+            "lonmax": east,
+            "format": "1",
+            "output": "json",
         }
         try:
             resp = httpx.get(

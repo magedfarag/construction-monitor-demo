@@ -85,9 +85,11 @@ Write-Host ""
 Write-Host "Press Ctrl+C to stop the server" -ForegroundColor Yellow
 Write-Host ""
 
-# Start uvicorn with auto-reload
+# Start uvicorn with auto-reload scoped to backend dirs only.
+# --reload-dir app --reload-dir src prevents frontend file saves from
+# triggering a full server restart (startup takes ~90 s due to connector checks).
 if (Test-Path $venvPython) {
-    & $venvPython -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    & $venvPython -m uvicorn app.main:app --reload --reload-dir app --reload-dir src --host 0.0.0.0 --port 8000
 } else {
     python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 }
